@@ -7,7 +7,7 @@
   "sessions": {
     "default": [
       {
-        "name": "frontend",
+        "name": "frontend-terminal",
         "autoExecuteCommands": true,
         "icon": "terminal",
         "color": "terminal.ansiGreen",
@@ -16,18 +16,16 @@
         ]
       },
       {
-        "name": "backend",
+        "name": "backend-terminal",
         "autoExecuteCommands": true,
         "icon": "terminal",
         "color": "terminal.ansiBlue",
         "commands": [
           "cd apps/backend"
         ]
-      }
-    ],
-    "development": [
+      },
       {
-        "name": "development",
+        "name": "nextjs",
         "autoExecuteCommands": true,
         "icon": "terminal",
         "color": "terminal.ansiGreen",
