@@ -24,6 +24,18 @@
           "cd apps/backend"
         ]
       }
+    ],
+    "development": [
+      {
+        "name": "development",
+        "autoExecuteCommands": true,
+        "icon": "terminal",
+        "color": "terminal.ansiGreen",
+        "commands": [
+          "cd apps/frontend",
+          "npm run dev"
+        ]
+      }
     ]
   }
 }

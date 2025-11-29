@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Search, Bell, User } from "lucide-react";
+import { Bell, User } from "lucide-react";
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 
 export const Header = () => {
   return (
@@ -31,14 +32,26 @@ export const Header = () => {
 
         {/* User Actions */}
         <div className="flex items-center gap-4">
-          <button className="p-2 rounded-full hover:bg-gray-100 border border-gray-200">
-            <Bell className="w-5 h-5 text-gray-600" />
-          </button>
-          <button className="p-1 rounded-full border border-gray-200 hover:bg-gray-100">
-            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-              <User className="w-5 h-5 text-gray-500" />
-            </div>
-          </button>
+          <SignedIn>
+            <button className="p-2 rounded-full hover:bg-gray-100 border border-gray-200">
+              <Bell className="w-5 h-5 text-gray-600" />
+            </button>
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: "w-9 h-9",
+                },
+              }}
+            />
+          </SignedIn>
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors">
+                <User className="w-4 h-4" />
+                ログイン
+              </button>
+            </SignInButton>
+          </SignedOut>
         </div>
       </div>
     </header>
