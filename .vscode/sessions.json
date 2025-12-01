@@ -33,6 +33,16 @@
           "cd apps/frontend",
           "npm run dev"
         ]
+      },
+      {
+        "name": "gin",
+        "autoExecuteCommands": true,
+        "icon": "terminal",
+        "color": "terminal.ansiBlue",
+        "commands": [
+          "cd apps/backend",
+          "go run cmd/main.go"
+        ]
       }
     ]
   }
