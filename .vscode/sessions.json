@@ -6,44 +6,48 @@
   "keepExistingTerminals": false,
   "sessions": {
     "default": [
-      {
-        "name": "frontend-terminal",
-        "autoExecuteCommands": true,
-        "icon": "terminal",
-        "color": "terminal.ansiGreen",
-        "commands": [
-          "cd apps/frontend"
-        ]
-      },
-      {
-        "name": "backend-terminal",
-        "autoExecuteCommands": true,
-        "icon": "terminal",
-        "color": "terminal.ansiBlue",
-        "commands": [
-          "cd apps/backend"
-        ]
-      },
-      {
-        "name": "nextjs",
-        "autoExecuteCommands": true,
-        "icon": "terminal",
-        "color": "terminal.ansiGreen",
-        "commands": [
-          "cd apps/frontend",
-          "npm run dev"
-        ]
-      },
-      {
-        "name": "gin",
-        "autoExecuteCommands": true,
-        "icon": "terminal",
-        "color": "terminal.ansiBlue",
-        "commands": [
-          "cd apps/backend",
-          "go run cmd/main.go"
-        ]
-      }
+      [
+        {
+          "name": "frontend-terminal",
+          "autoExecuteCommands": true,
+          "icon": "terminal",
+          "color": "terminal.ansiGreen",
+          "commands": [
+            "cd apps/frontend"
+          ]
+        },
+        {
+          "name": "backend-terminal",
+          "autoExecuteCommands": true,
+          "icon": "terminal",
+          "color": "terminal.ansiBlue",
+          "commands": [
+            "cd apps/backend"
+          ]
+        }
+      ],
+      [
+        {
+          "name": "nextjs",
+          "autoExecuteCommands": true,
+          "icon": "browser",
+          "color": "terminal.ansiGreen",
+          "commands": [
+            "cd apps/frontend",
+            "npm run dev"
+          ]
+        },
+        {
+          "name": "gin",
+          "autoExecuteCommands": true,
+          "icon": "server",
+          "color": "terminal.ansiBlue",
+          "commands": [
+            "cd apps/backend",
+            "go run cmd/main.go"
+          ]
+        }
+      ]
     ]
   }
 }
