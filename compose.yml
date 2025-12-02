@@ -1,8 +1,7 @@
 services:
   postgres:
-    image: postgres:18
+    image: postgres:16
     container_name: cinetag-postgres
-    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
