@@ -1,14 +1,14 @@
-# 映画カテゴリ共有サービス - テーブル定義
+# 映画タグ共有サービス - テーブル定義
 
 ## ER図
 
 ```mermaid
 erDiagram
-    users ||--o{ categories : "creates"
-    users ||--o{ category_movies : "adds"
-    users ||--o{ category_followers : "follows"
-    categories ||--o{ category_movies : "contains"
-    categories ||--o{ category_followers : "has"
+    users ||--o{ tags : "creates"
+    users ||--o{ tag_movies : "adds"
+    users ||--o{ tag_followers : "follows"
+    tags ||--o{ tag_movies : "contains"
+    tags ||--o{ tag_followers : "has"
 
     users {
         uuid id PK
@@ -22,7 +22,7 @@ erDiagram
         timestamptz updated_at
     }
 
-    categories {
+    tags {
         uuid id PK
         uuid user_id FK "作成者"
         text title "タイトル"
@@ -35,9 +35,9 @@ erDiagram
         timestamptz updated_at
     }
 
-    category_movies {
+    tag_movies {
         uuid id PK
-        uuid category_id FK
+        uuid tag_id FK
         integer tmdb_movie_id "TMDb映画ID"
         uuid added_by_user_id FK "追加したユーザー"
         text note "メモ"
@@ -45,8 +45,8 @@ erDiagram
         timestamptz created_at
     }
 
-    category_followers {
-        uuid category_id PK_FK
+    tag_followers {
+        uuid tag_id PK_FK
         uuid user_id PK_FK
         timestamptz created_at
     }
@@ -74,9 +74,9 @@ erDiagram
 | テーブル名 | 説明 | 主キー |
 |-----------|------|--------|
 | `users` | ユーザー情報 | `id` (UUID) |
-| `categories` | 映画カテゴリ（プレイリスト） | `id` (UUID) |
-| `category_movies` | カテゴリと映画の関連 | `id` (UUID) |
-| `category_followers` | カテゴリのフォロー関係 | `(category_id, user_id)` |
+| `tags` | 映画タグ（プレイリスト） | `id` (UUID) |
+| `tag_movies` | タグと映画の関連 | `id` (UUID) |
+| `tag_followers` | タグのフォロー関係 | `(tag_id, user_id)` |
 | `movie_cache` | TMDb映画情報キャッシュ | `tmdb_movie_id` (INTEGER) |
 
 ---
@@ -97,11 +97,11 @@ erDiagram
 | `created_at` | TIMESTAMPTZ | NO | `CURRENT_TIMESTAMP` | 作成日時 |
 | `updated_at` | TIMESTAMPTZ | NO | `CURRENT_TIMESTAMP` | 更新日時 |
 
-### categories（カテゴリ）
+### tags（タグ）
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| `id` | UUID | NO | `gen_random_uuid()` | カテゴリID |
+| `id` | UUID | NO | `gen_random_uuid()` | タグID |
 | `user_id` | UUID | NO | - | 作成者のユーザーID |
 | `title` | TEXT | NO | - | タイトル（1-100文字） |
 | `description` | TEXT | YES | - | 説明（最大500文字） |
@@ -112,23 +112,23 @@ erDiagram
 | `created_at` | TIMESTAMPTZ | NO | `CURRENT_TIMESTAMP` | 作成日時 |
 | `updated_at` | TIMESTAMPTZ | NO | `CURRENT_TIMESTAMP` | 更新日時 |
 
-### category_movies（カテゴリ内映画）
+### tag_movies（タグ内映画）
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
 | `id` | UUID | NO | `gen_random_uuid()` | レコードID |
-| `category_id` | UUID | NO | - | カテゴリID |
+| `tag_id` | UUID | NO | - | タグID |
 | `tmdb_movie_id` | INTEGER | NO | - | TMDb映画ID |
 | `added_by_user_id` | UUID | NO | - | 追加したユーザーID |
 | `note` | TEXT | YES | - | メモ（最大280文字） |
 | `position` | INTEGER | NO | `0` | 表示順 |
 | `created_at` | TIMESTAMPTZ | NO | `CURRENT_TIMESTAMP` | 追加日時 |
 
-### category_followers（フォロー）
+### tag_followers（フォロー）
 
 | カラム名 | 型 | NULL | デフォルト | 説明 |
 |---------|-----|------|-----------|------|
-| `category_id` | UUID | NO | - | カテゴリID（複合PK） |
+| `tag_id` | UUID | NO | - | タグID（複合PK） |
 | `user_id` | UUID | NO | - | ユーザーID（複合PK） |
 | `created_at` | TIMESTAMPTZ | NO | `CURRENT_TIMESTAMP` | フォロー日時 |
 
@@ -156,9 +156,9 @@ erDiagram
 | トリガー名 | テーブル | イベント | 用途 |
 |-----------|---------|---------|------|
 | `update_users_updated_at` | users | BEFORE UPDATE | updated_at自動更新 |
-| `update_categories_updated_at` | categories | BEFORE UPDATE | updated_at自動更新 |
-| `trigger_update_category_movie_count` | category_movies | AFTER INSERT/DELETE | movie_count更新 |
-| `trigger_update_category_follower_count` | category_followers | AFTER INSERT/DELETE | follower_count更新 |
+| `update_tags_updated_at` | tags | BEFORE UPDATE | updated_at自動更新 |
+| `trigger_update_tag_movie_count` | tag_movies | AFTER INSERT/DELETE | movie_count更新 |
+| `trigger_update_tag_follower_count` | tag_followers | AFTER INSERT/DELETE | follower_count更新 |
 
 ---
 
@@ -168,12 +168,12 @@ erDiagram
 |---------|--------|------|------|
 | users | `users_clerk_user_id_key` | UNIQUE | clerk_user_idの一意性 |
 | users | `users_username_key` | UNIQUE | usernameの一意性 |
-| categories | `categories_title_length` | CHECK | タイトル1-100文字 |
-| categories | `categories_description_length` | CHECK | 説明500文字以下 |
-| categories | `categories_movie_count_positive` | CHECK | movie_count >= 0 |
-| categories | `categories_follower_count_positive` | CHECK | follower_count >= 0 |
-| category_movies | `category_movies_unique` | UNIQUE | (category_id, tmdb_movie_id)の一意性 |
-| category_movies | `category_movies_note_length` | CHECK | メモ280文字以下 |
-| category_movies | `category_movies_position_positive` | CHECK | position >= 0 |
+| tags | `tags_title_length` | CHECK | タイトル1-100文字 |
+| tags | `tags_description_length` | CHECK | 説明500文字以下 |
+| tags | `tags_movie_count_positive` | CHECK | movie_count >= 0 |
+| tags | `tags_follower_count_positive` | CHECK | follower_count >= 0 |
+| tag_movies | `tag_movies_unique` | UNIQUE | (tag_id, tmdb_movie_id)の一意性 |
+| tag_movies | `tag_movies_note_length` | CHECK | メモ280文字以下 |
+| tag_movies | `tag_movies_position_positive` | CHECK | position >= 0 |
 
 ---

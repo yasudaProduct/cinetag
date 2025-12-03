@@ -18,11 +18,8 @@ export const Header = () => {
             <Link href="/" className="text-gray-900">
               ホーム
             </Link>
-            <Link
-              href="/categories"
-              className="hover:text-gray-900 text-pink-500"
-            >
-              カテゴリを探す
+            <Link href="/tags" className="hover:text-gray-900 text-pink-500">
+              タグを探す
             </Link>
             <Link href="/mypage" className="hover:text-gray-900">
               マイページ

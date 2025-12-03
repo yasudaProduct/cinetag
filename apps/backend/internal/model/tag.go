@@ -2,9 +2,9 @@ package model
 
 import "time"
 
-// Category はユーザーが作成する映画カテゴリ（プレイリスト）を表します。
-// docs/database-schema.md の categories テーブル定義に対応します。
-type Category struct {
+// Tag はユーザーが作成する映画タグ（プレイリスト）を表します。
+// 旧 categories テーブルに相当します。
+type Tag struct {
 	ID            string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	UserID        string    `gorm:"type:uuid;not null;column:user_id" json:"user_id"`
 	Title         string    `gorm:"type:text;not null" json:"title"`
@@ -18,8 +18,8 @@ type Category struct {
 }
 
 // TableName は対応するテーブル名を返します。
-func (Category) TableName() string {
-	return "categories"
+func (Tag) TableName() string {
+	return "tags"
 }
 
 

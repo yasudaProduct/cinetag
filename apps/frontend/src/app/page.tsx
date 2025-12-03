@@ -128,15 +128,15 @@ export default function Home() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-              カテゴリを探そう！
+              タグを探そう！
             </h1>
             <p className="text-gray-600">
-              お気に入りの映画リストを見つけたり、自分だけのカテゴリを作ってみよう。
+              お気に入りの映画リストを見つけたり、自分だけのタグを作ってみよう。
             </p>
           </div>
           <button className="bg-[#FFD75E] hover:bg-[#ffcf40] text-gray-900 font-bold py-3 px-6 rounded-full flex items-center gap-2 shadow-sm hover:shadow transition-all">
             <Plus className="w-5 h-5" />
-            <span>新しいカテゴリを作成</span>
+            <span>新しいタグを作成</span>
           </button>
         </div>
 

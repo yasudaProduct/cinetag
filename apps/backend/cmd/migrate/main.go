@@ -14,9 +14,9 @@ func main() {
 
 	if err := database.AutoMigrate(
 		&model.User{},
-		&model.Category{},
-		&model.CategoryMovie{},
-		&model.CategoryFollower{},
+		&model.Tag{},
+		&model.TagMovie{},
+		&model.TagFollower{},
 		&model.MovieCache{},
 	); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
@@ -24,5 +24,3 @@ func main() {
 
 	log.Println("migration completed successfully")
 }
-
-
