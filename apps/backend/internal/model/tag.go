@@ -2,8 +2,7 @@ package model
 
 import "time"
 
-// Tag はユーザーが作成する映画タグ（プレイリスト）を表します。
-// 旧 categories テーブルに相当します。
+// Tag はユーザーが作成する映画タグを表します。
 type Tag struct {
 	ID            string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	UserID        string    `gorm:"type:uuid;not null;column:user_id" json:"user_id"`
@@ -21,5 +20,3 @@ type Tag struct {
 func (Tag) TableName() string {
 	return "tags"
 }
-
-
