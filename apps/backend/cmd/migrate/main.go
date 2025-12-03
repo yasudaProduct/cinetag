@@ -13,7 +13,11 @@ func main() {
 	database := db.NewDB()
 
 	if err := database.AutoMigrate(
-		&model.Tag{},
+		&model.User{},
+		&model.Category{},
+		&model.CategoryMovie{},
+		&model.CategoryFollower{},
+		&model.MovieCache{},
 	); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
