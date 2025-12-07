@@ -1,6 +1,10 @@
+"use client";
+
 import { Header } from "@/components/Header";
 import { CategoryCard } from "@/components/CategoryCard";
 import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { TagCreateModal } from "@/components/TagCreateModal";
 
 // Mock Data
 const MOCK_CATEGORIES = [
@@ -119,6 +123,8 @@ const MOCK_CATEGORIES = [
 ];
 
 export default function Home() {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-[#FFF5F5]">
       <Header />
@@ -134,7 +140,10 @@ export default function Home() {
               お気に入りの映画リストを見つけたり、自分だけのタグを作ってみよう。
             </p>
           </div>
-          <button className="bg-[#FFD75E] hover:bg-[#ffcf40] text-gray-900 font-bold py-3 px-6 rounded-full flex items-center gap-2 shadow-sm hover:shadow transition-all">
+          <button
+            className="bg-[#FFD75E] hover:bg-[#ffcf40] text-gray-900 font-bold py-3 px-6 rounded-full flex items-center gap-2 shadow-sm hover:shadow transition-all"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
             <Plus className="w-5 h-5" />
             <span>新しいタグを作成</span>
           </button>
@@ -205,6 +214,11 @@ export default function Home() {
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
+        {/* Create Tag Modal */}
+        <TagCreateModal
+          open={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+        />
       </main>
     </div>
   );
