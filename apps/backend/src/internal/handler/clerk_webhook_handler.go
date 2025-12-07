@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"cinetag-backend/internal/service"
+	"cinetag-backend/src/internal/service"
 
 	"github.com/gin-gonic/gin"
 )

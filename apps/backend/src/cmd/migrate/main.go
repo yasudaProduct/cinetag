@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"cinetag-backend/internal/db"
-	"cinetag-backend/internal/model"
+	"cinetag-backend/src/internal/db"
+	"cinetag-backend/src/internal/model"
 )
 
 // このコマンドはデータベースマイグレーション専用のエントリーポイントです。

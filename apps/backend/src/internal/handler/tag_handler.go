@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"cinetag-backend/internal/model"
-	"cinetag-backend/internal/service"
+	"cinetag-backend/src/internal/model"
+	"cinetag-backend/src/internal/service"
 
 	"github.com/gin-gonic/gin"
 )

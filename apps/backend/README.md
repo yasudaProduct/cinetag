@@ -19,15 +19,18 @@
 
 ```text
 apps/backend/
-├── cmd/
-│   └── main.go              # エントリーポイント
-├── internal/
-│   ├── handler/             # HTTP ハンドラー
-│   ├── service/             # ビジネスロジック
-│   ├── model/               # ドメインモデル
-│   └── middleware/          # カスタムミドルウェア
-├── router/
-│   └── router.go            # ルーティング定義
+├── src/
+│   ├── cmd/
+│   │   ├── main.go              # API サーバーのエントリーポイント
+│   │   └── migrate/
+│   │       └── main.go          # DB マイグレーション用コマンド
+│   ├── internal/
+│   │   ├── handler/             # HTTP ハンドラー
+│   │   ├── service/             # ビジネスロジック
+│   │   ├── model/               # ドメインモデル
+│   │   └── middleware/          # カスタムミドルウェア
+│   └── router/
+│       └── router.go            # ルーティング定義
 ├── go.mod
 └── go.sum
 ```
@@ -66,7 +69,7 @@ docker compose up -d postgres
 
 ```bash
 cd apps/backend
-go run ./cmd
+go run ./src/cmd
 ```
 
 デフォルトではポート `8080` で起動する想定です（実際のポートや環境変数の仕様は `cmd/main.go` を参照してください）。

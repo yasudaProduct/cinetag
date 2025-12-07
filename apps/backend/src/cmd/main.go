@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	appRouter "cinetag-backend/router"
+	appRouter "cinetag-backend/src/router"
 )
 
 func main() {

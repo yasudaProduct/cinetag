@@ -3,10 +3,10 @@ package router
 import (
 	"net/http"
 
-	"cinetag-backend/internal/db"
-	"cinetag-backend/internal/handler"
-	"cinetag-backend/internal/middleware"
-	"cinetag-backend/internal/service"
+	"cinetag-backend/src/internal/db"
+	"cinetag-backend/src/internal/handler"
+	"cinetag-backend/src/internal/middleware"
+	"cinetag-backend/src/internal/service"
 
 	"github.com/gin-gonic/gin"
 )

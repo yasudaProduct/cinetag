@@ -44,7 +44,7 @@
           "color": "terminal.ansiBlue",
           "commands": [
             "cd apps/backend",
-            "go run cmd/main.go"
+            "go run src/cmd/main.go"
           ]
         }
       ]

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"cinetag-backend/internal/model"
+	"cinetag-backend/src/internal/model"
 
 	"gorm.io/gorm"
 )

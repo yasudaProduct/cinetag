@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"cinetag-backend/internal/model"
+	"cinetag-backend/src/internal/model"
 
 	"gorm.io/gorm"
 )

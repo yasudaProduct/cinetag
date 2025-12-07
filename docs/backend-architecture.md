@@ -14,17 +14,20 @@
 
 ```text
 apps/backend/
-├── cmd/
-│   └── main.go              # エントリーポイント
-├── internal/
-│   ├── handler/             # ハンドラー（プレゼンテーション層）
-│   ├── service/             # ビジネスロジック層
-│   ├── repository/          # 永続化層（DB アクセス）
-│   ├── model/               # ドメインモデル
-│   ├── middleware/          # カスタムミドルウェア
-│   └── config/              # 設定読み込み
-├── router/
-│   └── router.go            # ルーティング定義を一元管理
+├── src/
+│   ├── cmd/
+│   │   ├── main.go              # API サーバーのエントリーポイント
+│   │   └── migrate/
+│   │       └── main.go          # マイグレーション専用エントリーポイント
+│   ├── internal/
+│   │   ├── handler/             # ハンドラー（プレゼンテーション層）
+│   │   ├── service/             # ビジネスロジック層
+│   │   ├── repository/          # 永続化層（DB アクセス）※将来追加想定
+│   │   ├── model/               # ドメインモデル
+│   │   ├── middleware/          # カスタムミドルウェア
+│   │   └── config/              # 設定読み込み       ※将来追加想定
+│   └── router/
+│       └── router.go            # ルーティング定義を一元管理
 └── ...
 ```
 
@@ -35,13 +38,13 @@ apps/backend/
 ```mermaid
 flowchart LR
   Browser["フロントエンド\nNext.js（apps/frontend）"]
-  API["APIサーバー\nGin（apps/backend/cmd/main.go）"]
-  Router["ルーター\nrouter/router.go"]
-  Handler["ハンドラー層\ninternal/handler"]
-  Service["サービス層\ninternal/service"]
-  Repository["リポジトリ層\ninternal/repository"]
-  Model["ドメインモデル\ninternal/model"]
-  Middleware["ミドルウェア\ninternal/middleware"]
+  API["APIサーバー\nGin（apps/backend/src/cmd/main.go）"]
+  Router["ルーター\napps/backend/src/router/router.go"]
+  Handler["ハンドラー層\napps/backend/src/internal/handler"]
+  Service["サービス層\napps/backend/src/internal/service"]
+  Repository["リポジトリ層\napps/backend/src/internal/repository"]
+  Model["ドメインモデル\napps/backend/src/internal/model"]
+  Middleware["ミドルウェア\napps/backend/src/internal/middleware"]
   DB["データベース\n(PostgreSQL想定)"]
 
   Browser -->|"HTTP /api/v1/*"| API
@@ -54,7 +57,7 @@ flowchart LR
 
 ## レイヤー構造と責務
 
-### 1. `cmd/`（エントリーポイント）
+### 1. `src/cmd/`（エントリーポイント）
 
 - **責務**
   - アプリケーション起動処理
@@ -63,7 +66,7 @@ flowchart LR
 
 将来的には、`router/router.go` にルーティング定義を切り出し、`cmd/main.go` では「設定読み込み」「依存関係の組み立て」「ルーター初期化」のみに責務を絞ることを想定しています。
 
-### 2. `internal/handler/`（ハンドラー層）
+### 2. `src/internal/handler/`（ハンドラー層）
 
 - **責務**
   - HTTP リクエスト/レスポンスの変換
@@ -73,7 +76,7 @@ flowchart LR
   - ビジネスロジックは極力 `service` 層へ委譲し、ハンドラーは薄く保つ
   - Gin の `*gin.Context` に依存するのはこの層までに留める
 
-### 3. `internal/service/`（ビジネスロジック層）
+### 3. `src/internal/service/`（ビジネスロジック層）
 
 - **責務**
   - アプリケーションのビジネスルールを実装
@@ -83,7 +86,7 @@ flowchart LR
   - Gin や DB の具体的な実装からは切り離し、インターフェースに依存させる
   - 単体テストが書きやすいようにインターフェースベースの設計にする
 
-### 4. `internal/repository/`（永続化層）
+### 4. `src/internal/repository/`（永続化層）
 
 - **責務**
   - データベースや外部ストレージへのアクセス
@@ -92,7 +95,7 @@ flowchart LR
   - 上位層（service）はインターフェース経由でアクセスし、具体的な DB 実装に依存しない
   - 変更しやすいように、テーブル/集約ごとに Repository を分割する
 
-### 5. `internal/model/`（ドメインモデル）
+### 5. `src/internal/model/`（ドメインモデル）
 
 - **責務**
   - ドメインオブジェクト（例: User, Movie, Category など）の定義
