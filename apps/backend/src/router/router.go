@@ -9,6 +9,8 @@ import (
 	"cinetag-backend/src/internal/service"
 
 	"github.com/gin-gonic/gin"
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func NewRouter() *gin.Engine {
@@ -28,6 +30,9 @@ func NewRouter() *gin.Engine {
 			"status": "ok",
 		})
 	})
+
+	// Swagger
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
 	// すべての API は /api/v1 配下にまとめる
 	// api := r.Group("/api/v1")

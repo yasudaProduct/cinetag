@@ -32,13 +32,18 @@ type createTagRequest struct {
 	IsPublic      *bool   `json:"is_public"`
 }
 
-// ListPublicTags は GET /api/v1/tags を処理し、公開タグ一覧を返します。
-//
-// クエリパラメータ:
-//   - q:     タイトル検索用キーワード（任意）
-//   - sort:  popular / recent / movie_count（任意）
-//   - page:  ページ番号（デフォルト 1）
-//   - page_size: 1ページあたり件数（デフォルト 20, 最大 100）
+// @Summary 公開タグ一覧を取得
+// @Description 公開タグ一覧を取得
+// @Tags tags
+// @Accept json
+// @Produce json
+// @Param q query string false "タイトル検索用キーワード"
+// @Param sort query string false "popular / recent / movie_count"
+// @Param page query int false "ページ番号"
+// @Param page_size query int false "1ページあたり件数"
+// @Success 200 {object}
+// @Failure 500 {object}
+// @Router /api/v1/tags [get]
 func (h *TagHandler) ListPublicTags(c *gin.Context) {
 	q := c.Query("q")
 	sort := c.Query("sort")
@@ -62,8 +67,16 @@ func (h *TagHandler) ListPublicTags(c *gin.Context) {
 	})
 }
 
-// CreateTag は POST /api/v1/tags を処理し、新しいタグを作成します。
-// user_id は AuthMiddleware によりコンテキストに設定された *model.User から取得します。
+// @Summary タグを作成
+// @Description タグを作成
+// @Tags tags
+// @Accept json
+// @Produce json
+// @Param request body createTagRequest true "タグ作成リクエスト"
+// @Success 201 {object}
+// @Failure 400 {object}
+// @Failure 500 {object}
+// @Router api/v1/tags [post]
 func (h *TagHandler) CreateTag(c *gin.Context) {
 	var req createTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
