@@ -1,0 +1,15 @@
+
+### 公開タグ一覧取得
+GET http://localhost:8080/api/v1/tags
+
+### タグ作成
+POST http://localhost:8080/api/v1/tags
+Content-Type: application/json
+
+{
+    "user_id": "user-uuid-1",
+    "title": "test",
+    "description": "test",
+    "cover_image_url": "test",
+    "is_public": true
+}

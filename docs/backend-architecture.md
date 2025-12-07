@@ -30,6 +30,28 @@ apps/backend/
 
 ---
 
+## アーキテクチャ構成図
+
+```mermaid
+flowchart LR
+  Browser["フロントエンド\nNext.js（apps/frontend）"]
+  API["APIサーバー\nGin（apps/backend/cmd/main.go）"]
+  Router["ルーター\nrouter/router.go"]
+  Handler["ハンドラー層\ninternal/handler"]
+  Service["サービス層\ninternal/service"]
+  Repository["リポジトリ層\ninternal/repository"]
+  Model["ドメインモデル\ninternal/model"]
+  Middleware["ミドルウェア\ninternal/middleware"]
+  DB["データベース\n(PostgreSQL想定)"]
+
+  Browser -->|"HTTP /api/v1/*"| API
+  API --> Middleware --> Router
+  Router --> Handler --> Service --> Repository --> DB
+  Service --> Model
+```
+
+---
+
 ## レイヤー構造と責務
 
 ### 1. `cmd/`（エントリーポイント）

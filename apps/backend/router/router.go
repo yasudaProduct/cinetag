@@ -3,8 +3,10 @@ package router
 import (
 	"net/http"
 
-	// "cinetag-backend/internal/handler"
-	// "cinetag-backend/internal/service"
+	"cinetag-backend/internal/db"
+	"cinetag-backend/internal/handler"
+	"cinetag-backend/internal/middleware"
+	"cinetag-backend/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,9 +14,13 @@ import (
 func NewRouter() *gin.Engine {
 	r := gin.Default()
 
-	// 依存関係の組み立て（暫定的にここでモックサービスを生成）
-	// tagService := service.NewMockTagService()
-	// tagHandler := handler.NewTagHandler(tagService)
+	// 依存関係の組み立て
+	database := db.NewDB()
+	tagService := service.NewTagService(database)
+	userService := service.NewUserService(database)
+	tagHandler := handler.NewTagHandler(tagService)
+	clerkWebhookHandler := handler.NewClerkWebhookHandler(userService)
+	authMiddleware := middleware.NewAuthMiddleware(userService)
 
 	// ヘルスチェック用エンドポイント
 	r.GET("/health", func(c *gin.Context) {
@@ -28,6 +34,22 @@ func NewRouter() *gin.Engine {
 	// {
 
 	// }
+
+	api := r.Group("/api/v1")
+	{
+		// 公開タグ一覧（認証不要）
+		api.GET("/tags", tagHandler.ListPublicTags)
+
+		// Clerk Webhook
+		api.POST("/clerk/webhook", clerkWebhookHandler.HandleWebhook)
+
+		// 認証必須グループ
+		authGroup := api.Group("/")
+		authGroup.Use(authMiddleware)
+		{
+			authGroup.POST("/tags", tagHandler.CreateTag)
+		}
+	}
 
 	return r
 }
