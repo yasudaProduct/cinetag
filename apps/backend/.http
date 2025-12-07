@@ -1,10 +1,27 @@
+@host = http://localhost:8080
+@api_prefix = /api/v1
+
+# @name login
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+    "email": "test@example.com",
+    "password": "test"
+}
+
+@authToken = {{login.response.body.stsTokenManager.accessToken}}
 
 ### 公開タグ一覧取得
-GET http://localhost:8080/api/v1/tags
+GET {{host}}{{api_prefix}}/tags
+
+### 公開タグ一覧取得（クエリパラメータ）
+GET {{host}}{{api_prefix}}/tags?q=test&sort=popular&page=1&page_size=10
 
 ### タグ作成
-POST http://localhost:8080/api/v1/tags
+POST {{host}}{{api_prefix}}/tags
 Content-Type: application/json
+Authorization: Bearer {{authToken}}
 
 {
     "user_id": "user-uuid-1",
