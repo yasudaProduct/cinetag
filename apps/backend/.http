@@ -21,7 +21,7 @@ GET {{host}}{{api_prefix}}/tags?q=test&sort=popular&page=1&page_size=10
 ### タグ作成
 POST {{host}}{{api_prefix}}/tags
 Content-Type: application/json
-Authorization: Bearer {{authToken}}
+Authorization: Bearer test-token
 
 {
     "user_id": "user-uuid-1",

@@ -18,6 +18,12 @@ export const CategoryCard = ({
   likes,
   images,
 }: CategoryCardProps) => {
+  console.log("title", title);
+  console.log("description", description);
+  console.log("author", author);
+  console.log("movieCount", movieCount);
+  console.log("likes", likes);
+  console.log("images", images);
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col h-full">
       {/* Image Grid */}

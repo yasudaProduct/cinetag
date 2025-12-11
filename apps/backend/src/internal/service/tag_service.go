@@ -34,12 +34,18 @@ type TagService interface {
 }
 
 type tagService struct {
-	db *gorm.DB
+	db           *gorm.DB
+	movieService MovieService
+	imageBaseURL string
 }
 
 // NewTagService は TagService の実装を生成します。
-func NewTagService(db *gorm.DB) TagService {
-	return &tagService{db: db}
+func NewTagService(db *gorm.DB, movieService MovieService, imageBaseURL string) TagService {
+	return &tagService{
+		db:           db,
+		movieService: movieService,
+		imageBaseURL: strings.TrimRight(imageBaseURL, "/"),
+	}
 }
 
 // internal struct for DB scanning
@@ -53,11 +59,6 @@ type tagRow struct {
 	FollowerCount int       `gorm:"column:follower_count"`
 	CreatedAt     time.Time `gorm:"column:created_at"`
 	Author        string    `gorm:"column:author"`
-}
-
-type tagMoviePosterRow struct {
-	TagID      string  `gorm:"column:tag_id"`
-	PosterPath *string `gorm:"column:poster_path"`
 }
 
 // CreateTagInput はタグ作成時の入力値を表します。
@@ -144,39 +145,38 @@ func (s *tagService) ListPublicTags(ctx context.Context, q, sort string, page, p
 		return nil, 0, err
 	}
 
-	// 画像取得用に tag_id の一覧を集める
-	tagIDs := make([]string, 0, len(rows))
-	for _, r := range rows {
-		tagIDs = append(tagIDs, r.ID)
-	}
-
-	imagesByTag := make(map[string][]string, len(tagIDs))
-	if len(tagIDs) > 0 {
-		var posterRows []tagMoviePosterRow
-		// 各タグごとに最大4件のポスターを取得するため、まずは全体を created_at DESC で取得し、
-		// 後続のループでタグごとに先頭4件に絞り込む。
-		if err := s.db.WithContext(ctx).
-			Table((model.TagMovie{}).TableName()+" AS tm").
-			Select("tm.tag_id, mc.poster_path").
-			Joins("JOIN "+(model.MovieCache{}).TableName()+" AS mc ON mc.tmdb_movie_id = tm.tmdb_movie_id").
-			Where("tm.tag_id IN ?", tagIDs).
-			Order("tm.created_at DESC").
-			Scan(&posterRows).Error; err != nil {
-			return nil, 0, err
-		}
-
-		for _, pr := range posterRows {
-			if pr.PosterPath == nil || *pr.PosterPath == "" {
-				continue
+	// 映画ポスター画像の取得
+	imagesByTag := make(map[string][]string, len(rows))
+	if s.movieService != nil {
+		for _, r := range rows {
+			// 各タグごとに、最新の追加順で最大 4 件の映画を取得
+			var tagMovies []model.TagMovie
+			if err := s.db.WithContext(ctx).
+				Where("tag_id = ?", r.ID).
+				Order("created_at DESC").
+				Limit(4).
+				Find(&tagMovies).Error; err != nil {
+				return nil, 0, err
 			}
-			list := imagesByTag[pr.TagID]
-			if len(list) >= 4 {
-				continue
+
+			for _, tm := range tagMovies {
+				if len(imagesByTag[r.ID]) >= 4 {
+					break
+				}
+				cache, err := s.movieService.EnsureMovieCache(ctx, tm.TmdbMovieID)
+				if err != nil {
+					// 画像の取得失敗はタグ一覧全体のエラーにはせずスキップする。
+					continue
+				}
+				if cache.PosterPath == nil || *cache.PosterPath == "" {
+					continue
+				}
+				poster := *cache.PosterPath
+				if s.imageBaseURL != "" {
+					poster = s.imageBaseURL + poster
+				}
+				imagesByTag[r.ID] = append(imagesByTag[r.ID], poster)
 			}
-			// ここでは TMDb のベースURLまでは付けず、poster_path をそのまま返す。
-			// 必要に応じて環境変数からベースURLを読み取り、ここで連結することもできる。
-			list = append(list, *pr.PosterPath)
-			imagesByTag[pr.TagID] = list
 		}
 	}
 

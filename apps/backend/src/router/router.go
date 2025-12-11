@@ -2,12 +2,15 @@ package router
 
 import (
 	"net/http"
+	"os"
+	"time"
 
 	"cinetag-backend/src/internal/db"
 	"cinetag-backend/src/internal/handler"
 	"cinetag-backend/src/internal/middleware"
 	"cinetag-backend/src/internal/service"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -18,11 +21,28 @@ func NewRouter() *gin.Engine {
 
 	// 依存関係の組み立て
 	database := db.NewDB()
-	tagService := service.NewTagService(database)
+	movieService := service.NewMovieService(database)
+	imageBaseURL := os.Getenv("TMDB_IMAGE_BASE_URL")
+	tagService := service.NewTagService(database, movieService, imageBaseURL)
 	userService := service.NewUserService(database)
 	tagHandler := handler.NewTagHandler(tagService)
 	clerkWebhookHandler := handler.NewClerkWebhookHandler(userService)
 	authMiddleware := middleware.NewAuthMiddleware(userService)
+
+	r.Use(cors.New(cors.Config{
+		// 許可するオリジン
+		AllowOrigins: []string{"http://localhost:3000"},
+		// 許可するHTTPメソッド
+		AllowMethods: []string{"GET", "POST", "OPTIONS"},
+		// 許可するリクエストヘッダー（Origin, Content-Type, Authorizationを許可）
+		AllowHeaders: []string{"Origin", "Content-Type", "Authorization"},
+		// レスポンスでアクセスを許可するヘッダー（Content-Lengthをクライアントに公開）
+		ExposeHeaders: []string{"Content-Length"},
+		// Cookieなどを含む認証情報のクロスオリジン送信を許可
+		AllowCredentials: true,
+		// プリフライトリクエスト（OPTIONS）結果のキャッシュ期間（12時間）
+		MaxAge: 12 * time.Hour,
+	}))
 
 	// ヘルスチェック用エンドポイント
 	r.GET("/health", func(c *gin.Context) {
@@ -34,12 +54,7 @@ func NewRouter() *gin.Engine {
 	// Swagger
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
-	// すべての API は /api/v1 配下にまとめる
-	// api := r.Group("/api/v1")
-	// {
-
-	// }
-
+	// API グループ
 	api := r.Group("/api/v1")
 	{
 		// 公開タグ一覧（認証不要）

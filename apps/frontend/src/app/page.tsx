@@ -3,7 +3,7 @@
 import { Header } from "@/components/Header";
 import { CategoryCard } from "@/components/CategoryCard";
 import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TagCreateModal } from "@/components/TagCreateModal";
 
 // Mock Data
@@ -122,8 +122,35 @@ const MOCK_CATEGORIES = [
   },
 ];
 
+interface Tag {
+  id: string;
+  title: string;
+  description: string;
+  author: string;
+  movieCount: number;
+  likes: string;
+  images: string[];
+}
+
 export default function Home() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [tags, setTags] = useState<Tag[]>([]);
+
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_API_BASE}/api/v1/tags`
+        );
+        const data = await response.json();
+        console.log("tags", data);
+        setTags(data.items);
+      } catch (error) {
+        console.error("Error fetching tags:", error);
+      }
+    };
+    fetchTags();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#FFF5F5]">
@@ -179,17 +206,23 @@ export default function Home() {
 
         {/* Category Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {MOCK_CATEGORIES.map((category) => (
-            <CategoryCard
-              key={category.id}
-              title={category.title}
-              description={category.description}
-              author={category.author}
-              movieCount={category.movieCount}
-              likes={category.likes}
-              images={category.images}
-            />
-          ))}
+          {/* {MOCK_CATEGORIES.map((category) => ( */}
+          {tags.length > 0 ? (
+            tags.map((tag) => (
+              <CategoryCard
+                key={tag.id}
+                title={tag.title}
+                description={tag.description}
+                author={tag.author}
+                movieCount={tag.movieCount}
+                likes={tag.likes}
+                images={tag.images || []}
+              />
+            ))
+          ) : (
+            <div>タグがありません</div>
+          )}
+          {/* ))} */}
         </div>
 
         {/* Pagination */}
