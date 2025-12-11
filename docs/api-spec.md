@@ -52,7 +52,7 @@ Host: localhost:8080
 
 ### 4. 認証ユーザー系エンドポイント
 
-#### 4.1 GET `/api/v1/me`
+#### 4.1 GET `/api/v1/me` **[未実装]**
 
 - **概要**: ログイン中ユーザー（`users` テーブル）の情報を取得する。
 - **認証**: 必須
@@ -72,7 +72,7 @@ Host: localhost:8080
 }
 ```
 
-#### 4.2 GET `/api/v1/me/tags`
+#### 4.2 GET `/api/v1/me/tags` **[未実装]**
 
 - **概要**: ログインユーザーが作成したタグの一覧を取得する。
 - **認証**: 必須
@@ -106,7 +106,7 @@ Host: localhost:8080
 }
 ```
 
-#### 4.3 GET `/api/v1/me/following-tags`
+#### 4.3 GET `/api/v1/me/following-tags` **[未実装]**
 
 - **概要**: ログインユーザーがフォローしているタグ一覧を取得する。
 - **認証**: 必須
@@ -158,7 +158,7 @@ Host: localhost:8080
 }
 ```
 
-#### 5.2 GET `/api/v1/tags/:tagId`
+#### 5.2 GET `/api/v1/tags/:tagId` **[未実装]**
 
 - **概要**: 指定タグの詳細情報を取得する。
 - **認証**: なし（ただし非公開タグアクセス時は `AuthMiddleware` で作成者チェックを行う想定）
@@ -224,7 +224,7 @@ Host: localhost:8080
 }
 ```
 
-#### 5.4 PATCH `/api/v1/tags/:tagId`
+#### 5.4 PATCH `/api/v1/tags/:tagId` **[未実装]**
 
 - **概要**: 既存タグのメタ情報を更新する（作成者のみ）。
 - **認証**: 必須
@@ -241,7 +241,7 @@ Host: localhost:8080
 
 - **レスポンス例（200）**: 更新後のタグオブジェクト。
 
-#### 5.5 DELETE `/api/v1/tags/:tagId`
+#### 5.5 DELETE `/api/v1/tags/:tagId` **[未実装]**
 
 - **概要**: タグを削除する（物理削除 or ソフトデリートは実装方針による）。
 - **認証**: 必須（作成者のみ）
@@ -252,7 +252,7 @@ Host: localhost:8080
 
 ### 6. タグ内映画（Tag Movies）エンドポイント
 
-#### 6.1 GET `/api/v1/tags/:tagId/movies`
+#### 6.1 GET `/api/v1/tags/:tagId/movies` **[未実装]**
 
 - **概要**: 指定タグに含まれる映画一覧を取得する。
 - **認証**: 任意（タグの公開設定に応じて制御）
@@ -291,7 +291,7 @@ Host: localhost:8080
 }
 ```
 
-#### 6.2 POST `/api/v1/tags/:tagId/movies`
+#### 6.2 POST `/api/v1/tags/:tagId/movies` **[未実装]**
 
 - **概要**: タグに映画を追加する。
 - **認証**: 必須
@@ -322,7 +322,7 @@ Host: localhost:8080
 }
 ```
 
-#### 6.3 PATCH `/api/v1/tags/:tagId/movies/:tagMovieId`
+#### 6.3 PATCH `/api/v1/tags/:tagId/movies/:tagMovieId` **[未実装]**
 
 - **概要**: タグ内の映画レコード（メモ・表示順など）を更新する。
 - **認証**: 必須
@@ -335,7 +335,7 @@ Host: localhost:8080
 }
 ```
 
-#### 6.4 DELETE `/api/v1/tags/:tagId/movies/:tagMovieId`
+#### 6.4 DELETE `/api/v1/tags/:tagId/movies/:tagMovieId` **[未実装]**
 
 - **概要**: タグから映画を外す。
 - **認証**: 必須
@@ -345,7 +345,7 @@ Host: localhost:8080
 
 ### 7. フォロー（Tag Followers）エンドポイント
 
-#### 7.1 POST `/api/v1/tags/:tagId/follow`
+#### 7.1 POST `/api/v1/tags/:tagId/follow` **[未実装]**
 
 - **概要**: 指定タグをフォローする。
 - **認証**: 必須
@@ -362,13 +362,13 @@ Host: localhost:8080
 }
 ```
 
-#### 7.2 DELETE `/api/v1/tags/:tagId/follow`
+#### 7.2 DELETE `/api/v1/tags/:tagId/follow` **[未実装]**
 
 - **概要**: 指定タグのフォローを解除する。
 - **認証**: 必須
 - **レスポンス**: `204 No Content`
 
-#### 7.3 GET `/api/v1/tags/:tagId/followers`
+#### 7.3 GET `/api/v1/tags/:tagId/followers` **[未実装]**
 
 - **概要**: タグのフォロワー一覧、またはフォロワー数を取得する。
 - **認証**: 任意（一覧を隠したい場合は必須にする）
