@@ -5,6 +5,7 @@ import { CategoryCard } from "@/components/CategoryCard";
 import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { TagCreateModal } from "@/components/TagCreateModal";
+import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
 // Mock Data
 const MOCK_CATEGORIES = [
@@ -167,13 +168,27 @@ export default function Home() {
               お気に入りの映画リストを見つけたり、自分だけのタグを作ってみよう。
             </p>
           </div>
-          <button
-            className="bg-[#FFD75E] hover:bg-[#ffcf40] text-gray-900 font-bold py-3 px-6 rounded-full flex items-center gap-2 shadow-sm hover:shadow transition-all"
-            onClick={() => setIsCreateModalOpen(true)}
-          >
-            <Plus className="w-5 h-5" />
-            <span>新しいタグを作成</span>
-          </button>
+          <SignedIn>
+            <button
+              type="button"
+              className="bg-[#FFD75E] hover:bg-[#ffcf40] text-gray-900 font-bold py-3 px-6 rounded-full flex items-center gap-2 shadow-sm hover:shadow transition-all"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              <Plus className="w-5 h-5" />
+              <span>新しいタグを作成</span>
+            </button>
+          </SignedIn>
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button
+                type="button"
+                className="bg-[#FFD75E] hover:bg-[#ffcf40] text-gray-900 font-bold py-3 px-6 rounded-full flex items-center gap-2 shadow-sm hover:shadow transition-all"
+              >
+                <Plus className="w-5 h-5" />
+                <span>新しいタグを作成</span>
+              </button>
+            </SignInButton>
+          </SignedOut>
         </div>
 
         {/* Search & Filter */}
