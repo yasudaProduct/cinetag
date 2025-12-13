@@ -16,7 +16,7 @@ interface TagCreateModalProps {
   onCreated: (tag: CreatedTagForList) => void;
 }
 
-export interface CreatedTagForList {
+export interface CreatedTagForList extends Record<string, unknown> {
   id: string;
   title: string;
   description?: string | null;

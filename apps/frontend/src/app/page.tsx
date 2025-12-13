@@ -112,6 +112,7 @@ export default function Home() {
                 movieCount={tag.movie_count}
                 likes={tag.follower_count}
                 images={tag.images || []}
+                href={`/tags/${tag.id}`}
               />
             ))
           ) : (

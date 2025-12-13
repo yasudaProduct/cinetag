@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Film, ThumbsUp } from "lucide-react";
 
 interface CategoryCardProps {
@@ -8,6 +9,7 @@ interface CategoryCardProps {
   movieCount: number;
   likes: string | number;
   images: string[];
+  href?: string;
 }
 
 export const CategoryCard = ({
@@ -17,8 +19,9 @@ export const CategoryCard = ({
   movieCount,
   likes,
   images,
+  href,
 }: CategoryCardProps) => {
-  return (
+  const CardInner = (
     <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col h-full">
       {/* Image Grid */}
       <div className="grid grid-cols-2 gap-2 mb-4 aspect-square rounded-lg overflow-hidden">
@@ -69,4 +72,14 @@ export const CategoryCard = ({
       </div>
     </div>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block h-full">
+        {CardInner}
+      </Link>
+    );
+  }
+
+  return CardInner;
 };

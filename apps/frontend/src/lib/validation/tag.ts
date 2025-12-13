@@ -34,7 +34,11 @@ export const TagListItemSchema = z
     author: z.string(),
     movie_count: z.number().int().nonnegative(),
     follower_count: z.number().int().nonnegative(),
-    images: z.array(z.string()).optional().default([]),
+    // バックエンド実装差分で null が返ることがあるため、null/undefined は [] に正規化する
+    images: z.preprocess(
+      (v) => (v == null ? [] : v),
+      z.array(z.string()).default([])
+    ),
     created_at: z.string().optional(),
   })
   .passthrough();
