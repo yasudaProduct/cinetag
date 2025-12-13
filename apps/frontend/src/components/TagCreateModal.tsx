@@ -1,8 +1,14 @@
 "use client";
 
-import { X, UploadCloud, Film } from "lucide-react";
+import { X, Film } from "lucide-react";
 import { useState, FormEvent } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
+import {
+  ApiErrorSchema,
+  TagCreateInputSchema,
+  TagCreateResponseSchema,
+  getFirstZodErrorMessage,
+} from "@/lib/validation/tag";
 
 interface TagCreateModalProps {
   open: boolean;
@@ -39,21 +45,16 @@ export const TagCreateModal = ({
     e.preventDefault();
     setErrorMessage(null);
 
-    const title = name.trim();
-    const desc = description.trim();
+    const parsedInput = TagCreateInputSchema.safeParse({
+      title: name,
+      description: description.length > 0 ? description : undefined,
+    });
+    if (!parsedInput.success) {
+      setErrorMessage(getFirstZodErrorMessage(parsedInput.error));
+      return;
+    }
 
-    if (title.length === 0) {
-      setErrorMessage("名前を入力してください。");
-      return;
-    }
-    if (title.length > 100) {
-      setErrorMessage("名前は100文字以内で入力してください。");
-      return;
-    }
-    if (desc.length > 500) {
-      setErrorMessage("説明は500文字以内で入力してください。");
-      return;
-    }
+    const { title, description: desc } = parsedInput.data;
 
     const base = process.env.NEXT_PUBLIC_BACKEND_API_BASE;
     if (!base) {
@@ -77,7 +78,7 @@ export const TagCreateModal = ({
         title,
         is_public: true,
       };
-      if (desc.length > 0) payload.description = desc;
+      if (desc && desc.length > 0) payload.description = desc;
 
       const res = await fetch(`${base}/api/v1/tags`, {
         method: "POST",
@@ -90,28 +91,24 @@ export const TagCreateModal = ({
 
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        const msg =
-          (body &&
-          typeof body === "object" &&
-          "error" in body &&
-          typeof (body as any).error === "string"
-            ? (body as any).error
-            : null) ?? `作成に失敗しました（${res.status}）`;
+        const msg = ((): string => {
+          const parsedError = ApiErrorSchema.safeParse(body);
+          if (parsedError.success) return parsedError.data.error;
+          return `作成に失敗しました（${res.status}）`;
+        })();
         setErrorMessage(msg);
         return;
       }
 
-      const created = (await res.json()) as {
-        id: string;
-        title: string;
-        description?: string | null;
-        cover_image_url?: string | null;
-        is_public: boolean;
-        movie_count: number;
-        follower_count: number;
-        created_at?: string;
-        updated_at?: string;
-      };
+      const body = await res.json().catch(() => null);
+      const parsedCreated = TagCreateResponseSchema.safeParse(body);
+      if (!parsedCreated.success) {
+        console.warn("Invalid create tag response:", parsedCreated.error, body);
+        setErrorMessage("作成レスポンスの形式が不正です。");
+        return;
+      }
+
+      const created = parsedCreated.data;
 
       const author = user?.username ?? user?.fullName ?? "me";
       onCreated({

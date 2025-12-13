@@ -6,137 +6,11 @@ import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { TagCreateModal, CreatedTagForList } from "@/components/TagCreateModal";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
-
-// Mock Data
-const MOCK_CATEGORIES = [
-  {
-    id: 1,
-    title: "ジブリの名作",
-    description: "スタジオジブリの不朽の名作アニメ。",
-    author: "cinephile_jane",
-    movieCount: 32,
-    likes: "1.2k",
-    images: [
-      "https://placehold.co/400x600/orange/white?text=Spirited+Away",
-      "https://placehold.co/400x600/green/white?text=Howl",
-      "https://placehold.co/400x600/red/white?text=Mononoke",
-      "https://placehold.co/400x600/blue/white?text=Totoro",
-    ],
-  },
-  {
-    id: 2,
-    title: "頭が混乱するスリラー",
-    description: "最後まであなたを惑わせ続ける映画。",
-    author: "twist_lover",
-    movieCount: 48,
-    likes: "875",
-    images: [
-      "https://placehold.co/400x600/1a1a1a/white?text=Inception",
-      "https://placehold.co/400x600/333/white?text=Shutter+Island",
-      "https://placehold.co/400x600/000/white?text=Memento",
-      "https://placehold.co/400x600/222/white?text=Fight+Club",
-    ],
-  },
-  {
-    id: 3,
-    title: "90年代SFクラシック",
-    description: "黄金時代の象徴的なSF作品。",
-    author: "retro_future",
-    movieCount: 55,
-    likes: "2.1k",
-    images: [
-      "https://placehold.co/400x600/teal/white?text=Blade+Runner",
-      "https://placehold.co/400x600/indigo/white?text=Matrix",
-      "https://placehold.co/400x600/purple/white?text=Total+Recall",
-      "https://placehold.co/400x600/blue/white?text=Fifth+Element",
-    ],
-  },
-  {
-    id: 4,
-    title: "美しい映画",
-    description: "美しい映像と色彩の映画。",
-    author: "color_palette",
-    movieCount: 71,
-    likes: "3.4k",
-    images: [
-      "https://placehold.co/400x600/pink/white?text=La+La+Land",
-      "https://placehold.co/400x600/rose/white?text=Grand+Budapest",
-      "https://placehold.co/400x600/fef3c7/black?text=Amelie",
-      "https://placehold.co/400x600/e0f2f1/black?text=Her",
-    ],
-  },
-  {
-    id: 5,
-    title: "史上最高の映画",
-    description: "評価が最も高く、称賛されている映画。",
-    author: "critic_choice",
-    movieCount: 100,
-    likes: "5.8k",
-    images: [
-      "https://placehold.co/400x600/gray/white?text=Godfather",
-      "https://placehold.co/400x600/black/white?text=Dark+Knight",
-      "https://placehold.co/400x600/78350f/white?text=Shawshank",
-      "https://placehold.co/400x600/1e3a8a/white?text=Pulp+Fiction",
-    ],
-  },
-  {
-    id: 6,
-    title: "80年代スラッシャー映画",
-    description: "悲鳴の世代を定義したクラシックホラー。",
-    author: "horror_fan",
-    movieCount: 25,
-    likes: "666",
-    images: [
-      "https://placehold.co/400x600/991b1b/white?text=Nightmare",
-      "https://placehold.co/400x600/b91c1c/white?text=Friday+13th",
-      "https://placehold.co/400x600/7f1d1d/white?text=Halloween",
-      "https://placehold.co/400x600/black/red?text=Scream",
-    ],
-  },
-  {
-    id: 7,
-    title: "心温まる映画",
-    description: "あなたの一日を明るくする感動的な物語。",
-    author: "optimist_prime",
-    movieCount: 42,
-    likes: "1.8k",
-    images: [
-      "https://placehold.co/400x600/fcd34d/black?text=Paddington",
-      "https://placehold.co/400x600/bef264/black?text=Little+Miss",
-      "https://placehold.co/400x600/6ee7b7/black?text=Up",
-      "https://placehold.co/400x600/93c5fd/black?text=Forrest",
-    ],
-  },
-  {
-    id: 8,
-    title: "現代コミック映画ヒット",
-    description: "壮大なスーパーヒーローバトルとアクション。",
-    author: "mcu_fanatic",
-    movieCount: 98,
-    likes: "4.5k",
-    images: [
-      "https://placehold.co/400x600/b91c1c/white?text=Avengers",
-      "https://placehold.co/400x600/1d4ed8/white?text=Spider-Man",
-      "https://placehold.co/400x600/047857/white?text=Batman",
-      "https://placehold.co/400x600/b45309/white?text=Wonder+Woman",
-    ],
-  },
-];
-
-interface Tag {
-  id: string;
-  title: string;
-  description?: string | null;
-  author: string;
-  movie_count: number;
-  follower_count: number;
-  images: string[];
-  created_at?: string;
-}
+import { TagsListResponseSchema, type TagListItem } from "@/lib/validation/tag";
 
 export default function Home() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [tags, setTags] = useState<Tag[]>([]);
+  const [tags, setTags] = useState<TagListItem[]>([]);
 
   useEffect(() => {
     const fetchTags = async () => {
@@ -144,9 +18,14 @@ export default function Home() {
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_BACKEND_API_BASE}/api/v1/tags`
         );
-        const data = await response.json();
-        console.log("tags", data);
-        setTags(data.items ?? []);
+        const json = await response.json().catch(() => null);
+        const parsed = TagsListResponseSchema.safeParse(json);
+        if (!parsed.success) {
+          console.warn("Invalid tags list response:", parsed.error, json);
+          setTags([]);
+          return;
+        }
+        setTags(parsed.data.items ?? []);
       } catch (error) {
         console.error("Error fetching tags:", error);
       }
