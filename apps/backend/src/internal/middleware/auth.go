@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"cinetag-backend/src/internal/service"
@@ -13,12 +15,30 @@ import (
 // users テーブルとの同期を行う認証ミドルウェアを返します。
 //
 // NOTE:
-//   - 現時点では Clerk の JWT 検証ロジックは未実装であり、
-//     Authorization ヘッダの Bearer トークン値をそのまま clerk_user_id として扱います。
-//   - 将来的には Clerk 公式 SDK / 公開鍵を利用してトークンを検証し、
-//     ClerkUserInfo を組み立てる実装に差し替える想定です。
+//   - Clerk の JWKS で RS256 JWT を検証し、sub（Clerk user ID）を信頼できる形で取得します。
+//   - JWKS の取得先は環境変数 `CLERK_JWKS_URL` に設定してください。
+//   - 必要なら `CLERK_ISSUER` / `CLERK_AUDIENCE` も指定し、iss/aud の検証を有効化できます。
 func NewAuthMiddleware(userService service.UserService) gin.HandlerFunc {
+	jwksURL := os.Getenv("CLERK_JWKS_URL")
+	issuer := os.Getenv("CLERK_ISSUER")
+	audience := os.Getenv("CLERK_AUDIENCE")
+
+	validator, err := NewClerkJWTValidator(jwksURL, issuer, audience)
+	if err != nil {
+		// ルーティング初期化時に気づけるようログに出し、リクエストは 500 を返す
+		log.Printf("AuthMiddleware misconfigured: %v", err)
+		validator = nil
+	}
+
 	return func(c *gin.Context) {
+		if validator == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "auth middleware misconfigured",
+			})
+			c.Abort()
+			return
+		}
+
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -37,13 +57,45 @@ func NewAuthMiddleware(userService service.UserService) gin.HandlerFunc {
 			return
 		}
 
-		// TODO: ここで Clerk の JWT を検証し、クレームからユーザー情報を取り出す。
-		// 現時点では簡易実装として、トークン値をそのまま clerk_user_id / username として扱う。
+		claims, err := validator.Verify(c.Request.Context(), rawToken)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "unauthorized",
+			})
+			c.Abort()
+			return
+		}
+
+		sub, _ := claims["sub"].(string)
+		sub = strings.TrimSpace(sub)
+		if sub == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "unauthorized",
+			})
+			c.Abort()
+			return
+		}
+
+		email := ""
+		if s, ok := claims["email"].(string); ok {
+			email = strings.TrimSpace(s)
+		}
+		if email == "" {
+			// DB が not null のため、JWT に email が無いケースは暫定でプレースホルダを入れる
+			email = sub + "@example.com"
+		}
+
+		// username / display_name も JWT に含まれないことがあるため、基本は sub を採用
+		displayName := sub
+		if s, ok := claims["name"].(string); ok && strings.TrimSpace(s) != "" {
+			displayName = strings.TrimSpace(s)
+		}
+
 		clerkUser := service.ClerkUserInfo{
-			ID:          rawToken,
-			Username:    rawToken,
-			DisplayName: rawToken,
-			Email:       rawToken + "@example.com",
+			ID:          sub,
+			Username:    displayName,
+			DisplayName: displayName,
+			Email:       email,
 		}
 
 		user, err := userService.EnsureUser(c.Request.Context(), clerkUser)

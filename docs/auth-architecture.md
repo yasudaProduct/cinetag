@@ -96,6 +96,11 @@
   3. 検証に成功した場合のみ、後続の処理（ユーザー同期・ハンドラー）に進む。
   4. 失敗した場合は `401 Unauthorized` を返し、ハンドラーは一切実行しない。
 
+> 実装メモ（環境変数）:
+> - `CLERK_JWKS_URL`: **必須**。Clerk の JWKS エンドポイント（例: `https://<your-domain>/.well-known/jwks.json`）
+> - `CLERK_ISSUER`: 任意。設定時は `iss` を検証する
+> - `CLERK_AUDIENCE`: 任意。設定時は `aud` を検証する
+
 このように、**バックエンド API へのリクエストは、「AuthMiddleware を通過したものだけが認証済み扱いになる」** という明確なルールを設ける。
 
 ### 5. 詳細設計

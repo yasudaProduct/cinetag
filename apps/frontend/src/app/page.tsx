@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { CategoryCard } from "@/components/CategoryCard";
 import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
-import { TagCreateModal } from "@/components/TagCreateModal";
+import { TagCreateModal, CreatedTagForList } from "@/components/TagCreateModal";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
 // Mock Data
@@ -126,11 +126,12 @@ const MOCK_CATEGORIES = [
 interface Tag {
   id: string;
   title: string;
-  description: string;
+  description?: string | null;
   author: string;
-  movieCount: number;
-  likes: string;
+  movie_count: number;
+  follower_count: number;
   images: string[];
+  created_at?: string;
 }
 
 export default function Home() {
@@ -145,7 +146,7 @@ export default function Home() {
         );
         const data = await response.json();
         console.log("tags", data);
-        setTags(data.items);
+        setTags(data.items ?? []);
       } catch (error) {
         console.error("Error fetching tags:", error);
       }
@@ -227,10 +228,10 @@ export default function Home() {
               <CategoryCard
                 key={tag.id}
                 title={tag.title}
-                description={tag.description}
+                description={tag.description ?? ""}
                 author={tag.author}
-                movieCount={tag.movieCount}
-                likes={tag.likes}
+                movieCount={tag.movie_count}
+                likes={tag.follower_count}
                 images={tag.images || []}
               />
             ))
@@ -266,6 +267,9 @@ export default function Home() {
         <TagCreateModal
           open={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
+          onCreated={(created: CreatedTagForList) => {
+            setTags((prev) => [created, ...prev]);
+          }}
         />
       </main>
     </div>

@@ -76,6 +76,14 @@ go run ./src/cmd
 
 ---
 
+## 認証（Clerk JWT 検証）に必要な環境変数
+
+- **`CLERK_JWKS_URL`（必須）**: Clerk の JWKS エンドポイント（例: `https://<your-domain>/.well-known/jwks.json`）
+- **`CLERK_ISSUER`（任意）**: 期待する `iss`（設定時のみ検証します）
+- **`CLERK_AUDIENCE`（任意）**: 期待する `aud`（設定時のみ検証します）
+
+---
+
 ## ngrok を使った公開 URL の作成（例: 外部 Webhook 連携）
 
 Clerk などの外部サービスからローカル開発環境に Webhook を受けたい場合は、`ngrok` を使ってローカルの 8080 ポートをインターネットに公開します。

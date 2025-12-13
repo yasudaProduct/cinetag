@@ -1,21 +1,136 @@
+"use client";
+
 import { X, UploadCloud, Film } from "lucide-react";
 import { useState, FormEvent } from "react";
+import { useAuth, useUser } from "@clerk/nextjs";
 
 interface TagCreateModalProps {
   open: boolean;
   onClose: () => void;
+  onCreated: (tag: CreatedTagForList) => void;
 }
 
-export const TagCreateModal = ({ open, onClose }: TagCreateModalProps) => {
+export interface CreatedTagForList {
+  id: string;
+  title: string;
+  description?: string | null;
+  author: string;
+  movie_count: number;
+  follower_count: number;
+  images: string[];
+  created_at?: string;
+}
+
+export const TagCreateModal = ({
+  open,
+  onClose,
+  onCreated,
+}: TagCreateModalProps) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { getToken } = useAuth();
+  const { user } = useUser();
 
   if (!open) return null;
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    // TODO: API連携時に送信処理をここに実装
-    onClose();
+    setErrorMessage(null);
+
+    const title = name.trim();
+    const desc = description.trim();
+
+    if (title.length === 0) {
+      setErrorMessage("名前を入力してください。");
+      return;
+    }
+    if (title.length > 100) {
+      setErrorMessage("名前は100文字以内で入力してください。");
+      return;
+    }
+    if (desc.length > 500) {
+      setErrorMessage("説明は500文字以内で入力してください。");
+      return;
+    }
+
+    const base = process.env.NEXT_PUBLIC_BACKEND_API_BASE;
+    if (!base) {
+      setErrorMessage(
+        "環境変数 NEXT_PUBLIC_BACKEND_API_BASE が設定されていません。"
+      );
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const token = await getToken();
+      if (!token) {
+        setErrorMessage(
+          "認証情報の取得に失敗しました。再ログインしてください。"
+        );
+        return;
+      }
+
+      const payload: Record<string, unknown> = {
+        title,
+        is_public: true,
+      };
+      if (desc.length > 0) payload.description = desc;
+
+      const res = await fetch(`${base}/api/v1/tags`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        const msg =
+          (body &&
+          typeof body === "object" &&
+          "error" in body &&
+          typeof (body as any).error === "string"
+            ? (body as any).error
+            : null) ?? `作成に失敗しました（${res.status}）`;
+        setErrorMessage(msg);
+        return;
+      }
+
+      const created = (await res.json()) as {
+        id: string;
+        title: string;
+        description?: string | null;
+        cover_image_url?: string | null;
+        is_public: boolean;
+        movie_count: number;
+        follower_count: number;
+        created_at?: string;
+        updated_at?: string;
+      };
+
+      const author = user?.username ?? user?.fullName ?? "me";
+      onCreated({
+        id: created.id,
+        title: created.title,
+        description: created.description ?? null,
+        author,
+        movie_count: created.movie_count ?? 0,
+        follower_count: created.follower_count ?? 0,
+        images: [],
+        created_at: created.created_at,
+      });
+
+      setName("");
+      setDescription("");
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -26,7 +141,7 @@ export const TagCreateModal = ({ open, onClose }: TagCreateModalProps) => {
         <div className="flex items-start justify-between px-8 pt-8">
           <div>
             <h2 className="text-2xl md:text-3xl font-extrabold text-[#1F1A2B] tracking-tight">
-              Create a New Tag
+              新しいタグを作成
             </h2>
             <p className="mt-2 text-sm md:text-base text-[#7C7288]">
               あなたの映画コレクションを世界とシェアしましょう。
@@ -47,7 +162,7 @@ export const TagCreateModal = ({ open, onClose }: TagCreateModalProps) => {
           {/* Tag Name */}
           <div className="space-y-2">
             <label className="block text-xs font-semibold tracking-wide text-[#7C7288]">
-              Tag Name
+              名前
             </label>
             <input
               type="text"
@@ -61,7 +176,7 @@ export const TagCreateModal = ({ open, onClose }: TagCreateModalProps) => {
           {/* Description */}
           <div className="space-y-2">
             <label className="block text-xs font-semibold tracking-wide text-[#7C7288]">
-              Description
+              説明
             </label>
             <textarea
               value={description}
@@ -75,7 +190,7 @@ export const TagCreateModal = ({ open, onClose }: TagCreateModalProps) => {
           {/* Cover Image (dummy uploader) */}
           <div className="space-y-2">
             <label className="block text-xs font-semibold tracking-wide text-[#7C7288]">
-              Cover Image
+              カバー画像
             </label>
             <div className="rounded-2xl border-2 border-dashed border-[#E4D3C7] bg-[#FFFDF8] px-6 py-8 flex flex-col items-center justify-center text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FFF2E0] mb-3">
@@ -95,11 +210,17 @@ export const TagCreateModal = ({ open, onClose }: TagCreateModalProps) => {
 
           {/* Actions */}
           <div className="flex justify-end pt-2">
+            {errorMessage && (
+              <div className="mr-auto text-sm text-red-600 font-medium">
+                {errorMessage}
+              </div>
+            )}
             <button
               type="submit"
+              disabled={isSubmitting}
               className="inline-flex items-center justify-center rounded-full bg-[#FF5C5C] px-8 py-3 text-sm font-semibold text-white shadow-[0_8px_0_#D44242] hover:translate-y-0.5 hover:shadow-[0_6px_0_#D44242] active:translate-y-1 active:shadow-[0_3px_0_#D44242] transition-transform"
             >
-              Create Tag
+              {isSubmitting ? "作成中..." : "タグを作成"}
             </button>
           </div>
         </form>
