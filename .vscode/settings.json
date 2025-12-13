@@ -1,0 +1,18 @@
+{
+  "rest-client.environmentVariables": {
+    "$shared": {
+      "version": "v1",
+      "api": "/api/"
+    },
+    "local": {
+      "host": "http://localhost:8080",
+      "version": "v1"
+    },
+    "stg": {
+      "host": "stg.hoge.jp"
+    },
+    "prod": {
+      "host": "prod.hoge.jp"
+    }
+  }
+}

@@ -6,8 +6,7 @@ import (
 	"time"
 
 	"cinetag-backend/src/internal/model"
-
-	"gorm.io/gorm"
+	"cinetag-backend/src/internal/repository"
 )
 
 // TagListItem は公開タグ一覧で返す1件分の情報です。
@@ -34,31 +33,25 @@ type TagService interface {
 }
 
 type tagService struct {
-	db           *gorm.DB
+	tagRepo      repository.TagRepository
+	tagMovieRepo repository.TagMovieRepository
 	movieService MovieService
 	imageBaseURL string
 }
 
 // NewTagService は TagService の実装を生成します。
-func NewTagService(db *gorm.DB, movieService MovieService, imageBaseURL string) TagService {
+func NewTagService(
+	tagRepo repository.TagRepository,
+	tagMovieRepo repository.TagMovieRepository,
+	movieService MovieService,
+	imageBaseURL string,
+) TagService {
 	return &tagService{
-		db:           db,
+		tagRepo:      tagRepo,
+		tagMovieRepo: tagMovieRepo,
 		movieService: movieService,
 		imageBaseURL: strings.TrimRight(imageBaseURL, "/"),
 	}
-}
-
-// internal struct for DB scanning
-type tagRow struct {
-	ID            string    `gorm:"column:id"`
-	Title         string    `gorm:"column:title"`
-	Description   *string   `gorm:"column:description"`
-	CoverImageURL *string   `gorm:"column:cover_image_url"`
-	IsPublic      bool      `gorm:"column:is_public"`
-	MovieCount    int       `gorm:"column:movie_count"`
-	FollowerCount int       `gorm:"column:follower_count"`
-	CreatedAt     time.Time `gorm:"column:created_at"`
-	Author        string    `gorm:"column:author"`
 }
 
 // CreateTagInput はタグ作成時の入力値を表します。
@@ -85,7 +78,7 @@ func (s *tagService) CreateTag(ctx context.Context, in CreateTagInput) (*model.T
 		IsPublic:      isPublic,
 	}
 
-	if err := s.db.WithContext(ctx).Create(&tag).Error; err != nil {
+	if err := s.tagRepo.Create(ctx, &tag); err != nil {
 		return nil, err
 	}
 
@@ -103,46 +96,21 @@ func (s *tagService) ListPublicTags(ctx context.Context, q, sort string, page, p
 		pageSize = 100
 	}
 
-	// ベースクエリ: 公開タグ + 作成者情報
-	qb := s.db.WithContext(ctx).
-		Table((model.Tag{}).TableName()+" AS t").
-		Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
-				t.movie_count, t.follower_count, t.created_at,
-				u.username AS author`).
-		Joins(`JOIN `+(model.User{}).TableName()+` AS u ON u.id = t.user_id`).
-		Where("t.is_public = ?", true)
+	// 検索条件
+	query := strings.TrimSpace(q)
+	offset := (page - 1) * pageSize
 
-	// キーワード検索（タイトルのみ簡易実装）
-	if strings.TrimSpace(q) != "" {
-		keyword := "%" + strings.TrimSpace(q) + "%"
-		qb = qb.Where("t.title ILIKE ?", keyword)
-	}
-
-	// 件数取得
-	var total int64
-	if err := qb.Count(&total).Error; err != nil {
+	rows, total, err := s.tagRepo.ListPublicTags(ctx, repository.TagListFilter{
+		Query:  query,
+		Sort:   sort,
+		Offset: offset,
+		Limit:  pageSize,
+	})
+	if err != nil {
 		return nil, 0, err
 	}
 	if total == 0 {
 		return []TagListItem{}, 0, nil
-	}
-
-	// ソート
-	switch sort {
-	case "recent":
-		qb = qb.Order("t.created_at DESC")
-	case "movie_count":
-		qb = qb.Order("t.movie_count DESC")
-	default:
-		// デフォルトはフォロワー数順（人気）
-		qb = qb.Order("t.follower_count DESC")
-	}
-
-	// ページング
-	offset := (page - 1) * pageSize
-	var rows []tagRow
-	if err := qb.Limit(pageSize).Offset(offset).Scan(&rows).Error; err != nil {
-		return nil, 0, err
 	}
 
 	// 映画ポスター画像の取得
@@ -150,12 +118,8 @@ func (s *tagService) ListPublicTags(ctx context.Context, q, sort string, page, p
 	if s.movieService != nil {
 		for _, r := range rows {
 			// 各タグごとに、最新の追加順で最大 4 件の映画を取得
-			var tagMovies []model.TagMovie
-			if err := s.db.WithContext(ctx).
-				Where("tag_id = ?", r.ID).
-				Order("created_at DESC").
-				Limit(4).
-				Find(&tagMovies).Error; err != nil {
+			tagMovies, err := s.tagMovieRepo.ListRecentByTag(ctx, r.ID, 4)
+			if err != nil {
 				return nil, 0, err
 			}
 

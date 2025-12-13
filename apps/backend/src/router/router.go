@@ -8,6 +8,7 @@ import (
 	"cinetag-backend/src/internal/db"
 	"cinetag-backend/src/internal/handler"
 	"cinetag-backend/src/internal/middleware"
+	"cinetag-backend/src/internal/repository"
 	"cinetag-backend/src/internal/service"
 
 	"github.com/gin-contrib/cors"
@@ -23,7 +24,9 @@ func NewRouter() *gin.Engine {
 	database := db.NewDB()
 	movieService := service.NewMovieService(database)
 	imageBaseURL := os.Getenv("TMDB_IMAGE_BASE_URL")
-	tagService := service.NewTagService(database, movieService, imageBaseURL)
+	tagRepo := repository.NewTagRepository(database)
+	tagMovieRepo := repository.NewTagMovieRepository(database)
+	tagService := service.NewTagService(tagRepo, tagMovieRepo, movieService, imageBaseURL)
 	userService := service.NewUserService(database)
 	tagHandler := handler.NewTagHandler(tagService)
 	clerkWebhookHandler := handler.NewClerkWebhookHandler(userService)
