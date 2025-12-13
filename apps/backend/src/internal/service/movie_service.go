@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"cinetag-backend/src/internal/model"
@@ -106,6 +107,7 @@ type tmdbMovieResponse struct {
 // EnsureMovieCache は指定した TMDB 映画 ID に対応する movie_cache レコードの
 // 存在と有効期限を保証します。
 func (s *movieService) EnsureMovieCache(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error) {
+	fmt.Println("EnsureMovieCache", tmdbMovieID)
 	if tmdbMovieID <= 0 {
 		return nil, fmt.Errorf("invalid tmdb movie id: %d", tmdbMovieID)
 	}
@@ -124,14 +126,17 @@ func (s *movieService) EnsureMovieCache(ctx context.Context, tmdbMovieID int) (*
 	switch {
 	case err == nil && cache.ExpiresAt.After(now):
 		// 有効なキャッシュがある場合はそのまま返す
+		fmt.Println("EnsureMovieCache cache", cache)
 		return &cache, nil
 	case err != nil && !errors.Is(err, gorm.ErrRecordNotFound):
 		// それ以外の DB エラーはそのまま返す
+		fmt.Println("EnsureMovieCache err", err)
 		return nil, err
 	}
 
 	// キャッシュが存在しない、または期限切れの場合は TMDB から取得する
 	tmdbMovie, err := s.fetchMovieFromTMDB(ctx, tmdbMovieID)
+	fmt.Println("EnsureMovieCache tmdbMovie", tmdbMovie)
 	if err != nil {
 		return nil, err
 	}
@@ -150,6 +155,7 @@ func (s *movieService) EnsureMovieCache(ctx context.Context, tmdbMovieID int) (*
 
 // fetchMovieFromTMDB は TMDB の /movie/{movie_id} エンドポイントから映画情報を取得します。
 func (s *movieService) fetchMovieFromTMDB(ctx context.Context, tmdbMovieID int) (*tmdbMovieResponse, error) {
+	fmt.Println("fetchMovieFromTMDB", tmdbMovieID)
 	base, err := url.Parse(s.cfg.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid TMDB_BASE_URL: %w", err)
@@ -158,7 +164,6 @@ func (s *movieService) fetchMovieFromTMDB(ctx context.Context, tmdbMovieID int) 
 	base.Path = path.Join(base.Path, "movie", strconv.Itoa(tmdbMovieID))
 
 	q := base.Query()
-	q.Set("api_key", s.cfg.APIKey)
 	if s.cfg.DefaultLanguage != "" {
 		q.Set("language", s.cfg.DefaultLanguage)
 	}
@@ -168,25 +173,41 @@ func (s *movieService) fetchMovieFromTMDB(ctx context.Context, tmdbMovieID int) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TMDB request: %w", err)
 	}
+	// TMDB は v4 認証として Authorization: Bearer をサポートする。
+	// このリポジトリでは TMDB_API_KEY を Bearer トークンとして送る前提にする（クエリには付けない）。
+	token := strings.TrimSpace(s.cfg.APIKey)
+	if token != "" {
+		if strings.HasPrefix(strings.ToLower(token), "bearer ") {
+			req.Header.Set("Authorization", token)
+		} else {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+	}
+	req.Header.Set("Accept", "application/json")
+	fmt.Println("fetchMovieFromTMDB req", req)
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
+		fmt.Println("fetchMovieFromTMDB err", err)
 		return nil, fmt.Errorf("failed to call TMDB: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
+		fmt.Println("fetchMovieFromTMDB status not found", resp.StatusCode)
 		return nil, fmt.Errorf("tmdb movie not found: %d", tmdbMovieID)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		fmt.Println("fetchMovieFromTMDB status not ok", resp.StatusCode)
 		return nil, fmt.Errorf("tmdb request failed: status=%d", resp.StatusCode)
 	}
 
 	var body tmdbMovieResponse
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		fmt.Println("fetchMovieFromTMDB err", err)
 		return nil, fmt.Errorf("failed to decode TMDB response: %w", err)
 	}
-
+	fmt.Println("fetchMovieFromTMDB body", body)
 	return &body, nil
 }
 
@@ -234,5 +255,3 @@ func (s *movieService) upsertMovieCache(ctx context.Context, cache *model.MovieC
 		UpdateAll: true,
 	}).Create(cache).Error
 }
-
-

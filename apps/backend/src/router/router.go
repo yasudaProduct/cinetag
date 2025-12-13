@@ -71,6 +71,7 @@ func NewRouter() *gin.Engine {
 		authGroup.Use(authMiddleware)
 		{
 			authGroup.POST("/tags", tagHandler.CreateTag)
+			authGroup.POST("/tags/:tagId/movies", tagHandler.AddMovieToTag)
 		}
 	}
 

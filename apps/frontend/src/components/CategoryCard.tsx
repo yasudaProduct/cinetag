@@ -33,7 +33,7 @@ export const CategoryCard = ({
             {/* Use a colored div fallback if src is empty, otherwise Image */}
             {src ? (
               <Image
-                src={src}
+                src={"https://image.tmdb.org/t/p/w500" + src}
                 alt={`Movie poster ${index + 1}`}
                 fill
                 className="object-cover"

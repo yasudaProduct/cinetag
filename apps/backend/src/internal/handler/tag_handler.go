@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -30,6 +32,12 @@ type createTagRequest struct {
 	Description   *string `json:"description"`
 	CoverImageURL *string `json:"cover_image_url"`
 	IsPublic      *bool   `json:"is_public"`
+}
+
+type addTagMovieRequest struct {
+	TmdbMovieID int     `json:"tmdb_movie_id" binding:"required"`
+	Note        *string `json:"note"`
+	Position    int     `json:"position"`
 }
 
 // @Summary 公開タグ一覧を取得
@@ -144,6 +152,70 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 		"created_at":      tag.CreatedAt,
 		"updated_at":      tag.UpdatedAt,
 	})
+}
+
+// AddMovieToTag はタグに映画を追加します。
+func (h *TagHandler) AddMovieToTag(c *gin.Context) {
+	tagID := c.Param("tagId")
+	fmt.Println("tagID", tagID)
+
+	var req addTagMovieRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid request body",
+		})
+		return
+	}
+	if req.TmdbMovieID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "tmdb_movie_id must be a positive integer",
+		})
+		return
+	}
+	if req.Position < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "position must be 0 or greater",
+		})
+		return
+	}
+
+	userVal, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
+	user, ok := userVal.(*model.User)
+	if !ok || user == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "invalid user in context",
+		})
+		return
+	}
+
+	tagMovie, err := h.tagService.AddMovieToTag(c.Request.Context(), service.AddMovieToTagInput{
+		TagID:       tagID,
+		UserID:      user.ID,
+		TmdbMovieID: req.TmdbMovieID,
+		Note:        req.Note,
+		Position:    req.Position,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrTagNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
+		case errors.Is(err, service.ErrTagPermissionDenied):
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		case errors.Is(err, service.ErrTagMovieAlreadyExists):
+			c.JSON(http.StatusConflict, gin.H{"error": "movie already added to tag"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to add movie to tag"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusCreated, tagMovie)
 }
 
 func parseIntDefault(s string, def int) int {

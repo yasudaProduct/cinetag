@@ -2,11 +2,16 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"log"
 	"strings"
 	"time"
 
 	"cinetag-backend/src/internal/model"
 	"cinetag-backend/src/internal/repository"
+
+	"gorm.io/gorm"
 )
 
 // TagListItem は公開タグ一覧で返す1件分の情報です。
@@ -30,6 +35,9 @@ type TagService interface {
 
 	// CreateTag は新しいタグを作成して返します。
 	CreateTag(ctx context.Context, in CreateTagInput) (*model.Tag, error)
+
+	// AddMovieToTag はタグに映画を追加して返します（作成者のみ）。
+	AddMovieToTag(ctx context.Context, in AddMovieToTagInput) (*model.TagMovie, error)
 }
 
 type tagService struct {
@@ -63,6 +71,21 @@ type CreateTagInput struct {
 	IsPublic      *bool
 }
 
+// AddMovieToTagInput はタグへ映画を追加する際の入力値です。
+type AddMovieToTagInput struct {
+	TagID       string
+	UserID      string
+	TmdbMovieID int
+	Note        *string
+	Position    int
+}
+
+var (
+	ErrTagNotFound           = errors.New("tag not found")
+	ErrTagPermissionDenied   = errors.New("tag permission denied")
+	ErrTagMovieAlreadyExists = errors.New("tag movie already exists")
+)
+
 // CreateTag は新しいタグを作成します。
 func (s *tagService) CreateTag(ctx context.Context, in CreateTagInput) (*model.Tag, error) {
 	isPublic := true
@@ -83,6 +106,67 @@ func (s *tagService) CreateTag(ctx context.Context, in CreateTagInput) (*model.T
 	}
 
 	return &tag, nil
+}
+
+func (s *tagService) AddMovieToTag(ctx context.Context, in AddMovieToTagInput) (*model.TagMovie, error) {
+	if in.TagID == "" {
+		return nil, fmt.Errorf("tag_id is required")
+	}
+	if in.UserID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	if in.TmdbMovieID <= 0 {
+		return nil, fmt.Errorf("invalid tmdb_movie_id: %d", in.TmdbMovieID)
+	}
+	if in.Position < 0 {
+		return nil, fmt.Errorf("position must be 0 or greater")
+	}
+
+	_, err := s.tagRepo.FindByID(ctx, in.TagID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTagNotFound
+		}
+		return nil, err
+	}
+
+	// TODO: タグに編集可能範囲のオプションを追加する。今は全ユーザー追加可能。
+	// if tag.UserID != in.UserID {
+	// 	return nil, ErrTagPermissionDenied
+	// }
+
+	tm := model.TagMovie{
+		TagID:       in.TagID,
+		TmdbMovieID: in.TmdbMovieID,
+		AddedByUser: in.UserID,
+		Note:        in.Note,
+		Position:    in.Position,
+	}
+
+	if err := s.tagMovieRepo.Create(ctx, &tm); err != nil {
+		if errors.Is(err, repository.ErrTagMovieAlreadyExists) {
+			return nil, ErrTagMovieAlreadyExists
+		}
+		return nil, err
+	}
+
+	// タグの movie_count を加算（一覧の表示用）
+	if err := s.tagRepo.IncrementMovieCount(ctx, in.TagID, 1); err != nil {
+		return nil, err
+	}
+
+	// 可能であれば、作成時にベストエフォートでキャッシュを温める（失敗してもAPIは成功扱い）
+	if s.movieService != nil {
+		go func(movieID int) {
+			ctx2, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if _, err := s.movieService.EnsureMovieCache(ctx2, movieID); err != nil {
+				log.Printf("failed to warm movie cache: tmdb_movie_id=%d err=%v", movieID, err)
+			}
+		}(in.TmdbMovieID)
+	}
+
+	return &tm, nil
 }
 
 func (s *tagService) ListPublicTags(ctx context.Context, q, sort string, page, pageSize int) ([]TagListItem, int64, error) {
@@ -122,11 +206,13 @@ func (s *tagService) ListPublicTags(ctx context.Context, q, sort string, page, p
 			if err != nil {
 				return nil, 0, err
 			}
+			fmt.Println("tagMovies", tagMovies)
 
 			for _, tm := range tagMovies {
 				if len(imagesByTag[r.ID]) >= 4 {
 					break
 				}
+				fmt.Println("tm", tm)
 				cache, err := s.movieService.EnsureMovieCache(ctx, tm.TmdbMovieID)
 				if err != nil {
 					// 画像の取得失敗はタグ一覧全体のエラーにはせずスキップする。

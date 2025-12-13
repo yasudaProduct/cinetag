@@ -1,4 +1,3 @@
-# @host = http://localhost:8080
 @api_prefix = {{api}}{{version}}
 
 # @name login
@@ -18,6 +17,8 @@ GET {{host}}{{api_prefix}}/tags
 ### 公開タグ一覧取得（クエリパラメータ）
 GET {{host}}{{api_prefix}}/tags?q=test&sort=popular&page=1&page_size=10
 
+@tag_id = 154c44ab-3ba9-4c26-9642-49d11d3d1ff5
+
 ### タグ作成
 POST {{host}}{{api_prefix}}/tags
 Content-Type: application/json
@@ -30,6 +31,23 @@ Authorization: Bearer test-token
     "cover_image_url": "test",
     "is_public": true
 }
+
+### タグに映画を追加
+POST {{host}}{{api_prefix}}/tags/{{tag_id}}/movies
+Content-Type: application/json
+Authorization: Bearer test-token
+
+{
+    "tmdb_movie_id": 550,
+    "note": "test",
+    "position": 1
+}
+
+
+
+
+
+
 
 @tmdb_base_url = https://api.themoviedb.org/3
 @tmdb_api_key = your_tmdb_api_key

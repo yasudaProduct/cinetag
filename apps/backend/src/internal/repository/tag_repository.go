@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"cinetag-backend/src/internal/model"
@@ -33,6 +34,8 @@ type TagSummary struct {
 // TagRepository はタグに関する永続化処理を表します。
 type TagRepository interface {
 	Create(ctx context.Context, tag *model.Tag) error
+	FindByID(ctx context.Context, id string) (*model.Tag, error)
+	IncrementMovieCount(ctx context.Context, id string, delta int) error
 	ListPublicTags(ctx context.Context, filter TagListFilter) ([]TagSummary, int64, error)
 }
 
@@ -47,6 +50,29 @@ func NewTagRepository(db *gorm.DB) TagRepository {
 
 func (r *tagRepository) Create(ctx context.Context, tag *model.Tag) error {
 	return r.db.WithContext(ctx).Create(tag).Error
+}
+
+func (r *tagRepository) FindByID(ctx context.Context, id string) (*model.Tag, error) {
+	var tag model.Tag
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&tag).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, gorm.ErrRecordNotFound
+		}
+		return nil, err
+	}
+	return &tag, nil
+}
+
+func (r *tagRepository) IncrementMovieCount(ctx context.Context, id string, delta int) error {
+	if delta == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).
+		Model(&model.Tag{}).
+		Where("id = ?", id).
+		UpdateColumn("movie_count", gorm.Expr("movie_count + ?", delta)).
+		Error
 }
 
 func (r *tagRepository) ListPublicTags(ctx context.Context, filter TagListFilter) ([]TagSummary, int64, error) {
