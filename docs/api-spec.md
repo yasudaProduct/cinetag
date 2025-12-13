@@ -291,7 +291,7 @@ Host: localhost:8080
 }
 ```
 
-#### 6.2 POST `/api/v1/tags/:tagId/movies` **[未実装]**
+#### 6.2 POST `/api/v1/tags/:tagId/movies`
 
 - **概要**: タグに映画を追加する。
 - **認証**: 必須
