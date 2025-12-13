@@ -6,7 +6,10 @@ import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { TagCreateModal, CreatedTagForList } from "@/components/TagCreateModal";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
-import { TagsListResponseSchema, type TagListItem } from "@/lib/validation/tag";
+import {
+  TagsListResponseSchema,
+  type TagListItem,
+} from "@/lib/validation/tag.api";
 
 export default function Home() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

@@ -4,11 +4,13 @@ import { X, Film } from "lucide-react";
 import { useState, FormEvent } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import {
-  ApiErrorSchema,
   TagCreateInputSchema,
-  TagCreateResponseSchema,
   getFirstZodErrorMessage,
-} from "@/lib/validation/tag";
+} from "@/lib/validation/tag.form";
+import {
+  ApiErrorSchema,
+  TagCreateResponseSchema,
+} from "@/lib/validation/tag.api";
 
 interface TagCreateModalProps {
   open: boolean;
