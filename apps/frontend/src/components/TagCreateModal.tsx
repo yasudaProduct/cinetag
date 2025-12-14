@@ -68,7 +68,7 @@ export const TagCreateModal = ({
 
     setIsSubmitting(true);
     try {
-      const token = await getToken();
+      const token = await getToken({ template: "cinetag-backend" });
       if (!token) {
         setErrorMessage(
           "認証情報の取得に失敗しました。再ログインしてください。"

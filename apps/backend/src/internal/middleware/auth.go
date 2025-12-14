@@ -81,21 +81,35 @@ func NewAuthMiddleware(userService service.UserService) gin.HandlerFunc {
 			email = strings.TrimSpace(s)
 		}
 		if email == "" {
-			// DB が not null のため、JWT に email が無いケースは暫定でプレースホルダを入れる
-			email = sub + "@example.com"
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "unauthorized",
+			})
+			c.Abort()
+			return
 		}
 
-		// username / display_name も JWT に含まれないことがあるため、基本は sub を採用
-		displayName := sub
-		if s, ok := claims["name"].(string); ok && strings.TrimSpace(s) != "" {
+		userName := "未設定"
+		if s, ok := claims["full_name"].(string); ok && strings.TrimSpace(s) != "" {
+			userName = strings.TrimSpace(s)
+		}
+
+		displayName := userName
+		if s, ok := claims["first_name"].(string); ok && strings.TrimSpace(s) != "" {
 			displayName = strings.TrimSpace(s)
+		}
+
+		var imageURL *string
+		if s, ok := claims["image_url"].(string); ok && strings.TrimSpace(s) != "" {
+			url := strings.TrimSpace(s)
+			imageURL = &url
 		}
 
 		clerkUser := service.ClerkUserInfo{
 			ID:          sub,
-			Username:    displayName,
+			Username:    userName,
 			DisplayName: displayName,
 			Email:       email,
+			AvatarURL:   imageURL,
 		}
 
 		user, err := userService.EnsureUser(c.Request.Context(), clerkUser)
