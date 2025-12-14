@@ -76,6 +76,29 @@ go run ./src/cmd
 
 ---
 
+## DB マイグレーション（スキーマ更新）
+
+本リポジトリでは **マイグレーションファイル（差分SQL）の自動生成は行いません**。
+そのため、**テーブル定義の変更が発生した場合は「全テーブル削除 → migrate 実行」でスキーマを作り直す**運用にします。
+
+> 注意: この手順は **開発環境向け**であり、実行すると **DB内のデータは全て消えます**。
+
+### 手順（全テーブル削除 → スキーマ再作成）
+
+1. **migrate コマンドを実行（GORM AutoMigrate）**
+
+```bash
+cd apps/backend
+go run ./src/cmd/migrate
+```
+
+### 補足（AutoMigrate の注意点）
+
+- **GORM の `AutoMigrate` は「削除系」を自動反映しません**（カラム削除、制約/インデックス削除など）
+- `./src/cmd/migrate/main.go`ではAutoMigrate前に全テーブルを削除します。
+
+---
+
 ## 認証（Clerk JWT 検証）に必要な環境変数
 
 - **`CLERK_JWKS_URL`（必須）**: Clerk の JWKS エンドポイント（例: `https://<your-domain>/.well-known/jwks.json`）

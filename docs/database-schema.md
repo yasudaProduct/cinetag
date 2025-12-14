@@ -13,7 +13,7 @@ erDiagram
     users {
         uuid id PK
         text clerk_user_id UK "Clerk認証ID"
-        text username UK "ユーザー名"
+        text username "ユーザー名"
         text display_name "表示名"
         text email "メールアドレス"
         text avatar_url "アバター画像URL"
@@ -89,7 +89,7 @@ erDiagram
 |---------|-----|------|-----------|------|
 | `id` | UUID | NO | `gen_random_uuid()` | ユーザーID |
 | `clerk_user_id` | TEXT | NO | - | Clerk認証ID（一意） |
-| `username` | TEXT | NO | - | ユーザー名（一意） |
+| `username` | TEXT | NO | - | ユーザー名 |
 | `display_name` | TEXT | NO | - | 表示名 |
 | `email` | TEXT | NO | - | メールアドレス |
 | `avatar_url` | TEXT | YES | - | アバター画像URL |
@@ -167,7 +167,6 @@ erDiagram
 | テーブル | 制約名 | 種類 | 内容 |
 |---------|--------|------|------|
 | users | `users_clerk_user_id_key` | UNIQUE | clerk_user_idの一意性 |
-| users | `users_username_key` | UNIQUE | usernameの一意性 |
 | tags | `tags_title_length` | CHECK | タイトル1-100文字 |
 | tags | `tags_description_length` | CHECK | 説明500文字以下 |
 | tags | `tags_movie_count_positive` | CHECK | movie_count >= 0 |

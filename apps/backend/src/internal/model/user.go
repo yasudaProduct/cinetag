@@ -7,7 +7,7 @@ import "time"
 type User struct {
 	ID          string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	ClerkUserID string    `gorm:"type:text;not null;uniqueIndex:users_clerk_user_id_key;column:clerk_user_id" json:"clerk_user_id"`
-	Username    string    `gorm:"type:text;not null;uniqueIndex:users_username_key" json:"username"`
+	Username    string    `gorm:"type:text;not null;index:users_username_idx" json:"username"`
 	DisplayName string    `gorm:"type:text;not null;column:display_name" json:"display_name"`
 	Email       string    `gorm:"type:text;not null" json:"email"`
 	AvatarURL   *string   `gorm:"type:text;column:avatar_url" json:"avatar_url,omitempty"`
