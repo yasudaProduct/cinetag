@@ -44,10 +44,30 @@
           "color": "terminal.ansiBlue",
           "commands": [
             "cd apps/backend",
+            "docker compose up -d postgres",
             "go run src/cmd/main.go"
           ]
         }
-      ]
+      ],
+      {
+        "name": "backend-test-terminal",
+        "autoExecuteCommands": true,
+        "icon": "terminal",
+        "color": "terminal.ansiRed",
+        "commands": [
+          "cd apps/backend",
+          "go test ./..."
+        ]
+      },
+      {
+        "name": "ngrok",
+        "autoExecuteCommands": true,
+        "icon": "browser",
+        "color": "terminal.ansiYellow",
+        "commands": [
+          "ngrok http 8080"
+        ]
+      }
     ]
   }
 }

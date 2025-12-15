@@ -76,6 +76,45 @@ go run ./src/cmd
 
 ---
 
+## テストの実行
+
+### 通常（unit）
+
+```bash
+cd apps/backend
+go test ./...
+```
+
+任意:
+
+```bash
+# レース検知
+go test -race ./...
+
+# カバレッジ
+go test ./... -coverprofile=coverage.out
+```
+
+### integration（DBあり）
+
+`internal/repository` の integration テストは build tag `integration` で分離しています。
+
+1. PostgreSQL を起動（プロジェクトルート）
+
+```bash
+cd /Users/yuta/Develop/cinetag
+docker compose up -d postgres
+```
+
+2. `DATABASE_URL` を設定して実行
+
+```bash
+cd apps/backend
+DATABASE_URL="postgres://postgres:postgres@localhost:5433/cinetag_test?sslmode=disable" go test -tags=integration ./...
+```
+
+---
+
 ## DB マイグレーション（スキーマ更新）
 
 本リポジトリでは **マイグレーションファイル（差分SQL）の自動生成は行いません**。

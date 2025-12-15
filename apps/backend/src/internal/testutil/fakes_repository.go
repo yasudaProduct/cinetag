@@ -1,0 +1,65 @@
+package testutil
+
+import (
+	"context"
+
+	"cinetag-backend/src/internal/model"
+	"cinetag-backend/src/internal/repository"
+)
+
+// FakeTagRepository は repository.TagRepository の手書き fake です。
+// 必要なテストで Fn を差し替えて使います。
+type FakeTagRepository struct {
+	CreateFn              func(ctx context.Context, tag *model.Tag) error
+	FindByIDFn            func(ctx context.Context, id string) (*model.Tag, error)
+	IncrementMovieCountFn func(ctx context.Context, id string, delta int) error
+	ListPublicTagsFn      func(ctx context.Context, filter repository.TagListFilter) ([]repository.TagSummary, int64, error)
+}
+
+func (f *FakeTagRepository) Create(ctx context.Context, tag *model.Tag) error {
+	if f.CreateFn == nil {
+		return nil
+	}
+	return f.CreateFn(ctx, tag)
+}
+
+func (f *FakeTagRepository) FindByID(ctx context.Context, id string) (*model.Tag, error) {
+	if f.FindByIDFn == nil {
+		return nil, nil
+	}
+	return f.FindByIDFn(ctx, id)
+}
+
+func (f *FakeTagRepository) IncrementMovieCount(ctx context.Context, id string, delta int) error {
+	if f.IncrementMovieCountFn == nil {
+		return nil
+	}
+	return f.IncrementMovieCountFn(ctx, id, delta)
+}
+
+func (f *FakeTagRepository) ListPublicTags(ctx context.Context, filter repository.TagListFilter) ([]repository.TagSummary, int64, error) {
+	if f.ListPublicTagsFn == nil {
+		return []repository.TagSummary{}, 0, nil
+	}
+	return f.ListPublicTagsFn(ctx, filter)
+}
+
+// FakeTagMovieRepository は repository.TagMovieRepository の手書き fake です。
+type FakeTagMovieRepository struct {
+	ListRecentByTagFn func(ctx context.Context, tagID string, limit int) ([]model.TagMovie, error)
+	CreateFn          func(ctx context.Context, tagMovie *model.TagMovie) error
+}
+
+func (f *FakeTagMovieRepository) ListRecentByTag(ctx context.Context, tagID string, limit int) ([]model.TagMovie, error) {
+	if f.ListRecentByTagFn == nil {
+		return []model.TagMovie{}, nil
+	}
+	return f.ListRecentByTagFn(ctx, tagID, limit)
+}
+
+func (f *FakeTagMovieRepository) Create(ctx context.Context, tagMovie *model.TagMovie) error {
+	if f.CreateFn == nil {
+		return nil
+	}
+	return f.CreateFn(ctx, tagMovie)
+}
