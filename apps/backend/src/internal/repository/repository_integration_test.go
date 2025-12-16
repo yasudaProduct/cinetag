@@ -89,14 +89,6 @@ func createTag(t *testing.T, db *gorm.DB, userID, title string, isPublic bool, f
 	if err := db.Create(tag).Error; err != nil {
 		t.Fatalf("タグ作成に失敗: %v", err)
 	}
-	// GORM は struct の Create 時に、default を持つ boolean の false（ゼロ値）を INSERT に含めず、
-	// DB 側の default(true) が適用されることがあるため、明示的に反映しておく。
-	// if !isPublic {
-	// 	if err := db.Model(tag).UpdateColumn("is_public", false).Error; err != nil {
-	// 		t.Fatalf("タグの is_public 更新に失敗: %v", err)
-	// 	}
-	// 	tag.IsPublic = false
-	// }
 	if tag.ID == "" {
 		t.Fatalf("タグIDが空です")
 	}
