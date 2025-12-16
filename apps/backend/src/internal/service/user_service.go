@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"cinetag-backend/src/internal/model"
+	"cinetag-backend/src/internal/repository"
 
 	"gorm.io/gorm"
 )
@@ -28,12 +29,12 @@ type UserService interface {
 }
 
 type userService struct {
-	db *gorm.DB
+	userRepo repository.UserRepository
 }
 
 // NewUserService は UserService の実装を生成します。
-func NewUserService(db *gorm.DB) UserService {
-	return &userService{db: db}
+func NewUserService(userRepo repository.UserRepository) UserService {
+	return &userService{userRepo: userRepo}
 }
 
 // EnsureUser は Clerk ユーザーに対応する users レコードの存在を保証します。
@@ -42,16 +43,12 @@ func (s *userService) EnsureUser(ctx context.Context, clerkInfo ClerkUserInfo) (
 		return nil, errors.New("clerk user id is required")
 	}
 
-	var user model.User
-	err := s.db.WithContext(ctx).
-		Where("clerk_user_id = ?", clerkInfo.ID).
-		First(&user).
-		Error
+	existing, err := s.userRepo.FindByClerkUserID(ctx, clerkInfo.ID)
 
 	switch {
 	case err == nil:
 		// 既に存在する場合はそのまま返す
-		return &user, nil
+		return existing, nil
 	case !errors.Is(err, gorm.ErrRecordNotFound):
 		// それ以外のエラーはそのまま返す
 		return nil, err
@@ -67,7 +64,7 @@ func (s *userService) EnsureUser(ctx context.Context, clerkInfo ClerkUserInfo) (
 		displayName = username
 	}
 
-	user = model.User{
+	user := &model.User{
 		ClerkUserID: clerkInfo.ID,
 		Username:    username,
 		DisplayName: displayName,
@@ -75,9 +72,9 @@ func (s *userService) EnsureUser(ctx context.Context, clerkInfo ClerkUserInfo) (
 		AvatarURL:   clerkInfo.AvatarURL,
 	}
 
-	if err := s.db.WithContext(ctx).Create(&user).Error; err != nil {
+	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, err
 	}
 
-	return &user, nil
+	return user, nil
 }
