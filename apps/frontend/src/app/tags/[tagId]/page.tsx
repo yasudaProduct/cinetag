@@ -1,13 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/Header";
 import { MoviePosterCard } from "@/components/MoviePosterCard";
 import { fetchTagDetail, fetchTagMovies } from "@/lib/api/tag";
 import type { TagDetail, TagMovie } from "@/lib/mock/tagDetail";
 import { Search, Plus, Pencil } from "lucide-react";
 
-function AvatarCircle({ name, className }: { name: string; className?: string }) {
+function AvatarCircle({
+  name,
+  className,
+}: {
+  name: string;
+  className?: string;
+}) {
   const initial = (name?.trim()?.[0] ?? "?").toUpperCase();
   return (
     <div
@@ -23,8 +29,12 @@ function AvatarCircle({ name, className }: { name: string; className?: string })
   );
 }
 
-export default function TagDetailPage({ params }: { params: { tagId: string } }) {
-  const tagId = params.tagId;
+export default function TagDetailPage({
+  params,
+}: {
+  params: Promise<{ tagId: string }>;
+}) {
+  const { tagId } = use(params);
   const [detail, setDetail] = useState<TagDetail | null>(null);
   const [movies, setMovies] = useState<TagMovie[]>([]);
   const [query, setQuery] = useState("");
@@ -35,7 +45,10 @@ export default function TagDetailPage({ params }: { params: { tagId: string } })
     const run = async () => {
       setError(null);
 
-      const [d, m] = await Promise.all([fetchTagDetail(tagId), fetchTagMovies(tagId)]);
+      const [d, m] = await Promise.all([
+        fetchTagDetail(tagId),
+        fetchTagMovies(tagId),
+      ]);
       if (cancelled) return;
 
       if (d.ok) setDetail(d.data);
@@ -53,7 +66,9 @@ export default function TagDetailPage({ params }: { params: { tagId: string } })
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return movies;
-    return movies.filter((m) => `${m.title} ${m.year}`.toLowerCase().includes(q));
+    return movies.filter((m) =>
+      `${m.title} ${m.year}`.toLowerCase().includes(q)
+    );
   }, [movies, query]);
 
   return (
@@ -74,9 +89,14 @@ export default function TagDetailPage({ params }: { params: { tagId: string } })
 
               {/* Author */}
               <div className="mt-6 flex items-center gap-3">
-                <AvatarCircle name={detail?.author?.name ?? "author"} className="h-10 w-10" />
+                <AvatarCircle
+                  name={detail?.author?.name ?? "author"}
+                  className="h-10 w-10"
+                />
                 <div>
-                  <div className="text-xs text-gray-500 font-medium">作成者</div>
+                  <div className="text-xs text-gray-500 font-medium">
+                    作成者
+                  </div>
                   <div className="text-sm font-bold text-gray-900">
                     {detail?.author?.name ?? "-"}
                   </div>
@@ -90,7 +110,10 @@ export default function TagDetailPage({ params }: { params: { tagId: string } })
                 </div>
                 <div className="mt-3 flex items-center">
                   {(detail?.participants ?? []).slice(0, 4).map((p, idx) => (
-                    <div key={`${p.name}-${idx}`} className={idx === 0 ? "" : "-ml-2"}>
+                    <div
+                      key={`${p.name}-${idx}`}
+                      className={idx === 0 ? "" : "-ml-2"}
+                    >
                       <AvatarCircle name={p.name} className="h-9 w-9" />
                     </div>
                   ))}
@@ -154,12 +177,19 @@ export default function TagDetailPage({ params }: { params: { tagId: string } })
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
               {filtered.map((m) => (
-                <MoviePosterCard key={m.id} title={m.title} year={m.year} posterUrl={m.posterUrl} />
+                <MoviePosterCard
+                  key={m.id}
+                  title={m.title}
+                  year={m.year}
+                  posterUrl={m.posterUrl}
+                />
               ))}
             </div>
 
             {filtered.length === 0 && (
-              <div className="mt-10 text-center text-gray-600">該当する映画がありません</div>
+              <div className="mt-10 text-center text-gray-600">
+                該当する映画がありません
+              </div>
             )}
           </section>
         </div>
@@ -167,5 +197,3 @@ export default function TagDetailPage({ params }: { params: { tagId: string } })
     </div>
   );
 }
-
-
