@@ -34,3 +34,6 @@ func (r *userRepository) FindByClerkUserID(ctx context.Context, clerkUserID stri
 func (r *userRepository) Create(ctx context.Context, user *model.User) error {
 	return r.db.WithContext(ctx).Create(user).Error
 }
+
+
+

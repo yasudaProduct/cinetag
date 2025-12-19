@@ -3,14 +3,12 @@
 import { X, Film } from "lucide-react";
 import { useState, FormEvent } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
+import { useMutation } from "@tanstack/react-query";
 import {
   TagCreateInputSchema,
   getFirstZodErrorMessage,
 } from "@/lib/validation/tag.form";
-import {
-  ApiErrorSchema,
-  TagCreateResponseSchema,
-} from "@/lib/validation/tag.api";
+import { createTag } from "@/lib/api/tags/create";
 
 interface TagCreateModalProps {
   open: boolean;
@@ -36,10 +34,50 @@ export const TagCreateModal = ({
 }: TagCreateModalProps) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { getToken } = useAuth();
   const { user } = useUser();
+
+  const createMutation = useMutation({
+    mutationFn: async (input: { title: string; description?: string }) => {
+      const token = await getToken({ template: "cinetag-backend" });
+      if (!token) {
+        throw new Error(
+          "認証情報の取得に失敗しました。再ログインしてください。"
+        );
+      }
+      return await createTag({
+        token,
+        input: {
+          title: input.title,
+          description: input.description,
+          is_public: true,
+        },
+      });
+    },
+    onSuccess: (created) => {
+      const author = user?.username ?? user?.fullName ?? "me";
+      onCreated({
+        id: created.id,
+        title: created.title,
+        description: created.description ?? null,
+        author,
+        movie_count: created.movie_count ?? 0,
+        follower_count: created.follower_count ?? 0,
+        images: [],
+        created_at: created.created_at,
+      });
+
+      setName("");
+      setDescription("");
+      onClose();
+    },
+    onError: (err) => {
+      setErrorMessage(
+        err instanceof Error ? err.message : "作成に失敗しました。"
+      );
+    },
+  });
 
   if (!open) return null;
 
@@ -57,79 +95,10 @@ export const TagCreateModal = ({
     }
 
     const { title, description: desc } = parsedInput.data;
-
-    const base = process.env.NEXT_PUBLIC_BACKEND_API_BASE;
-    if (!base) {
-      setErrorMessage(
-        "環境変数 NEXT_PUBLIC_BACKEND_API_BASE が設定されていません。"
-      );
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const token = await getToken({ template: "cinetag-backend" });
-      if (!token) {
-        setErrorMessage(
-          "認証情報の取得に失敗しました。再ログインしてください。"
-        );
-        return;
-      }
-
-      const payload: Record<string, unknown> = {
-        title,
-        is_public: true,
-      };
-      if (desc && desc.length > 0) payload.description = desc;
-
-      const res = await fetch(`${base}/api/v1/tags`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        const msg = ((): string => {
-          const parsedError = ApiErrorSchema.safeParse(body);
-          if (parsedError.success) return parsedError.data.error;
-          return `作成に失敗しました（${res.status}）`;
-        })();
-        setErrorMessage(msg);
-        return;
-      }
-
-      const body = await res.json().catch(() => null);
-      const parsedCreated = TagCreateResponseSchema.safeParse(body);
-      if (!parsedCreated.success) {
-        console.warn("Invalid create tag response:", parsedCreated.error, body);
-        setErrorMessage("作成レスポンスの形式が不正です。");
-        return;
-      }
-
-      const created = parsedCreated.data;
-
-      const author = user?.username ?? user?.fullName ?? "me";
-      onCreated({
-        id: created.id,
-        title: created.title,
-        description: created.description ?? null,
-        author,
-        movie_count: created.movie_count ?? 0,
-        follower_count: created.follower_count ?? 0,
-        images: [],
-        created_at: created.created_at,
-      });
-
-      setName("");
-      setDescription("");
-      onClose();
-    } finally {
-      setIsSubmitting(false);
-    }
+    await createMutation.mutateAsync({
+      title,
+      description: desc && desc.length > 0 ? desc : undefined,
+    });
   };
 
   return (
@@ -216,10 +185,10 @@ export const TagCreateModal = ({
             )}
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={createMutation.isPending}
               className="inline-flex items-center justify-center rounded-full bg-[#FF5C5C] px-8 py-3 text-sm font-semibold text-white shadow-[0_8px_0_#D44242] hover:translate-y-0.5 hover:shadow-[0_6px_0_#D44242] active:translate-y-1 active:shadow-[0_3px_0_#D44242] transition-transform"
             >
-              {isSubmitting ? "作成中..." : "タグを作成"}
+              {createMutation.isPending ? "作成中..." : "タグを作成"}
             </button>
           </div>
         </form>
