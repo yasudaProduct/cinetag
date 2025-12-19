@@ -34,7 +34,8 @@
 
 ### ファイル
 
-- `apps/frontend/src/lib/validation/tag.ts`
+- API レスポンス検証: `apps/frontend/src/lib/validation/tag.api.ts`
+- フォーム入力検証: `apps/frontend/src/lib/validation/tag.form.ts`
 
 ### タグ作成（入力）
 

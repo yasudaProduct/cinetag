@@ -1,12 +1,14 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useState } from "react";
 import { Header } from "@/components/Header";
 import { MoviePosterCard } from "@/components/MoviePosterCard";
-import { fetchTagDetail, fetchTagMovies } from "@/lib/api/tag";
-import type { TagDetail, TagMovie } from "@/lib/mock/tagDetail";
+import { getTagDetail } from "@/lib/api/tags/detail";
+import { listTagMovies } from "@/lib/api/tags/movies";
 import { Search, Plus, Pencil } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
+// TODO: これは共通コンポーネントにする
 function AvatarCircle({
   name,
   className,
@@ -35,41 +37,28 @@ export default function TagDetailPage({
   params: Promise<{ tagId: string }>;
 }) {
   const { tagId } = use(params);
-  const [detail, setDetail] = useState<TagDetail | null>(null);
-  const [movies, setMovies] = useState<TagMovie[]>([]);
   const [query, setQuery] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      setError(null);
+  const detailQuery = useQuery({
+    queryKey: ["tagDetail", tagId],
+    queryFn: () => getTagDetail(tagId),
+  });
 
-      const [d, m] = await Promise.all([
-        fetchTagDetail(tagId),
-        fetchTagMovies(tagId),
-      ]);
-      if (cancelled) return;
+  const moviesQuery = useQuery({
+    queryKey: ["tagMovies", tagId],
+    queryFn: () => listTagMovies(tagId),
+  });
 
-      if (d.ok) setDetail(d.data);
-      else setError(d.error);
+  const detail = detailQuery.data ?? null;
+  const movies = moviesQuery.data ?? [];
 
-      if (m.ok) setMovies(m.data);
-      else setError((prev) => prev ?? m.error);
-    };
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [tagId]);
-
-  const filtered = useMemo(() => {
+  const filtered = (() => {
     const q = query.trim().toLowerCase();
     if (!q) return movies;
     return movies.filter((m) =>
       `${m.title} ${m.year}`.toLowerCase().includes(q)
     );
-  }, [movies, query]);
+  })();
 
   return (
     <div className="min-h-screen bg-[#FFF5F5]">
@@ -169,9 +158,11 @@ export default function TagDetailPage({
               </div>
             </div>
 
-            {error && (
+            {(detailQuery.isError || moviesQuery.isError) && (
               <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
+                {(detailQuery.error as Error | null)?.message ??
+                  (moviesQuery.error as Error | null)?.message ??
+                  "読み込みに失敗しました"}
               </div>
             )}
 
@@ -186,7 +177,13 @@ export default function TagDetailPage({
               ))}
             </div>
 
-            {filtered.length === 0 && (
+            {(detailQuery.isLoading || moviesQuery.isLoading) && (
+              <div className="mt-10 text-center text-gray-600">
+                読み込み中...
+              </div>
+            )}
+
+            {!moviesQuery.isLoading && filtered.length === 0 && (
               <div className="mt-10 text-center text-gray-600">
                 該当する映画がありません
               </div>

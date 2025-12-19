@@ -3,38 +3,21 @@
 import { Header } from "@/components/Header";
 import { CategoryCard } from "@/components/CategoryCard";
 import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { TagCreateModal, CreatedTagForList } from "@/components/TagCreateModal";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
-import {
-  TagsListResponseSchema,
-  type TagListItem,
-} from "@/lib/validation/tag.api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { listTags } from "@/lib/api/tags/list";
+import type { TagListItem } from "@/lib/validation/tag.api";
 
 export default function Home() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [tags, setTags] = useState<TagListItem[]>([]);
-
-  useEffect(() => {
-    const fetchTags = async () => {
-      try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_API_BASE}/api/v1/tags`
-        );
-        const json = await response.json().catch(() => null);
-        const parsed = TagsListResponseSchema.safeParse(json);
-        if (!parsed.success) {
-          console.warn("Invalid tags list response:", parsed.error, json);
-          setTags([]);
-          return;
-        }
-        setTags(parsed.data.items ?? []);
-      } catch (error) {
-        console.error("Error fetching tags:", error);
-      }
-    };
-    fetchTags();
-  }, []);
+  const queryClient = useQueryClient();
+  const tagsQuery = useQuery({
+    queryKey: ["tags"],
+    queryFn: listTags,
+  });
+  const tags = tagsQuery.data ?? [];
 
   return (
     <div className="min-h-screen bg-[#FFF5F5]">
@@ -105,7 +88,11 @@ export default function Home() {
         {/* Category Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {/* {MOCK_CATEGORIES.map((category) => ( */}
-          {tags.length > 0 ? (
+          {tagsQuery.isLoading ? (
+            <div>読み込み中...</div>
+          ) : tagsQuery.isError ? (
+            <div>タグ一覧の取得に失敗しました</div>
+          ) : tags.length > 0 ? (
             tags.map((tag) => (
               <CategoryCard
                 key={tag.id}
@@ -151,7 +138,10 @@ export default function Home() {
           open={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
           onCreated={(created: CreatedTagForList) => {
-            setTags((prev) => [created, ...prev]);
+            queryClient.setQueryData<TagListItem[]>(["tags"], (prev) => [
+              created as unknown as TagListItem,
+              ...(prev ?? []),
+            ]);
           }}
         />
       </main>
