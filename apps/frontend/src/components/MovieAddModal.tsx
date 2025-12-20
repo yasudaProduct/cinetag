@@ -14,10 +14,18 @@ type MovieAddModalProps = {
   onAdded: () => void;
 };
 
-export const MovieAddModal = ({ open, tagId, onClose, onAdded }: MovieAddModalProps) => {
+export const MovieAddModal = ({
+  open,
+  tagId,
+  onClose,
+  onAdded,
+}: MovieAddModalProps) => {
   const { getToken } = useAuth();
   const [q, setQ] = useState("");
-  const [selected, setSelected] = useState<null | { tmdb_movie_id: number; title: string }>(null);
+  const [selected, setSelected] = useState<null | {
+    tmdb_movie_id: number;
+    title: string;
+  }>(null);
   const [note, setNote] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -33,7 +41,9 @@ export const MovieAddModal = ({ open, tagId, onClose, onAdded }: MovieAddModalPr
     mutationFn: async () => {
       const token = await getToken({ template: "cinetag-backend" });
       if (!token) {
-        throw new Error("認証情報の取得に失敗しました。再ログインしてください。");
+        throw new Error(
+          "認証情報の取得に失敗しました。再ログインしてください。"
+        );
       }
       if (!selected) {
         throw new Error("追加する映画を選択してください。");
@@ -57,7 +67,9 @@ export const MovieAddModal = ({ open, tagId, onClose, onAdded }: MovieAddModalPr
       onClose();
     },
     onError: (err) => {
-      setErrorMessage(err instanceof Error ? err.message : "追加に失敗しました。");
+      setErrorMessage(
+        err instanceof Error ? err.message : "追加に失敗しました。"
+      );
     },
   });
 
@@ -87,9 +99,12 @@ export const MovieAddModal = ({ open, tagId, onClose, onAdded }: MovieAddModalPr
           </button>
         </div>
 
-        <div className="px-7 pb-7 pt-5 space-y-5">
+        <div className="px-7 pb-2 space-y-5">
+          <div className="mt-2 text-xs text-gray-500">
+            2文字以上で検索します。
+          </div>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center justify-center pointer-events-none">
               <Search className="h-5 w-5 text-gray-400" />
             </div>
             <input
@@ -102,32 +117,43 @@ export const MovieAddModal = ({ open, tagId, onClose, onAdded }: MovieAddModalPr
               placeholder="例: Interstellar"
               className="block w-full pl-12 pr-4 py-3.5 rounded-full border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
             />
-            <div className="mt-2 text-xs text-gray-500">
-              2文字以上で検索します。
-            </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
-            {searchQuery.isLoading && <div className="text-sm text-gray-600">検索中...</div>}
+          {/* {trimmedQ.length >= 2 && ( */}
+          <div className="min-h-64 rounded-2xl border border-gray-200 bg-gray-50 p-3">
+            {searchQuery.isLoading && (
+              <div className="text-sm text-gray-600">検索中...</div>
+            )}
             {searchQuery.isError && (
               <div className="text-sm text-red-700">
-                {(searchQuery.error as Error | null)?.message ?? "検索に失敗しました"}
+                {(searchQuery.error as Error | null)?.message ??
+                  "検索に失敗しました"}
               </div>
             )}
-            {!searchQuery.isLoading && trimmedQ.length >= 2 && items.length === 0 && (
-              <div className="text-sm text-gray-600">候補がありません</div>
-            )}
+            {!searchQuery.isLoading &&
+              trimmedQ.length >= 2 &&
+              items.length === 0 && (
+                <div className="text-sm text-gray-600">候補がありません</div>
+              )}
 
-            {items.length > 0 && (
+            {items.length > 0 ? (
               <div className="max-h-64 overflow-auto divide-y divide-gray-200 bg-white rounded-xl border border-gray-200">
                 {items.slice(0, 20).map((it) => {
-                  const isSelected = selected?.tmdb_movie_id === it.tmdb_movie_id;
-                  const year = it.release_date ? it.release_date.slice(0, 4) : "";
+                  const isSelected =
+                    selected?.tmdb_movie_id === it.tmdb_movie_id;
+                  const year = it.release_date
+                    ? it.release_date.slice(0, 4)
+                    : "";
                   return (
                     <button
                       key={it.tmdb_movie_id}
                       type="button"
-                      onClick={() => setSelected({ tmdb_movie_id: it.tmdb_movie_id, title: it.title })}
+                      onClick={() =>
+                        setSelected({
+                          tmdb_movie_id: it.tmdb_movie_id,
+                          title: it.title,
+                        })
+                      }
                       className={[
                         "w-full text-left px-4 py-3 hover:bg-gray-50",
                         isSelected ? "bg-blue-50" : "bg-white",
@@ -137,20 +163,34 @@ export const MovieAddModal = ({ open, tagId, onClose, onAdded }: MovieAddModalPr
                         <div className="min-w-0">
                           <div className="font-semibold text-gray-900 truncate">
                             {it.title}{" "}
-                            {year ? <span className="text-gray-500 font-medium">({year})</span> : null}
+                            {year ? (
+                              <span className="text-gray-500 font-medium">
+                                ({year})
+                              </span>
+                            ) : null}
                           </div>
-                          {it.original_title && it.original_title !== it.title && (
-                            <div className="text-xs text-gray-500 truncate">{it.original_title}</div>
-                          )}
+                          {it.original_title &&
+                            it.original_title !== it.title && (
+                              <div className="text-xs text-gray-500 truncate">
+                                {it.original_title}
+                              </div>
+                            )}
                         </div>
-                        <div className="text-xs text-gray-500">TMDB: {it.tmdb_movie_id}</div>
+                        <div className="text-xs text-gray-500">
+                          TMDB: {it.tmdb_movie_id}
+                        </div>
                       </div>
                     </button>
                   );
                 })}
               </div>
+            ) : (
+              <div className="text-sm text-gray-600 text-center py-4">
+                候補がありません
+              </div>
             )}
           </div>
+          {/* )} */}
 
           <div className="space-y-2">
             <label className="block text-xs font-semibold tracking-wide text-gray-600">
@@ -165,9 +205,13 @@ export const MovieAddModal = ({ open, tagId, onClose, onAdded }: MovieAddModalPr
             />
           </div>
 
-          {errorMessage && <div className="text-sm text-red-600 font-medium">{errorMessage}</div>}
+          {errorMessage && (
+            <div className="text-sm text-red-600 font-medium">
+              {errorMessage}
+            </div>
+          )}
 
-          <div className="flex justify-end gap-3 pt-1">
+          <div className="flex justify-end gap-3 pt-1 pb-7">
             <button
               type="button"
               onClick={onClose}
@@ -190,5 +234,3 @@ export const MovieAddModal = ({ open, tagId, onClose, onAdded }: MovieAddModalPr
     </div>
   );
 };
-
-

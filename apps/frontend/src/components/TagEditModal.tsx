@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation } from "@tanstack/react-query";
 import { updateTag } from "@/lib/api/tags/update";
+import { Switch } from "@/components/ui/switch";
 
 type TagEditModalProps = {
   open: boolean;
@@ -38,7 +39,9 @@ export const TagEditModal = ({
     mutationFn: async () => {
       const token = await getToken({ template: "cinetag-backend" });
       if (!token) {
-        throw new Error("認証情報の取得に失敗しました。再ログインしてください。");
+        throw new Error(
+          "認証情報の取得に失敗しました。再ログインしてください。"
+        );
       }
 
       return await updateTag({
@@ -46,7 +49,8 @@ export const TagEditModal = ({
         token,
         input: {
           title: title.trim(),
-          description: description.trim().length > 0 ? description.trim() : null,
+          description:
+            description.trim().length > 0 ? description.trim() : null,
           is_public: isPublic,
         },
       });
@@ -57,7 +61,9 @@ export const TagEditModal = ({
       onClose();
     },
     onError: (err) => {
-      setErrorMessage(err instanceof Error ? err.message : "更新に失敗しました。");
+      setErrorMessage(
+        err instanceof Error ? err.message : "更新に失敗しました。"
+      );
     },
   });
 
@@ -112,28 +118,34 @@ export const TagEditModal = ({
 
           <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
             <div>
-              <div className="text-sm font-semibold text-gray-900">公開する</div>
-              <div className="text-xs text-gray-600">オフにすると作成者のみ閲覧できます。</div>
+              <div className="text-sm font-semibold text-gray-900">
+                公開する
+              </div>
+              <div className="text-xs text-gray-600">
+                オフにすると作成者のみ閲覧できます。
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsPublic((v) => !v)}
+            <Switch
+              checked={isPublic}
+              onCheckedChange={setIsPublic}
+              aria-label="公開する"
               className={[
-                "h-9 w-16 rounded-full border transition-colors relative",
-                isPublic ? "bg-blue-600 border-blue-600" : "bg-gray-200 border-gray-200",
+                "h-9 w-16 border border-transparent",
+                "data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-200",
+                "[&_[data-slot=switch-thumb]]:size-7",
+                "[&_[data-slot=switch-thumb]]:bg-white",
+                "[&_[data-slot=switch-thumb]]:shadow",
+                "[&_[data-slot=switch-thumb]]:data-[state=checked]:translate-x-8",
+                "[&_[data-slot=switch-thumb]]:data-[state=unchecked]:translate-x-1",
               ].join(" ")}
-              aria-pressed={isPublic}
-            >
-              <span
-                className={[
-                  "absolute top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-white shadow transition-transform",
-                  isPublic ? "translate-x-8" : "translate-x-1",
-                ].join(" ")}
-              />
-            </button>
+            />
           </div>
 
-          {errorMessage && <div className="text-sm text-red-600 font-medium">{errorMessage}</div>}
+          {errorMessage && (
+            <div className="text-sm text-red-600 font-medium">
+              {errorMessage}
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-1">
             <button
@@ -158,5 +170,3 @@ export const TagEditModal = ({
     </div>
   );
 };
-
-

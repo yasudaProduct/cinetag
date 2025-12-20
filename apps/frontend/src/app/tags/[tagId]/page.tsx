@@ -96,7 +96,7 @@ export default function TagDetailPage({
                 </div>
               </div>
 
-              {/* Participants */}
+              {/* 参加者 */}
               <div className="mt-6">
                 <div className="text-xs text-gray-500 font-semibold">
                   {detail?.participantCount ?? 0}人の参加者
