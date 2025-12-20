@@ -7,6 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { updateTag } from "@/lib/api/tags/update";
 import { Switch } from "@/components/ui/switch";
 import { getBackendTokenOrThrow } from "@/lib/api/_shared/auth";
+import type { AddMoviePolicy } from "@/lib/validation/tag.api";
 
 type TagEditModalProps = {
   open: boolean;
@@ -15,6 +16,7 @@ type TagEditModalProps = {
     title: string;
     description: string;
     is_public: boolean;
+    add_movie_policy?: AddMoviePolicy;
   };
   onClose: () => void;
   onUpdated: () => void;
@@ -31,6 +33,9 @@ export const TagEditModal = ({
   const [title, setTitle] = useState(tag.title);
   const [description, setDescription] = useState(tag.description);
   const [isPublic, setIsPublic] = useState(tag.is_public);
+  const [addMoviePolicy, setAddMoviePolicy] = useState<AddMoviePolicy>(
+    tag.add_movie_policy ?? "everyone"
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const canSubmit = useMemo(() => title.trim().length > 0, [title]);
@@ -47,6 +52,7 @@ export const TagEditModal = ({
           description:
             description.trim().length > 0 ? description.trim() : null,
           is_public: isPublic,
+          add_movie_policy: addMoviePolicy,
         },
       });
     },
@@ -109,6 +115,37 @@ export const TagEditModal = ({
               rows={4}
               className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             />
+          </div>
+
+          {/* Add Movie Policy */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold tracking-wide text-gray-600">
+              映画の追加権限
+            </label>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="add_movie_policy"
+                  value="everyone"
+                  checked={addMoviePolicy === "everyone"}
+                  onChange={() => setAddMoviePolicy("everyone")}
+                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-900">誰でも追加可能</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="add_movie_policy"
+                  value="owner_only"
+                  checked={addMoviePolicy === "owner_only"}
+                  onChange={() => setAddMoviePolicy("owner_only")}
+                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-900">作成者のみ</span>
+              </label>
+            </div>
           </div>
 
           {/* TODO: 現状タグは全て公開設定とする。タグのオプションを整理後実装 */}

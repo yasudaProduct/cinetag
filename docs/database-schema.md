@@ -29,6 +29,7 @@ erDiagram
         text description "説明"
         text cover_image_url "カバー画像URL"
         boolean is_public "公開フラグ"
+        text add_movie_policy "映画追加ポリシー"
         integer movie_count "映画数"
         integer follower_count "フォロワー数"
         timestamptz created_at

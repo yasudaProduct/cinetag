@@ -46,6 +46,7 @@ export default function TagDetailPage({
   const detail = detailQuery.data ?? null;
   const movies = moviesQuery.data ?? [];
   const canEditTag = detail?.canEdit ?? false;
+  const canAddMovie = detail?.canAddMovie ?? false;
 
   const filtered = (() => {
     const q = query.trim().toLowerCase();
@@ -114,14 +115,16 @@ export default function TagDetailPage({
 
               {/* Actions */}
               <div className="mt-7 space-y-3">
-                <button
-                  type="button"
-                  className="w-full bg-[#FF5C5C] hover:bg-[#ff4a4a] text-white font-bold py-3 rounded-full flex items-center justify-center gap-2 shadow-sm hover:shadow transition-all"
-                  onClick={() => setAddOpen(true)}
-                >
-                  <Plus className="w-5 h-5" />
-                  映画を追加する
-                </button>
+                {canAddMovie ? (
+                  <button
+                    type="button"
+                    className="w-full bg-[#FF5C5C] hover:bg-[#ff4a4a] text-white font-bold py-3 rounded-full flex items-center justify-center gap-2 shadow-sm hover:shadow transition-all"
+                    onClick={() => setAddOpen(true)}
+                  >
+                    <Plus className="w-5 h-5" />
+                    映画を追加する
+                  </button>
+                ) : null}
                 {canEditTag ? (
                   <button
                     type="button"
@@ -209,6 +212,7 @@ export default function TagDetailPage({
             title: detail?.title ?? "",
             description: detail?.description ?? "",
             is_public: true,
+            add_movie_policy: detail?.addMoviePolicy ?? "everyone",
           }}
           onClose={() => setEditOpen(false)}
           onUpdated={() => {

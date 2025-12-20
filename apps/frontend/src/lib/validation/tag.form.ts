@@ -4,6 +4,9 @@ import { z } from "zod";
  * フォーム入力の zod schema
  */
 
+export const AddMoviePolicyFormSchema = z.enum(["everyone", "owner_only"]);
+export type AddMoviePolicyForm = z.infer<typeof AddMoviePolicyFormSchema>;
+
 export const TagCreateInputSchema = z.object({
     title: z
         .string()
@@ -15,6 +18,7 @@ export const TagCreateInputSchema = z.object({
         .trim()
         .max(500, "説明は500文字以内で入力してください。")
         .optional(),
+    add_movie_policy: AddMoviePolicyFormSchema.optional().default("everyone"),
 });
 
 export type TagCreateInput = z.infer<typeof TagCreateInputSchema>;

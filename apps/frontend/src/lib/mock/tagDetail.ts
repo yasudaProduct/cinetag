@@ -1,3 +1,5 @@
+export type AddMoviePolicy = "everyone" | "owner_only";
+
 export type TagDetail = {
   id: string;
   title: string;
@@ -12,6 +14,8 @@ export type TagDetail = {
     avatarUrl?: string;
   };
   canEdit: boolean;
+  canAddMovie: boolean;
+  addMoviePolicy: AddMoviePolicy;
   participantCount: number;
   participants: { name: string }[];
 };
@@ -60,6 +64,8 @@ export function getMockTagDetail(tagId: string): TagDetail {
     author: { name: "Eleanor Vance" },
     owner: { id: "", name: "Eleanor Vance", avatarUrl: undefined },
     canEdit: false,
+    canAddMovie: true,
+    addMoviePolicy: "everyone" as AddMoviePolicy,
     participantCount: 8,
     participants,
   };

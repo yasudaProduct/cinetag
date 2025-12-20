@@ -75,11 +75,12 @@ func NewTagService(
 
 // CreateTagInput はタグ作成時の入力値を表します。
 type CreateTagInput struct {
-	UserID        string
-	Title         string
-	Description   *string
-	CoverImageURL *string
-	IsPublic      *bool
+	UserID         string
+	Title          string
+	Description    *string
+	CoverImageURL  *string
+	IsPublic       *bool
+	AddMoviePolicy *string
 }
 
 // AddMovieToTagInput はタグへ映画を追加する際の入力値です。
@@ -94,17 +95,19 @@ type AddMovieToTagInput struct {
 // TagDetail はタグ詳細API向けのレスポンスモデルです。
 // フロントの zod schema が owner を許容しているため、owner を返す形に寄せます。
 type TagDetail struct {
-	ID            string    `json:"id"`
-	Title         string    `json:"title"`
-	Description   *string   `json:"description,omitempty"`
-	CoverImageURL *string   `json:"cover_image_url,omitempty"`
-	IsPublic      bool      `json:"is_public"`
-	MovieCount    int       `json:"movie_count"`
-	FollowerCount int       `json:"follower_count"`
-	Owner         TagOwner  `json:"owner"`
-	CanEdit       bool      `json:"can_edit"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID             string    `json:"id"`
+	Title          string    `json:"title"`
+	Description    *string   `json:"description,omitempty"`
+	CoverImageURL  *string   `json:"cover_image_url,omitempty"`
+	IsPublic       bool      `json:"is_public"`
+	AddMoviePolicy string    `json:"add_movie_policy"`
+	MovieCount     int       `json:"movie_count"`
+	FollowerCount  int       `json:"follower_count"`
+	Owner          TagOwner  `json:"owner"`
+	CanEdit        bool      `json:"can_edit"`
+	CanAddMovie    bool      `json:"can_add_movie"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 
 	// UI都合（既存画面の参加者表示）: 現時点では follower_count を参加者数として扱い、
 	// 一覧は未実装のため空配列を返す。
@@ -146,10 +149,11 @@ type MovieRef struct {
 // UpdateTagPatch はタグ更新の入力値です（部分更新）。
 // nil のフィールドは更新しません。
 type UpdateTagPatch struct {
-	Title         *string
-	Description   **string
-	CoverImageURL **string
-	IsPublic      *bool
+	Title          *string
+	Description    **string
+	CoverImageURL  **string
+	IsPublic       *bool
+	AddMoviePolicy *string
 }
 
 var (
@@ -194,12 +198,20 @@ func (s *tagService) UpdateTag(ctx context.Context, tagID string, userID string,
 		}
 	}
 
+	// add_movie_policy のバリデーション
+	if patch.AddMoviePolicy != nil {
+		if *patch.AddMoviePolicy != "everyone" && *patch.AddMoviePolicy != "owner_only" {
+			return nil, fmt.Errorf("add_movie_policy must be 'everyone' or 'owner_only'")
+		}
+	}
+
 	// タグを更新する。
 	err = s.tagRepo.UpdateByID(ctx, tagID, repository.TagUpdatePatch{
-		Title:         patch.Title,
-		Description:   patch.Description,
-		CoverImageURL: patch.CoverImageURL,
-		IsPublic:      patch.IsPublic,
+		Title:          patch.Title,
+		Description:    patch.Description,
+		CoverImageURL:  patch.CoverImageURL,
+		IsPublic:       patch.IsPublic,
+		AddMoviePolicy: patch.AddMoviePolicy,
 	})
 	if err != nil {
 		return nil, err
@@ -236,24 +248,36 @@ func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserI
 	// ビューアーがタグの作成者の場合、編集可能なフラグを立てる。
 	canEdit := viewerUserID != nil && strings.TrimSpace(*viewerUserID) != "" && *viewerUserID == row.OwnerID
 
+	// 映画追加権限の判定
+	canAddMovie := false
+	if viewerUserID != nil && strings.TrimSpace(*viewerUserID) != "" {
+		if row.AddMoviePolicy == "everyone" {
+			canAddMovie = true
+		} else if row.AddMoviePolicy == "owner_only" {
+			canAddMovie = *viewerUserID == row.OwnerID
+		}
+	}
+
 	// タグの詳細を返す。
 	return &TagDetail{
-		ID:            row.ID,
-		Title:         row.Title,
+		ID:             row.ID,
+		Title:          row.Title,
 		Description:   row.Description,
-		CoverImageURL: row.CoverImageURL,
-		IsPublic:      row.IsPublic,
-		MovieCount:    row.MovieCount,
-		FollowerCount: row.FollowerCount,
+		CoverImageURL:  row.CoverImageURL,
+		IsPublic:       row.IsPublic,
+		AddMoviePolicy: row.AddMoviePolicy,
+		MovieCount:     row.MovieCount,
+		FollowerCount:  row.FollowerCount,
 		Owner: TagOwner{
 			ID:          row.OwnerID,
 			Username:    row.OwnerUsername,
 			DisplayName: row.OwnerDisplayName,
 			AvatarURL:   row.OwnerAvatarURL,
 		},
-		CanEdit:   canEdit,
-		CreatedAt: row.CreatedAt,
-		UpdatedAt: row.UpdatedAt,
+		CanEdit:     canEdit,
+		CanAddMovie: canAddMovie,
+		CreatedAt:   row.CreatedAt,
+		UpdatedAt:   row.UpdatedAt,
 		// UI互換
 		ParticipantCount: row.FollowerCount,
 		Participants:     []TagParticipant{},
@@ -357,12 +381,19 @@ func (s *tagService) CreateTag(ctx context.Context, in CreateTagInput) (*model.T
 		isPublic = *in.IsPublic
 	}
 
+	// デフォルトは "everyone"（全ユーザーが映画追加可能）
+	addMoviePolicy := "everyone"
+	if in.AddMoviePolicy != nil && (*in.AddMoviePolicy == "everyone" || *in.AddMoviePolicy == "owner_only") {
+		addMoviePolicy = *in.AddMoviePolicy
+	}
+
 	tag := model.Tag{
-		UserID:        in.UserID,
-		Title:         in.Title,
-		Description:   in.Description,
-		CoverImageURL: in.CoverImageURL,
-		IsPublic:      isPublic,
+		UserID:         in.UserID,
+		Title:          in.Title,
+		Description:    in.Description,
+		CoverImageURL:  in.CoverImageURL,
+		IsPublic:       isPublic,
+		AddMoviePolicy: addMoviePolicy,
 	}
 
 	if err := s.tagRepo.Create(ctx, &tag); err != nil {
@@ -389,8 +420,8 @@ func (s *tagService) AddMovieToTag(ctx context.Context, in AddMovieToTagInput) (
 		return nil, fmt.Errorf("position must be 0 or greater")
 	}
 
-	// タグの存在確認
-	_, err := s.tagRepo.FindByID(ctx, in.TagID)
+	// タグの存在確認と権限チェック
+	tag, err := s.tagRepo.FindByID(ctx, in.TagID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrTagNotFound
@@ -398,10 +429,10 @@ func (s *tagService) AddMovieToTag(ctx context.Context, in AddMovieToTagInput) (
 		return nil, err
 	}
 
-	// TODO: タグに編集可能範囲のオプションを追加する。今は全ユーザー追加可能。
-	// if tag.UserID != in.UserID {
-	// 	return nil, ErrTagPermissionDenied
-	// }
+	// add_movie_policy に基づいて映画追加権限をチェック
+	if tag.AddMoviePolicy == "owner_only" && tag.UserID != in.UserID {
+		return nil, ErrTagPermissionDenied
+	}
 
 	// タグ映画を作成する。
 	tm := model.TagMovie{

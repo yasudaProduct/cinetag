@@ -7,6 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import {
   TagCreateInputSchema,
   getFirstZodErrorMessage,
+  type AddMoviePolicyForm,
 } from "@/lib/validation/tag.form";
 import { createTag } from "@/lib/api/tags/create";
 import { getBackendTokenOrThrow } from "@/lib/api/_shared/auth";
@@ -35,12 +36,13 @@ export const TagCreateModal = ({
 }: TagCreateModalProps) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [addMoviePolicy, setAddMoviePolicy] = useState<AddMoviePolicyForm>("everyone");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { getToken } = useAuth();
   const { user } = useUser();
 
   const createMutation = useMutation({
-    mutationFn: async (input: { title: string; description?: string }) => {
+    mutationFn: async (input: { title: string; description?: string; add_movie_policy: AddMoviePolicyForm }) => {
       const token = await getBackendTokenOrThrow(getToken);
       return await createTag({
         token,
@@ -48,6 +50,7 @@ export const TagCreateModal = ({
           title: input.title,
           description: input.description,
           is_public: true,
+          add_movie_policy: input.add_movie_policy,
         },
       });
     },
@@ -66,6 +69,7 @@ export const TagCreateModal = ({
 
       setName("");
       setDescription("");
+      setAddMoviePolicy("everyone");
       onClose();
     },
     onError: (err) => {
@@ -84,16 +88,18 @@ export const TagCreateModal = ({
     const parsedInput = TagCreateInputSchema.safeParse({
       title: name,
       description: description.length > 0 ? description : undefined,
+      add_movie_policy: addMoviePolicy,
     });
     if (!parsedInput.success) {
       setErrorMessage(getFirstZodErrorMessage(parsedInput.error));
       return;
     }
 
-    const { title, description: desc } = parsedInput.data;
+    const { title, description: desc, add_movie_policy } = parsedInput.data;
     await createMutation.mutateAsync({
       title,
       description: desc && desc.length > 0 ? desc : undefined,
+      add_movie_policy,
     });
   };
 
@@ -149,6 +155,37 @@ export const TagCreateModal = ({
               rows={4}
               className="w-full rounded-xl border border-[#E4D3C7] bg-[#FFFDF8] px-4 py-3 text-sm text-[#1F1A2B] shadow-[0_1px_0_rgba(0,0,0,0.03)] focus:outline-none focus:ring-2 focus:ring-[#FF8C75] focus:border-transparent placeholder:text-[#C2B5A8] resize-none"
             />
+          </div>
+
+          {/* Add Movie Policy */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold tracking-wide text-[#7C7288]">
+              映画の追加権限
+            </label>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="add_movie_policy"
+                  value="everyone"
+                  checked={addMoviePolicy === "everyone"}
+                  onChange={() => setAddMoviePolicy("everyone")}
+                  className="w-4 h-4 text-[#FF5C5C] border-[#E4D3C7] focus:ring-[#FF8C75]"
+                />
+                <span className="text-sm text-[#1F1A2B]">誰でも追加可能</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="add_movie_policy"
+                  value="owner_only"
+                  checked={addMoviePolicy === "owner_only"}
+                  onChange={() => setAddMoviePolicy("owner_only")}
+                  className="w-4 h-4 text-[#FF5C5C] border-[#E4D3C7] focus:ring-[#FF8C75]"
+                />
+                <span className="text-sm text-[#1F1A2B]">作成者のみ</span>
+              </label>
+            </div>
           </div>
 
           {/* Cover Image (dummy uploader) */}

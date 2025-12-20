@@ -28,10 +28,11 @@ func NewTagHandler(tagService service.TagService) *TagHandler {
 // user_id はクライアントからは受け取らず、AuthMiddleware によりコンテキストに設定された
 // 認証済みユーザー情報から取得します。
 type createTagRequest struct {
-	Title         string  `json:"title" binding:"required"`
-	Description   *string `json:"description"`
-	CoverImageURL *string `json:"cover_image_url"`
-	IsPublic      *bool   `json:"is_public"`
+	Title          string  `json:"title" binding:"required"`
+	Description    *string `json:"description"`
+	CoverImageURL  *string `json:"cover_image_url"`
+	IsPublic       *bool   `json:"is_public"`
+	AddMoviePolicy *string `json:"add_movie_policy"`
 }
 
 type addTagMovieRequest struct {
@@ -41,10 +42,11 @@ type addTagMovieRequest struct {
 }
 
 type updateTagRequest struct {
-	Title         *string  `json:"title"`
-	Description   **string `json:"description"`
-	CoverImageURL **string `json:"cover_image_url"`
-	IsPublic      *bool    `json:"is_public"`
+	Title          *string  `json:"title"`
+	Description    **string `json:"description"`
+	CoverImageURL  **string `json:"cover_image_url"`
+	IsPublic       *bool    `json:"is_public"`
+	AddMoviePolicy *string  `json:"add_movie_policy"`
 }
 
 // GetTagDetail はタグ詳細を取得します。
@@ -138,10 +140,11 @@ func (h *TagHandler) UpdateTag(c *gin.Context) {
 
 	// タグを更新する。
 	out, err := h.tagService.UpdateTag(c.Request.Context(), tagID, user.ID, service.UpdateTagPatch{
-		Title:         req.Title,
-		Description:   req.Description,
-		CoverImageURL: req.CoverImageURL,
-		IsPublic:      req.IsPublic,
+		Title:          req.Title,
+		Description:    req.Description,
+		CoverImageURL:  req.CoverImageURL,
+		IsPublic:       req.IsPublic,
+		AddMoviePolicy: req.AddMoviePolicy,
 	})
 	if err != nil {
 		switch {
@@ -245,11 +248,12 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 	}
 
 	tag, err := h.tagService.CreateTag(c.Request.Context(), service.CreateTagInput{
-		UserID:        user.ID,
-		Title:         req.Title,
-		Description:   req.Description,
-		CoverImageURL: req.CoverImageURL,
-		IsPublic:      req.IsPublic,
+		UserID:         user.ID,
+		Title:          req.Title,
+		Description:    req.Description,
+		CoverImageURL:  req.CoverImageURL,
+		IsPublic:       req.IsPublic,
+		AddMoviePolicy: req.AddMoviePolicy,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -260,15 +264,16 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 
 	// レスポンスは api-spec に合わせて必要なフィールドのみ返す
 	c.JSON(http.StatusCreated, gin.H{
-		"id":              tag.ID,
-		"title":           tag.Title,
-		"description":     tag.Description,
-		"cover_image_url": tag.CoverImageURL,
-		"is_public":       tag.IsPublic,
-		"movie_count":     tag.MovieCount,
-		"follower_count":  tag.FollowerCount,
-		"created_at":      tag.CreatedAt,
-		"updated_at":      tag.UpdatedAt,
+		"id":               tag.ID,
+		"title":            tag.Title,
+		"description":      tag.Description,
+		"cover_image_url":  tag.CoverImageURL,
+		"is_public":        tag.IsPublic,
+		"add_movie_policy": tag.AddMoviePolicy,
+		"movie_count":      tag.MovieCount,
+		"follower_count":   tag.FollowerCount,
+		"created_at":       tag.CreatedAt,
+		"updated_at":       tag.UpdatedAt,
 	})
 }
 

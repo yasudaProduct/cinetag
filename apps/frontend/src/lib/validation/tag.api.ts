@@ -47,6 +47,9 @@ export const TagsListResponseSchema = z
 
 export type TagsListResponse = z.infer<typeof TagsListResponseSchema>;
 
+export const AddMoviePolicySchema = z.enum(["everyone", "owner_only"]);
+export type AddMoviePolicy = z.infer<typeof AddMoviePolicySchema>;
+
 export const TagCreateResponseSchema = z
     .object({
         id: z.string().min(1),
@@ -54,6 +57,7 @@ export const TagCreateResponseSchema = z
         description: z.string().nullable().optional(),
         cover_image_url: z.string().nullable().optional(),
         is_public: z.boolean(),
+        add_movie_policy: AddMoviePolicySchema.optional().default("everyone"),
         movie_count: z.number().int().nonnegative(),
         follower_count: z.number().int().nonnegative(),
         created_at: z.string().optional(),
@@ -111,6 +115,8 @@ export const TagDetailResponseSchema = z
         // 新: owner({display_name, username})
         owner: TagDetailOwnerNameSchema.optional(),
         can_edit: z.boolean().optional(),
+        can_add_movie: z.boolean().optional(),
+        add_movie_policy: AddMoviePolicySchema.optional(),
         participant_count: z.number().int().nonnegative().optional(),
         participants: z.array(TagDetailParticipantSchema).optional(),
     })
@@ -126,6 +132,8 @@ export const TagDetailResponseSchema = z
             author: { name: authorName },
             owner: owner ?? { id: "", name: authorName },
             canEdit: data.can_edit ?? false,
+            canAddMovie: data.can_add_movie ?? false,
+            addMoviePolicy: data.add_movie_policy ?? "everyone",
             participantCount: data.participant_count ?? 0,
             participants,
         };

@@ -1,10 +1,11 @@
-import { TagCreateResponseSchema } from "@/lib/validation/tag.api";
+import { TagCreateResponseSchema, type AddMoviePolicy } from "@/lib/validation/tag.api";
 import { getPublicApiBaseOrThrow, safeJson, toApiErrorMessage } from "@/lib/api/_shared/http";
 
 export type CreateTagInput = {
   title: string;
   description?: string;
   is_public: boolean;
+  add_movie_policy?: AddMoviePolicy;
 };
 
 export async function createTag(params: { token: string; input: CreateTagInput }) {
