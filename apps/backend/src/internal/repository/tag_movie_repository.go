@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"cinetag-backend/src/internal/model"
 
@@ -16,9 +17,30 @@ var ErrTagMovieAlreadyExists = errors.New("tag movie already exists")
 type TagMovieRepository interface {
 	// ListRecentByTag は指定したタグに紐づく映画を、追加順(新しい順)で最大 limit 件まで取得します。
 	ListRecentByTag(ctx context.Context, tagID string, limit int) ([]model.TagMovie, error)
+	// ListByTag は指定したタグに紐づく映画を取得します（ページング対応）。
+	// movie_cache を LEFT JOIN し、可能なら映画情報も一緒に返します。
+	ListByTag(ctx context.Context, tagID string, offset, limit int) ([]TagMovieWithCache, int64, error)
 	// Create はタグに映画を追加します。
 	// ユニーク制約違反（tag_movies_unique）の場合は ErrTagMovieAlreadyExists を返します。
 	Create(ctx context.Context, tagMovie *model.TagMovie) error
+}
+
+// TagMovieWithCache は tag_movies と movie_cache の結合結果です。
+// cache 側は存在しない可能性があるため nullable を許容します。
+type TagMovieWithCache struct {
+	ID          string    `gorm:"column:id"`
+	TagID       string    `gorm:"column:tag_id"`
+	TmdbMovieID int       `gorm:"column:tmdb_movie_id"`
+	AddedByUser string    `gorm:"column:added_by_user_id"`
+	Note        *string   `gorm:"column:note"`
+	Position    int       `gorm:"column:position"`
+	CreatedAt   time.Time `gorm:"column:created_at"`
+
+	MovieTitle         *string    `gorm:"column:movie_title"`
+	MovieOriginalTitle *string    `gorm:"column:movie_original_title"`
+	MoviePosterPath    *string    `gorm:"column:movie_poster_path"`
+	MovieReleaseDate   *time.Time `gorm:"column:movie_release_date"`
+	MovieVoteAverage   *float64   `gorm:"column:movie_vote_average"`
 }
 
 type tagMovieRepository struct {
@@ -47,6 +69,45 @@ func (r *tagMovieRepository) ListRecentByTag(ctx context.Context, tagID string, 
 	return tagMovies, nil
 }
 
+func (r *tagMovieRepository) ListByTag(ctx context.Context, tagID string, offset, limit int) ([]TagMovieWithCache, int64, error) {
+	if limit <= 0 {
+		return []TagMovieWithCache{}, 0, nil
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// total count（tag_movies の件数）
+	var total int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.TagMovie{}).
+		Where("tag_id = ?", tagID).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if total == 0 {
+		return []TagMovieWithCache{}, 0, nil
+	}
+
+	// list with cache join
+	var rows []TagMovieWithCache
+	err := r.db.WithContext(ctx).
+		Table((model.TagMovie{}).TableName()+" AS tm").
+		Select(`tm.id, tm.tag_id, tm.tmdb_movie_id, tm.added_by_user_id, tm.note, tm.position, tm.created_at,
+		        mc.title AS movie_title, mc.original_title AS movie_original_title, mc.poster_path AS movie_poster_path,
+		        mc.release_date AS movie_release_date, mc.vote_average AS movie_vote_average`).
+		Joins("LEFT JOIN "+(model.MovieCache{}).TableName()+" AS mc ON mc.tmdb_movie_id = tm.tmdb_movie_id").
+		Where("tm.tag_id = ?", tagID).
+		Order("tm.position ASC, tm.created_at DESC").
+		Offset(offset).
+		Limit(limit).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return rows, total, nil
+}
+
 func (r *tagMovieRepository) Create(ctx context.Context, tagMovie *model.TagMovie) error {
 	// ユニーク制約(tag_movies_unique)は (tag_id, tmdb_movie_id)。
 	// 追加済みの場合はエラーにせず DoNothing にして RowsAffected で判定する。
@@ -63,4 +124,3 @@ func (r *tagMovieRepository) Create(ctx context.Context, tagMovie *model.TagMovi
 	}
 	return nil
 }
-

@@ -28,6 +28,9 @@ type MovieService interface {
 	// - 有効なキャッシュがあればそれを返す
 	// - キャッシュが無い、または期限切れの場合は TMDB から取得してキャッシュを更新する
 	EnsureMovieCache(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error)
+
+	// SearchMovies は TMDB の検索APIで映画を検索し、候補一覧を返します。
+	SearchMovies(ctx context.Context, query string, page int) ([]TMDBSearchResult, int, error)
 }
 
 // TMDBConfig は TMDB 連携に必要な設定値を表します。
@@ -102,6 +105,116 @@ type tmdbMovieResponse struct {
 		Name string `json:"name"`
 	} `json:"genres"`
 	Runtime *int `json:"runtime"`
+}
+
+// tmdbSearchResponse は TMDB の /search/movie の必要最小限のレスポンスです。
+type tmdbSearchResponse struct {
+	Page         int `json:"page"`
+	TotalPages   int `json:"total_pages"`
+	TotalResults int `json:"total_results"`
+	Results      []struct {
+		ID            int      `json:"id"`
+		Title         string   `json:"title"`
+		OriginalTitle string   `json:"original_title"`
+		PosterPath    *string  `json:"poster_path"`
+		ReleaseDate   string   `json:"release_date"`
+		VoteAverage   *float64 `json:"vote_average"`
+	} `json:"results"`
+}
+
+// TMDBSearchResult はフロントに返す検索候補です。
+type TMDBSearchResult struct {
+	TmdbMovieID   int      `json:"tmdb_movie_id"`
+	Title         string   `json:"title"`
+	OriginalTitle *string  `json:"original_title,omitempty"`
+	PosterPath    *string  `json:"poster_path,omitempty"`
+	ReleaseDate   *string  `json:"release_date,omitempty"`
+	VoteAverage   *float64 `json:"vote_average,omitempty"`
+}
+
+// SearchMovies は TMDB の検索APIで映画を検索し、候補一覧を返します。
+func (s *movieService) SearchMovies(ctx context.Context, query string, page int) ([]TMDBSearchResult, int, error) {
+	q := strings.TrimSpace(query)
+	if q == "" {
+		return []TMDBSearchResult{}, 0, nil
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if s.cfg.APIKey == "" {
+		return nil, 0, errors.New("TMDB_API_KEY is not set")
+	}
+
+	base, err := url.Parse(s.cfg.BaseURL)
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid TMDB_BASE_URL: %w", err)
+	}
+	base.Path = path.Join(base.Path, "search", "movie")
+
+	params := base.Query()
+	params.Set("query", q)
+	params.Set("page", strconv.Itoa(page))
+	if s.cfg.DefaultLanguage != "" {
+		params.Set("language", s.cfg.DefaultLanguage)
+	}
+	base.RawQuery = params.Encode()
+
+	// リクエストを作成する。
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base.String(), nil)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to create TMDB request: %w", err)
+	}
+
+	token := strings.TrimSpace(s.cfg.APIKey)
+	if token != "" {
+		if strings.HasPrefix(strings.ToLower(token), "bearer ") {
+			req.Header.Set("Authorization", token)
+		} else {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+	}
+	req.Header.Set("Accept", "application/json")
+
+	// TMDB にリクエストを送信する。
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to call TMDB: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, 0, fmt.Errorf("tmdb request failed: status=%d", resp.StatusCode)
+	}
+
+	var body tmdbSearchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, 0, fmt.Errorf("failed to decode TMDB response: %w", err)
+	}
+
+	// TMDBSearchResult に変換する。
+	out := make([]TMDBSearchResult, 0, len(body.Results))
+	for _, r := range body.Results {
+		var release *string
+		if strings.TrimSpace(r.ReleaseDate) != "" {
+			s := strings.TrimSpace(r.ReleaseDate)
+			release = &s
+		}
+		var original *string
+		if strings.TrimSpace(r.OriginalTitle) != "" {
+			s := strings.TrimSpace(r.OriginalTitle)
+			original = &s
+		}
+		out = append(out, TMDBSearchResult{
+			TmdbMovieID:   r.ID,
+			Title:         r.Title,
+			OriginalTitle: original,
+			PosterPath:    r.PosterPath,
+			ReleaseDate:   release,
+			VoteAverage:   r.VoteAverage,
+		})
+	}
+
+	return out, body.TotalResults, nil
 }
 
 // EnsureMovieCache は指定した TMDB 映画 ID に対応する movie_cache レコードの

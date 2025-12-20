@@ -30,14 +30,16 @@ func NewRouter() *gin.Engine {
 	userRepo := repository.NewUserRepository(database)
 	userService := service.NewUserService(userRepo)
 	tagHandler := handler.NewTagHandler(tagService)
+	movieHandler := handler.NewMovieHandler(movieService)
 	clerkWebhookHandler := handler.NewClerkWebhookHandler(userService)
 	authMiddleware := middleware.NewAuthMiddleware(userService)
+	optionalAuthMiddleware := middleware.NewOptionalAuthMiddleware(userService)
 
 	r.Use(cors.New(cors.Config{
 		// 許可するオリジン
 		AllowOrigins: []string{"http://localhost:3000"},
 		// 許可するHTTPメソッド
-		AllowMethods: []string{"GET", "POST", "OPTIONS"},
+		AllowMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 		// 許可するリクエストヘッダー（Origin, Content-Type, Authorizationを許可）
 		AllowHeaders: []string{"Origin", "Content-Type", "Authorization"},
 		// レスポンスでアクセスを許可するヘッダー（Content-Lengthをクライアントに公開）
@@ -63,6 +65,12 @@ func NewRouter() *gin.Engine {
 	{
 		// 公開タグ一覧（認証不要）
 		api.GET("/tags", tagHandler.ListPublicTags)
+		// タグ詳細/タグ内映画一覧（Authorizationがあれば認証、無ければ匿名）
+		api.GET("/tags/:tagId", optionalAuthMiddleware, tagHandler.GetTagDetail)
+		api.GET("/tags/:tagId/movies", optionalAuthMiddleware, tagHandler.ListTagMovies)
+
+		// TMDB 検索（認証不要）
+		api.GET("/movies/search", movieHandler.SearchMovies)
 
 		// Clerk Webhook
 		api.POST("/clerk/webhook", clerkWebhookHandler.HandleWebhook)
@@ -72,6 +80,7 @@ func NewRouter() *gin.Engine {
 		authGroup.Use(authMiddleware)
 		{
 			authGroup.POST("/tags", tagHandler.CreateTag)
+			authGroup.PATCH("/tags/:tagId", tagHandler.UpdateTag)
 			authGroup.POST("/tags/:tagId/movies", tagHandler.AddMovieToTag)
 		}
 	}

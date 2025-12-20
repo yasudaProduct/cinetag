@@ -16,8 +16,11 @@ import (
 
 type fakeTagService struct {
 	ListPublicTagsFn func(ctx context.Context, q, sort string, page, pageSize int) ([]service.TagListItem, int64, error)
+	GetTagDetailFn   func(ctx context.Context, tagID string, viewerUserID *string) (*service.TagDetail, error)
+	ListTagMoviesFn  func(ctx context.Context, tagID string, viewerUserID *string, page, pageSize int) ([]service.TagMovieItem, int64, error)
 	CreateTagFn      func(ctx context.Context, in service.CreateTagInput) (*model.Tag, error)
 	AddMovieToTagFn  func(ctx context.Context, in service.AddMovieToTagInput) (*model.TagMovie, error)
+	UpdateTagFn      func(ctx context.Context, tagID string, userID string, patch service.UpdateTagPatch) (*service.TagDetail, error)
 }
 
 func (f *fakeTagService) ListPublicTags(ctx context.Context, q, sort string, page, pageSize int) ([]service.TagListItem, int64, error) {
@@ -25,6 +28,20 @@ func (f *fakeTagService) ListPublicTags(ctx context.Context, q, sort string, pag
 		return []service.TagListItem{}, 0, nil
 	}
 	return f.ListPublicTagsFn(ctx, q, sort, page, pageSize)
+}
+
+func (f *fakeTagService) GetTagDetail(ctx context.Context, tagID string, viewerUserID *string) (*service.TagDetail, error) {
+	if f.GetTagDetailFn == nil {
+		return &service.TagDetail{}, nil
+	}
+	return f.GetTagDetailFn(ctx, tagID, viewerUserID)
+}
+
+func (f *fakeTagService) ListTagMovies(ctx context.Context, tagID string, viewerUserID *string, page, pageSize int) ([]service.TagMovieItem, int64, error) {
+	if f.ListTagMoviesFn == nil {
+		return []service.TagMovieItem{}, 0, nil
+	}
+	return f.ListTagMoviesFn(ctx, tagID, viewerUserID, page, pageSize)
 }
 
 func (f *fakeTagService) CreateTag(ctx context.Context, in service.CreateTagInput) (*model.Tag, error) {
@@ -39,6 +56,13 @@ func (f *fakeTagService) AddMovieToTag(ctx context.Context, in service.AddMovieT
 		return &model.TagMovie{}, nil
 	}
 	return f.AddMovieToTagFn(ctx, in)
+}
+
+func (f *fakeTagService) UpdateTag(ctx context.Context, tagID string, userID string, patch service.UpdateTagPatch) (*service.TagDetail, error) {
+	if f.UpdateTagFn == nil {
+		return &service.TagDetail{}, nil
+	}
+	return f.UpdateTagFn(ctx, tagID, userID, patch)
 }
 
 func newTagHandlerRouter(t *testing.T, tagSvc service.TagService, user *model.User) *gin.Engine {
@@ -58,6 +82,7 @@ func newTagHandlerRouter(t *testing.T, tagSvc service.TagService, user *model.Us
 		})
 	}
 	auth.POST("/tags", h.CreateTag)
+	auth.PATCH("/tags/:tagId", h.UpdateTag)
 	auth.POST("/tags/:tagId/movies", h.AddMovieToTag)
 
 	return r

@@ -12,6 +12,8 @@ import (
 type FakeTagRepository struct {
 	CreateFn              func(ctx context.Context, tag *model.Tag) error
 	FindByIDFn            func(ctx context.Context, id string) (*model.Tag, error)
+	FindDetailByIDFn      func(ctx context.Context, id string) (*repository.TagDetailRow, error)
+	UpdateByIDFn          func(ctx context.Context, id string, patch repository.TagUpdatePatch) error
 	IncrementMovieCountFn func(ctx context.Context, id string, delta int) error
 	ListPublicTagsFn      func(ctx context.Context, filter repository.TagListFilter) ([]repository.TagSummary, int64, error)
 }
@@ -28,6 +30,20 @@ func (f *FakeTagRepository) FindByID(ctx context.Context, id string) (*model.Tag
 		return nil, nil
 	}
 	return f.FindByIDFn(ctx, id)
+}
+
+func (f *FakeTagRepository) FindDetailByID(ctx context.Context, id string) (*repository.TagDetailRow, error) {
+	if f.FindDetailByIDFn == nil {
+		return nil, nil
+	}
+	return f.FindDetailByIDFn(ctx, id)
+}
+
+func (f *FakeTagRepository) UpdateByID(ctx context.Context, id string, patch repository.TagUpdatePatch) error {
+	if f.UpdateByIDFn == nil {
+		return nil
+	}
+	return f.UpdateByIDFn(ctx, id, patch)
 }
 
 func (f *FakeTagRepository) IncrementMovieCount(ctx context.Context, id string, delta int) error {
@@ -47,6 +63,7 @@ func (f *FakeTagRepository) ListPublicTags(ctx context.Context, filter repositor
 // FakeTagMovieRepository は repository.TagMovieRepository の手書き fake です。
 type FakeTagMovieRepository struct {
 	ListRecentByTagFn func(ctx context.Context, tagID string, limit int) ([]model.TagMovie, error)
+	ListByTagFn       func(ctx context.Context, tagID string, offset, limit int) ([]repository.TagMovieWithCache, int64, error)
 	CreateFn          func(ctx context.Context, tagMovie *model.TagMovie) error
 }
 
@@ -55,6 +72,13 @@ func (f *FakeTagMovieRepository) ListRecentByTag(ctx context.Context, tagID stri
 		return []model.TagMovie{}, nil
 	}
 	return f.ListRecentByTagFn(ctx, tagID, limit)
+}
+
+func (f *FakeTagMovieRepository) ListByTag(ctx context.Context, tagID string, offset, limit int) ([]repository.TagMovieWithCache, int64, error) {
+	if f.ListByTagFn == nil {
+		return []repository.TagMovieWithCache{}, 0, nil
+	}
+	return f.ListByTagFn(ctx, tagID, offset, limit)
 }
 
 func (f *FakeTagMovieRepository) Create(ctx context.Context, tagMovie *model.TagMovie) error {

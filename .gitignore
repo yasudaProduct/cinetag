@@ -1,4 +1,5 @@
 apps/backend/.env
+apps/backend/.gocache
 apps/backend/gocache/
 apps/backend/gotmp/
 apps/backend/coverage.out

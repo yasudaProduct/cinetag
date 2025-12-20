@@ -158,7 +158,7 @@ Host: localhost:8080
 }
 ```
 
-#### 5.2 GET `/api/v1/tags/:tagId` **[未実装]**
+#### 5.2 GET `/api/v1/tags/:tagId`
 
 - **概要**: 指定タグの詳細情報を取得する。
 - **認証**: なし（ただし非公開タグアクセス時は `AuthMiddleware` で作成者チェックを行う想定）
@@ -224,7 +224,7 @@ Host: localhost:8080
 }
 ```
 
-#### 5.4 PATCH `/api/v1/tags/:tagId` **[未実装]**
+#### 5.4 PATCH `/api/v1/tags/:tagId`
 
 - **概要**: 既存タグのメタ情報を更新する（作成者のみ）。
 - **認証**: 必須
@@ -252,7 +252,7 @@ Host: localhost:8080
 
 ### 6. タグ内映画（Tag Movies）エンドポイント
 
-#### 6.1 GET `/api/v1/tags/:tagId/movies` **[未実装]**
+#### 6.1 GET `/api/v1/tags/:tagId/movies`
 
 - **概要**: 指定タグに含まれる映画一覧を取得する。
 - **認証**: 任意（タグの公開設定に応じて制御）
@@ -378,7 +378,56 @@ Host: localhost:8080
 
 ---
 
-### 8. 今後の拡張候補
+### 8. 映画（Movies）エンドポイント
+
+#### 8.1 GET `/api/v1/movies/search`
+
+- **概要**: TMDB の検索結果（映画の候補一覧）を返す。
+- **認証**: 不要
+- **クエリパラメータ**
+
+| 名前   | 型   | 必須 | 説明 |
+|--------|------|------|------|
+| `q`    | text | 任意 | 検索キーワード。空の場合は `items: []` / `total_count: 0` を返す |
+| `page` | int  | 任意 | ページ番号（デフォルト: 1） |
+
+- **リクエスト例**
+
+```http
+GET /api/v1/movies/search?q=spirited&page=1 HTTP/1.1
+Host: localhost:8080
+```
+
+- **レスポンス例（200）**
+
+```json
+{
+  "items": [
+    {
+      "tmdb_movie_id": 129,
+      "title": "千と千尋の神隠し",
+      "original_title": "Spirited Away",
+      "poster_path": "/path/to/poster.jpg",
+      "release_date": "2001-07-20",
+      "vote_average": 8.5
+    }
+  ],
+  "page": 1,
+  "total_count": 1
+}
+```
+
+- **レスポンス例（500）**
+
+```json
+{
+  "error": "failed to search movies"
+}
+```
+
+---
+
+### 9. 今後の拡張候補
 
 - **フィード系エンドポイント**
   - `GET /api/v1/feed/tags/popular` : フォロワー数順の人気タグ

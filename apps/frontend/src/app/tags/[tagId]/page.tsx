@@ -7,6 +7,8 @@ import { getTagDetail } from "@/lib/api/tags/detail";
 import { listTagMovies } from "@/lib/api/tags/movies";
 import { Search, Plus, Pencil } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { MovieAddModal } from "@/components/MovieAddModal";
+import { TagEditModal } from "@/components/TagEditModal";
 
 // TODO: これは共通コンポーネントにする
 function AvatarCircle({
@@ -38,6 +40,8 @@ export default function TagDetailPage({
 }) {
   const { tagId } = use(params);
   const [query, setQuery] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const detailQuery = useQuery({
     queryKey: ["tagDetail", tagId],
@@ -121,15 +125,15 @@ export default function TagDetailPage({
                 <button
                   type="button"
                   className="w-full bg-[#FF5C5C] hover:bg-[#ff4a4a] text-white font-bold py-3 rounded-full flex items-center justify-center gap-2 shadow-sm hover:shadow transition-all"
-                  onClick={() => alert("映画追加は未実装です（モック画面）。")}
+                  onClick={() => setAddOpen(true)}
                 >
                   <Plus className="w-5 h-5" />
                   映画を追加する
                 </button>
                 <button
                   type="button"
-                  className="w-full bg-gray-100 text-gray-500 font-bold py-3 rounded-full flex items-center justify-center gap-2 border border-gray-200 cursor-not-allowed"
-                  disabled
+                  className="w-full bg-gray-900 hover:bg-black text-white font-bold py-3 rounded-full flex items-center justify-center gap-2 border border-gray-200 shadow-sm hover:shadow transition-all"
+                  onClick={() => setEditOpen(true)}
                 >
                   <Pencil className="w-4 h-4" />
                   タグを編集
@@ -191,6 +195,28 @@ export default function TagDetailPage({
           </section>
         </div>
       </main>
+
+      <MovieAddModal
+        open={addOpen}
+        tagId={tagId}
+        onClose={() => setAddOpen(false)}
+        onAdded={() => {
+          detailQuery.refetch();
+          moviesQuery.refetch();
+        }}
+      />
+
+      <TagEditModal
+        open={editOpen}
+        tagId={tagId}
+        initialTitle={detail?.title ?? ""}
+        initialDescription={detail?.description ?? ""}
+        initialIsPublic={true}
+        onClose={() => setEditOpen(false)}
+        onUpdated={() => {
+          detailQuery.refetch();
+        }}
+      />
     </div>
   );
 }
