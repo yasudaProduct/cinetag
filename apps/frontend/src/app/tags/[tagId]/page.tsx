@@ -9,6 +9,7 @@ import { Search, Plus, Pencil } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { MovieAddModal } from "@/components/MovieAddModal";
 import { TagEditModal } from "@/components/TagEditModal";
+import { useAuth } from "@clerk/nextjs";
 
 // TODO: これは共通コンポーネントにする
 function AvatarCircle({
@@ -42,19 +43,31 @@ export default function TagDetailPage({
   const [query, setQuery] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const { getToken } = useAuth();
 
   const detailQuery = useQuery({
     queryKey: ["tagDetail", tagId],
-    queryFn: () => getTagDetail(tagId),
+    queryFn: async () => {
+      const token = await getToken({ template: "cinetag-backend" }).catch(
+        () => null
+      );
+      return await getTagDetail(tagId, { token: token ?? undefined });
+    },
   });
 
   const moviesQuery = useQuery({
     queryKey: ["tagMovies", tagId],
-    queryFn: () => listTagMovies(tagId),
+    queryFn: async () => {
+      const token = await getToken({ template: "cinetag-backend" }).catch(
+        () => null
+      );
+      return await listTagMovies(tagId, { token: token ?? undefined });
+    },
   });
 
   const detail = detailQuery.data ?? null;
   const movies = moviesQuery.data ?? [];
+  const canEditTag = detail?.canEdit ?? false;
 
   const filtered = (() => {
     const q = query.trim().toLowerCase();
@@ -130,14 +143,16 @@ export default function TagDetailPage({
                   <Plus className="w-5 h-5" />
                   映画を追加する
                 </button>
-                <button
-                  type="button"
-                  className="w-full bg-gray-900 hover:bg-black text-white font-bold py-3 rounded-full flex items-center justify-center gap-2 border border-gray-200 shadow-sm hover:shadow transition-all"
-                  onClick={() => setEditOpen(true)}
-                >
-                  <Pencil className="w-4 h-4" />
-                  タグを編集
-                </button>
+                {canEditTag ? (
+                  <button
+                    type="button"
+                    className="w-full bg-gray-900 hover:bg-black text-white font-bold py-3 rounded-full flex items-center justify-center gap-2 border border-gray-200 shadow-sm hover:shadow transition-all"
+                    onClick={() => setEditOpen(true)}
+                  >
+                    <Pencil className="w-4 h-4" />
+                    タグを編集
+                  </button>
+                ) : null}
               </div>
             </div>
           </aside>
@@ -206,7 +221,7 @@ export default function TagDetailPage({
         }}
       />
 
-      {editOpen ? (
+      {editOpen && canEditTag ? (
         <TagEditModal
           key={tagId}
           open={true}

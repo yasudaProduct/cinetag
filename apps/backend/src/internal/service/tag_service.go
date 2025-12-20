@@ -102,6 +102,7 @@ type TagDetail struct {
 	MovieCount    int       `json:"movie_count"`
 	FollowerCount int       `json:"follower_count"`
 	Owner         TagOwner  `json:"owner"`
+	CanEdit       bool      `json:"can_edit"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 
@@ -209,10 +210,12 @@ func (s *tagService) UpdateTag(ctx context.Context, tagID string, userID string,
 }
 
 func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserID *string) (*TagDetail, error) {
+	// 必須バリデーション（tagID）
 	if strings.TrimSpace(tagID) == "" {
 		return nil, fmt.Errorf("tag_id is required")
 	}
 
+	// タグの詳細を取得する。
 	row, err := s.tagRepo.FindDetailByID(ctx, tagID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -221,12 +224,18 @@ func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserI
 		return nil, err
 	}
 
+	// 非公開タグの場合、ビューアーの権限をチェックする。
 	if !row.IsPublic {
 		if viewerUserID == nil || strings.TrimSpace(*viewerUserID) == "" || *viewerUserID != row.OwnerID {
+			// ビューアーの権限がない場合、エラーを返す
 			return nil, ErrTagPermissionDenied
 		}
 	}
 
+	// ビューアーがタグの作成者の場合、編集可能なフラグを立てる。
+	canEdit := viewerUserID != nil && strings.TrimSpace(*viewerUserID) != "" && *viewerUserID == row.OwnerID
+
+	// タグの詳細を返す。
 	return &TagDetail{
 		ID:            row.ID,
 		Title:         row.Title,
@@ -240,6 +249,7 @@ func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserI
 			Username:    row.OwnerUsername,
 			DisplayName: row.OwnerDisplayName,
 		},
+		CanEdit:   canEdit,
 		CreatedAt: row.CreatedAt,
 		UpdatedAt: row.UpdatedAt,
 		// UI互換

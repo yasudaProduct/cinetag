@@ -6,6 +6,11 @@ export type TagDetail = {
     name: string;
     avatarUrl?: string;
   };
+  owner: {
+    id: string;
+    name: string;
+  };
+  canEdit: boolean;
   participantCount: number;
   participants: { name: string }[];
 };
@@ -52,6 +57,8 @@ export function getMockTagDetail(tagId: string): TagDetail {
     title,
     description,
     author: { name: "Eleanor Vance" },
+    owner: { id: "", name: "Eleanor Vance" },
+    canEdit: false,
     participantCount: 8,
     participants,
   };

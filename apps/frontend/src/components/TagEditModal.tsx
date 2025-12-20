@@ -43,10 +43,10 @@ export const TagEditModal = ({
         tagId: tag.id,
         token,
         input: {
-          title: tag.title.trim(),
+          title: title.trim(),
           description:
-            tag.description.trim().length > 0 ? tag.description.trim() : null,
-          is_public: tag.is_public,
+            description.trim().length > 0 ? description.trim() : null,
+          is_public: isPublic,
         },
       });
     },

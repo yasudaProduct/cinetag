@@ -80,11 +80,15 @@ const TagDetailAuthorNameSchema = z.union([
 
 const TagDetailOwnerNameSchema = z
     .object({
+        id: z.string().optional(),
         display_name: z.string().optional(),
         username: z.string().optional(),
     })
     .passthrough()
-    .transform((v) => v.display_name ?? v.username ?? "unknown");
+    .transform((v) => ({
+        id: v.id ?? "",
+        name: v.display_name ?? v.username ?? "unknown",
+    }));
 
 const TagDetailParticipantSchema = z.union([
     z.string().transform((name) => ({ name })),
@@ -104,18 +108,22 @@ export const TagDetailResponseSchema = z
         author: TagDetailAuthorNameSchema.optional(),
         // 新: owner({display_name, username})
         owner: TagDetailOwnerNameSchema.optional(),
+        can_edit: z.boolean().optional(),
         participant_count: z.number().int().nonnegative().optional(),
         participants: z.array(TagDetailParticipantSchema).optional(),
     })
     .passthrough()
     .transform((data) => {
-        const authorName = data.author ?? data.owner ?? "unknown";
+        const owner = data.owner;
+        const authorName = data.author ?? owner?.name ?? "unknown";
         const participants = (data.participants ?? []).filter((p) => p.name.length > 0);
         return {
             id: data.id ?? "",
             title: data.title ?? "",
             description: data.description ?? "",
             author: { name: authorName },
+            owner: owner ?? { id: "", name: authorName },
+            canEdit: data.can_edit ?? false,
             participantCount: data.participant_count ?? 0,
             participants,
         };

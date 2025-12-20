@@ -14,12 +14,15 @@ function buildTmdbPosterUrl(posterPath: string | null | undefined): string | und
   return `https://image.tmdb.org/t/p/w400${posterPath}`;
 }
 
-export async function listTagMovies(tagId: string): Promise<TagMovie[]> {
+export async function listTagMovies(tagId: string, options?: { token?: string }): Promise<TagMovie[]> {
   const base = getPublicApiBase();
   if (!base) return getMockTagMovies(tagId);
 
   const url = `${base}/api/v1/tags/${encodeURIComponent(tagId)}/movies`;
-  const res = await fetch(url, { method: "GET" });
+  const res = await fetch(url, {
+    method: "GET",
+    headers: options?.token ? { Authorization: `Bearer ${options.token}` } : undefined,
+  });
 
   if (!res.ok) {
     if (res.status === 404) return getMockTagMovies(tagId);
