@@ -9,6 +9,7 @@ import {
   getFirstZodErrorMessage,
 } from "@/lib/validation/tag.form";
 import { createTag } from "@/lib/api/tags/create";
+import { getBackendTokenOrThrow } from "@/lib/api/_shared/auth";
 
 interface TagCreateModalProps {
   open: boolean;
@@ -40,12 +41,7 @@ export const TagCreateModal = ({
 
   const createMutation = useMutation({
     mutationFn: async (input: { title: string; description?: string }) => {
-      const token = await getToken({ template: "cinetag-backend" });
-      if (!token) {
-        throw new Error(
-          "認証情報の取得に失敗しました。再ログインしてください。"
-        );
-      }
+      const token = await getBackendTokenOrThrow(getToken);
       return await createTag({
         token,
         input: {

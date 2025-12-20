@@ -6,6 +6,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useMutation } from "@tanstack/react-query";
 import { updateTag } from "@/lib/api/tags/update";
 import { Switch } from "@/components/ui/switch";
+import { getBackendTokenOrThrow } from "@/lib/api/_shared/auth";
 
 type TagEditModalProps = {
   open: boolean;
@@ -37,12 +38,7 @@ export const TagEditModal = ({
 
   const updateMutation = useMutation({
     mutationFn: async () => {
-      const token = await getToken({ template: "cinetag-backend" });
-      if (!token) {
-        throw new Error(
-          "認証情報の取得に失敗しました。再ログインしてください。"
-        );
-      }
+      const token = await getBackendTokenOrThrow(getToken);
 
       return await updateTag({
         tagId,

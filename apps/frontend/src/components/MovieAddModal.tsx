@@ -6,6 +6,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { searchMovies } from "@/lib/api/movies/search";
 import { addMovieToTag } from "@/lib/api/tags/addMovie";
+import { getBackendTokenOrThrow } from "@/lib/api/_shared/auth";
 
 type MovieAddModalProps = {
   open: boolean;
@@ -39,12 +40,7 @@ export const MovieAddModal = ({
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      const token = await getToken({ template: "cinetag-backend" });
-      if (!token) {
-        throw new Error(
-          "認証情報の取得に失敗しました。再ログインしてください。"
-        );
-      }
+      const token = await getBackendTokenOrThrow(getToken);
       if (!selected) {
         throw new Error("追加する映画を選択してください。");
       }
