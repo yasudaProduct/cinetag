@@ -14,5 +14,6 @@
     "prod": {
       "host": "prod.hoge.jp"
     }
-  }
+  },
+  "rest-client.dotenvPath": "apps/backend/.env"
 }

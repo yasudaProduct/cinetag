@@ -1,0 +1,16 @@
+#
+# Health / Swagger
+#
+# 環境変数は `.vscode/settings.json` の `rest-client.environmentVariables` を使用します:
+# - {{host}}    例: http://localhost:8080
+# - {{api}}     例: /api/
+# - {{version}} 例: v1
+#
+
+### Health Check
+GET {{host}}/health
+
+### Swagger UI
+GET {{host}}/swagger/index.html
+
+

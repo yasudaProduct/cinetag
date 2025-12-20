@@ -1,0 +1,18 @@
+#
+# 参考: 外部API (TMDB) 直叩き
+#
+@tmdb_base_url = https://api.themoviedb.org/3
+@tmdb_api_key = your_tmdb_api_key
+@tmdb_movie_id = 550
+
+### TMDB: 映画詳細取得（/movie/{movie_id}）
+GET {{tmdb_base_url}}/movie/{{tmdb_movie_id}}?language=ja-JP
+Authorization: Bearer {{tmdb_api_key}}
+
+### TMDB: 映画検索（/search/movie）
+GET {{tmdb_base_url}}/search/movie?api_key={{tmdb_api_key}}&language=ja-JP&query=spirited%20away&page=1&include_adult=false
+
+### TMDB: 映画詳細取得（フォールバック用 /movie/{movie_id}, language=en-US）
+GET {{tmdb_base_url}}/movie/{{tmdb_movie_id}}?api_key={{tmdb_api_key}}&language=en-US
+
+

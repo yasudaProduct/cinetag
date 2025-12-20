@@ -1,0 +1,38 @@
+#
+# Tag Movies (tagId 配下の movies)
+#
+# 環境変数は `.vscode/settings.json` の `rest-client.environmentVariables` を使用します:
+# - {{host}}    例: http://localhost:8080
+# - {{api}}     例: /api/
+# - {{version}} 例: v1
+#
+@api_prefix = {{api}}{{version}}
+
+# Auth: Clerk JWT (Bearer)
+# - token は `apps/backend/.env` の `AUTH_TOKEN` から参照します（`{{$dotenv AUTH_TOKEN}}`）
+
+@tag_id = 154c44ab-3ba9-4c26-9642-49d11d3d1ff5
+@tmdb_movie_id = 129
+
+@page = 1
+@page_size = 50
+
+### タグ内の映画一覧（Authorization があれば認証、無ければ匿名）
+GET {{host}}{{api_prefix}}/tags/{{tag_id}}/movies?page={{page}}&page_size={{page_size}}
+
+### タグ内の映画一覧（Authorization 付き）
+GET {{host}}{{api_prefix}}/tags/{{tag_id}}/movies?page=1&page_size=50
+Authorization: Bearer {{$dotenv AUTH_TOKEN}}
+
+### タグに映画を追加（認証必須 / 作成者のみ）
+POST {{host}}{{api_prefix}}/tags/{{tag_id}}/movies
+Content-Type: application/json
+Authorization: Bearer {{$dotenv AUTH_TOKEN}}
+
+{
+  "tmdb_movie_id": {{tmdb_movie_id}},
+  "note": "test",
+  "position": 1
+}
+
+

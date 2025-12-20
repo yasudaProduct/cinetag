@@ -1,0 +1,16 @@
+#
+# Movies
+#
+# 環境変数は `.vscode/settings.json` の `rest-client.environmentVariables` を使用します:
+# - {{host}}    例: http://localhost:8080
+# - {{api}}     例: /api/
+# - {{version}} 例: v1
+#
+@api_prefix = {{api}}{{version}}
+
+### 映画検索（TMDB検索のプロキシ/統合、認証不要）
+@query = spirited away
+@page = 1
+GET {{host}}{{api_prefix}}/movies/search?q={{query}}&page={{page}}
+
+

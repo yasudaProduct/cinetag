@@ -4,10 +4,6 @@
 
 - **目的**
   - `cinetag` における **認証（Clerk）とバックエンドの `users` テーブル管理** の役割分担・データフローを定義する。
-- **ゴール**
-  - フロントエンドでは Clerk を用いた安全な認証を行い、
-  - バックエンドでは `users` テーブルを通じてドメインユーザーを一意に管理する。
-  - Clerk と `users` の不整合を最小化し、実運用上問題が出ない設計にする。
 
 ---
 
@@ -72,16 +68,7 @@
 
 #### 4.1 認証が必要なエンドポイント
 
-- **認証必須とするものの例**
-  - ログインユーザーの情報を扱う API
-    - 例: 自分のタグ一覧取得、タグ作成/更新/削除 など
-  - フォロー状態の変更や、ユーザーごとの設定変更を行う API
-- **認証不要とするものの例**
-  - ヘルスチェック: `GET /health`
-  - 完全公開の読み取り専用 API（将来追加する場合）  
-    例: 公開タグの一覧取得など（※方針に応じて認証必須にしてもよい）
-
-> 方針: 「ユーザー固有のデータを書き換える / 閲覧する API」は **すべて `AuthMiddleware` を通す**。
+方針: 「ユーザー固有のデータを書き換える / 閲覧する API」は **すべて `AuthMiddleware` を通す**。
 
 #### 4.2 認証方法（Clerk トークン検証）
 
@@ -144,6 +131,112 @@
   - 「完全公開」のエンドポイント（ヘルスチェック、パブリックフィードなど）はミドルウェア無し。
 
 ---
+
+### 6. 認証・認可フロー図（現状実装）
+
+以下の図は **現状のコード実装**（`apps/frontend/src/middleware.ts`, `apps/backend/src/internal/middleware/*`, `apps/backend/src/router/router.go`）に合わせて整理したものです。
+
+#### 6.1 ログイン → 認証必須API呼び出し（POST/PATCH など）
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as User
+  participant FE as Frontend (Next.js / Clerk)
+  participant Clerk as Clerk
+  participant API as Backend API (Gin)
+  participant Auth as AuthMiddleware
+  participant JWKS as Clerk JWKS (CLERK_JWKS_URL)
+  participant US as UserService.EnsureUser
+  participant DB as PostgreSQL (users)
+
+  U->>FE: 画面アクセス（保護ルート）
+  FE->>Clerk: セッション確認（auth.protect）
+  alt 未ログイン
+    Clerk-->>FE: サインインへ誘導
+  else ログイン済
+    Clerk-->>FE: セッションOK
+    FE->>Clerk: getToken(template="cinetag-backend")
+    Clerk-->>FE: JWT（Bearer）
+    FE->>API: Authorization: Bearer <JWT>
+    API->>Auth: ルートグループで適用
+    Auth->>JWKS: kidに対応する公開鍵を取得/キャッシュ
+    Auth->>Auth: RS256署名 + exp/nbf(+iss/aud)検証
+    alt 検証失敗
+      Auth-->>FE: 401 Unauthorized
+    else 検証成功
+      Auth->>US: EnsureUser(sub/email/...)
+      US->>DB: usersをFindByClerkUserID
+      alt 未存在
+        US->>DB: usersをCreate
+      end
+      Auth-->>API: c.Set("user", user)
+      API-->>FE: ハンドラ実行（作成/更新など）
+    end
+  end
+```
+
+#### 6.2 Optional認証（閲覧系: タグ詳細/タグ内映画）
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant FE as Frontend
+  participant API as Backend API (Gin)
+  participant OptionalMW as OptionalAuthMiddleware
+  participant Svc as TagService
+
+  FE->>API: GET /api/v1/tags/:tagId (or /movies)
+  API->>OptionalMW: OptionalAuthMiddleware
+  alt Authorizationヘッダなし
+    OptionalMW-->>API: 匿名として通過（c.Next）
+    API->>Svc: viewerUserID=nil で処理
+    Svc-->>API: 公開/権限に応じたレスポンス
+    API-->>FE: 200/403/404
+  else Authorizationヘッダあり
+    OptionalMW->>OptionalMW: Bearer JWT を検証（AuthMiddlewareと同等）
+    alt 不正
+      OptionalMW-->>FE: 401 Unauthorized
+    else 正常
+      OptionalMW-->>API: c.Set("user", user)
+      API->>Svc: viewerUserID=user.ID で処理
+      Svc-->>API: フォロー状態など含めたレスポンス（必要に応じて）
+      API-->>FE: 200/403/404
+    end
+  end
+```
+
+#### 6.3 Webhook（user.created）による早期同期
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant Clerk as Clerk
+  participant API as Backend API (Gin)
+  participant WH as ClerkWebhookHandler
+  participant US as UserService.EnsureUser
+  participant DB as PostgreSQL (users)
+
+  Clerk->>API: POST /api/v1/clerk/webhook (user.created)
+  API->>WH: HandleWebhook
+  note over WH: 現状: svix署名検証は未実装（TODO）
+  alt event.type != "user.created"
+    WH-->>Clerk: 200 OK（無視）
+  else user.created
+    WH->>US: EnsureUser(clerkUser)
+    US->>DB: FindByClerkUserID
+    alt 未存在
+      US->>DB: Create
+    end
+    WH-->>Clerk: 200 OK
+  end
+```
+
+#### 6.4 現状実装に関する注意点（設計との差分）
+
+- **Webhookの署名検証（svix）は未実装**: 現状はpayloadをそのまま受けて同期します（セキュリティ上は要対応）。
+- **トークン受け渡しはAuthorizationヘッダ（Bearer）前提**: バックエンドの`AuthMiddleware`/`OptionalAuthMiddleware`はCookie認証は扱いません。
+- **フロントの閲覧系GETは現状トークン未付与**: そのため「ログイン中ユーザーとしての文脈（viewerUserID）」が必要な情報は、現状は返せない/返しづらい構造です。
 
 ### 8. 今後の拡張候補
 

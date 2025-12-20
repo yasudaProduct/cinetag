@@ -131,6 +131,12 @@ cd apps/backend
 go run ./src/cmd/migrate
 ```
 
+### seed（開発用の初期データ自動投入）
+
+`ENV=develop` のときは、migrate 実行後に **開発用seedデータ（ユーザー/タグ/タグ内映画/フォロー）**を自動投入します。
+
+> seed の定義は `src/internal/seed/dev_seed.go` を参照してください。
+
 ### 補足（AutoMigrate の注意点）
 
 - **GORM の `AutoMigrate` は「削除系」を自動反映しません**（カラム削除、制約/インデックス削除など）

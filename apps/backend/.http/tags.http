@@ -1,0 +1,58 @@
+#
+# Tags
+#
+# 環境変数は `.vscode/settings.json` の `rest-client.environmentVariables` を使用します:
+# - {{host}}    例: http://localhost:8080
+# - {{api}}     例: /api/
+# - {{version}} 例: v1
+#
+@api_prefix = {{api}}{{version}}
+
+# Auth: Clerk JWT (Bearer) - 認証が必要なAPIのみで使用
+# - token は `apps/backend/.env` の `AUTH_TOKEN` から参照します（`{{$dotenv AUTH_TOKEN}}`）
+
+@tag_id = 154c44ab-3ba9-4c26-9642-49d11d3d1ff5
+
+### 公開タグ一覧取得（認証不要）
+GET {{host}}{{api_prefix}}/tags
+
+### 公開タグ一覧取得（クエリパラメータ）
+# sort: popular / recent / movie_count
+GET {{host}}{{api_prefix}}/tags?q=test&sort=popular&page=1&page_size=10
+
+### タグ詳細取得（Authorization があれば認証、無ければ匿名）
+GET {{host}}{{api_prefix}}/tags/{{tag_id}}
+
+### タグ詳細取得（Authorization 付き）
+GET {{host}}{{api_prefix}}/tags/{{tag_id}}
+Authorization: Bearer {{$dotenv AUTH_TOKEN}}
+
+### タグ作成（認証必須）
+# NOTE: user_id はクライアントから送らず、JWT の sub から決まります
+POST {{host}}{{api_prefix}}/tags
+Content-Type: application/json
+Authorization: Bearer {{$dotenv AUTH_TOKEN}}
+
+{
+  "title": "test",
+  "description": "test",
+  "cover_image_url": "https://example.com/cover.jpg",
+  "is_public": true
+}
+
+### タグ更新（認証必須 / 作成者のみ）
+# NOTE:
+# - フィールドを「未送信」= 変更なし
+# - "description": null のように null を送るとクリア（仕様: **string）
+PATCH {{host}}{{api_prefix}}/tags/{{tag_id}}
+Content-Type: application/json
+Authorization: Bearer {{$dotenv AUTH_TOKEN}}
+
+{
+  "title": "updated title",
+  "description": null,
+  "cover_image_url": null,
+  "is_public": false
+}
+
+

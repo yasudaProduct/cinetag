@@ -7,6 +7,7 @@ import (
 
 	"cinetag-backend/src/internal/db"
 	"cinetag-backend/src/internal/model"
+	"cinetag-backend/src/internal/seed"
 
 	"gorm.io/gorm"
 )
@@ -41,6 +42,10 @@ func main() {
 		&model.MovieCache{},
 	); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
+	}
+
+	if err := seed.SeedDevelop(database); err != nil {
+		log.Fatalf("failed to seed database: %v", err)
 	}
 
 	log.Println("migration completed successfully")

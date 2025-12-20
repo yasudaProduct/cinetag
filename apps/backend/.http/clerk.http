@@ -1,0 +1,29 @@
+#
+# Clerk Webhook
+#
+# 環境変数は `.vscode/settings.json` の `rest-client.environmentVariables` を使用します:
+# - {{host}}    例: http://localhost:8080
+# - {{api}}     例: /api/
+# - {{version}} 例: v1
+#
+@api_prefix = {{api}}{{version}}
+
+### Clerk Webhook（user.created のみ処理。現状は署名検証なし）
+POST {{host}}{{api_prefix}}/clerk/webhook
+Content-Type: application/json
+
+{
+  "type": "user.created",
+  "data": {
+    "id": "user_123",
+    "username": "testuser",
+    "first_name": "Taro",
+    "last_name": "Yamada",
+    "image_url": "https://example.com/avatar.png",
+    "email_addresses": [
+      { "email_address": "a@example.com" }
+    ]
+  }
+}
+
+
