@@ -63,17 +63,16 @@ func NewRouter() *gin.Engine {
 	// API グループ
 	api := r.Group("/api/v1")
 	{
-		// 公開タグ一覧（認証不要）
+
+		// Clerk Webhook
+		api.POST("/clerk/webhook", clerkWebhookHandler.HandleWebhook)
+
 		api.GET("/tags", tagHandler.ListPublicTags)
-		// タグ詳細/タグ内映画一覧（Authorizationがあれば認証、無ければ匿名）
 		api.GET("/tags/:tagId", optionalAuthMiddleware, tagHandler.GetTagDetail)
 		api.GET("/tags/:tagId/movies", optionalAuthMiddleware, tagHandler.ListTagMovies)
 
 		// TMDB 検索（認証不要）
 		api.GET("/movies/search", movieHandler.SearchMovies)
-
-		// Clerk Webhook
-		api.POST("/clerk/webhook", clerkWebhookHandler.HandleWebhook)
 
 		// 認証必須グループ
 		authGroup := api.Group("/")

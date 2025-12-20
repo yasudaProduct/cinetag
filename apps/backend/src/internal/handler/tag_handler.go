@@ -115,23 +115,28 @@ func (h *TagHandler) ListTagMovies(c *gin.Context) {
 func (h *TagHandler) UpdateTag(c *gin.Context) {
 	tagID := c.Param("tagId")
 
+	// AuthMiddleware によってコンテキストに設定されたユーザー情報を取得
 	userVal, exists := c.Get("user")
 	if !exists {
+		// ユーザー情報がない場合、401 Unauthorizedを返す
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 	user, ok := userVal.(*model.User)
 	if !ok || user == nil {
+		// ユーザー情報が無効な場合、500 Internal Server Errorを返す
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user in context"})
 		return
 	}
 
 	var req updateTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		// リクエストボディが無効な場合、400 Bad Requestを返す
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
 
+	// タグを更新する。
 	out, err := h.tagService.UpdateTag(c.Request.Context(), tagID, user.ID, service.UpdateTagPatch{
 		Title:         req.Title,
 		Description:   req.Description,

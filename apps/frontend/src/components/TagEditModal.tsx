@@ -10,28 +10,27 @@ import { getBackendTokenOrThrow } from "@/lib/api/_shared/auth";
 
 type TagEditModalProps = {
   open: boolean;
-  tagId: string;
-  initialTitle: string;
-  initialDescription: string;
-  initialIsPublic?: boolean;
+  tag: {
+    id: string;
+    title: string;
+    description: string;
+    is_public: boolean;
+  };
   onClose: () => void;
   onUpdated: () => void;
 };
 
 export const TagEditModal = ({
   open,
-  tagId,
-  initialTitle,
-  initialDescription,
-  initialIsPublic = true,
+  tag,
   onClose,
   onUpdated,
 }: TagEditModalProps) => {
   const { getToken } = useAuth();
 
-  const [title, setTitle] = useState(initialTitle);
-  const [description, setDescription] = useState(initialDescription);
-  const [isPublic, setIsPublic] = useState(initialIsPublic);
+  const [title, setTitle] = useState(tag.title);
+  const [description, setDescription] = useState(tag.description);
+  const [isPublic, setIsPublic] = useState(tag.is_public);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const canSubmit = useMemo(() => title.trim().length > 0, [title]);
@@ -41,13 +40,13 @@ export const TagEditModal = ({
       const token = await getBackendTokenOrThrow(getToken);
 
       return await updateTag({
-        tagId,
+        tagId: tag.id,
         token,
         input: {
-          title: title.trim(),
+          title: tag.title.trim(),
           description:
-            description.trim().length > 0 ? description.trim() : null,
-          is_public: isPublic,
+            tag.description.trim().length > 0 ? tag.description.trim() : null,
+          is_public: tag.is_public,
         },
       });
     },

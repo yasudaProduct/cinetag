@@ -151,12 +151,14 @@ type UpdateTagPatch struct {
 }
 
 var (
-	ErrTagNotFound           = errors.New("tag not found")
-	ErrTagPermissionDenied   = errors.New("tag permission denied")
-	ErrTagMovieAlreadyExists = errors.New("tag movie already exists")
+	ErrTagNotFound           = errors.New("tag not found")            // タグが存在しない
+	ErrTagPermissionDenied   = errors.New("tag permission denied")    // タグの編集権限がない
+	ErrTagMovieAlreadyExists = errors.New("tag movie already exists") // タグに既に映画が存在する
 )
 
 func (s *tagService) UpdateTag(ctx context.Context, tagID string, userID string, patch UpdateTagPatch) (*TagDetail, error) {
+
+	// 必須バリデーション（tagID/userID）
 	if strings.TrimSpace(tagID) == "" {
 		return nil, fmt.Errorf("tag_id is required")
 	}
@@ -164,14 +166,16 @@ func (s *tagService) UpdateTag(ctx context.Context, tagID string, userID string,
 		return nil, fmt.Errorf("user_id is required")
 	}
 
-	// まず存在確認 & ownerチェック
+	// タグの存在確認
 	tag, err := s.tagRepo.FindByID(ctx, tagID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrTagNotFound
 		}
+		// タグの取得に失敗した場合、エラーを返す
 		return nil, err
 	}
+	// タグの作成者がユーザーIDと一致しない場合、エラーを返す
 	if tag.UserID != userID {
 		return nil, ErrTagPermissionDenied
 	}
@@ -188,6 +192,7 @@ func (s *tagService) UpdateTag(ctx context.Context, tagID string, userID string,
 		}
 	}
 
+	// タグを更新する。
 	err = s.tagRepo.UpdateByID(ctx, tagID, repository.TagUpdatePatch{
 		Title:         patch.Title,
 		Description:   patch.Description,

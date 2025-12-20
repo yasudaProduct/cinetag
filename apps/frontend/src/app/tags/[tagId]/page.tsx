@@ -74,10 +74,10 @@ export default function TagDetailPage({
           <aside className="lg:col-span-4">
             <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-7">
               <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">
-                {detail?.title ?? "タグ"}
+                {detail?.title ?? "読み込み中..."}
               </h1>
               <p className="mt-3 text-sm md:text-base text-gray-600 leading-relaxed">
-                {detail?.description ?? "読み込み中..."}
+                {detail?.description}
               </p>
 
               {/* Author */}
@@ -206,17 +206,22 @@ export default function TagDetailPage({
         }}
       />
 
-      <TagEditModal
-        open={editOpen}
-        tagId={tagId}
-        initialTitle={detail?.title ?? ""}
-        initialDescription={detail?.description ?? ""}
-        initialIsPublic={true}
-        onClose={() => setEditOpen(false)}
-        onUpdated={() => {
-          detailQuery.refetch();
-        }}
-      />
+      {editOpen ? (
+        <TagEditModal
+          key={tagId}
+          open={true}
+          tag={{
+            id: tagId,
+            title: detail?.title ?? "",
+            description: detail?.description ?? "",
+            is_public: true,
+          }}
+          onClose={() => setEditOpen(false)}
+          onUpdated={() => {
+            detailQuery.refetch();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
