@@ -113,9 +113,10 @@ type TagDetail struct {
 }
 
 type TagOwner struct {
-	ID          string `json:"id"`
-	Username    string `json:"username"`
-	DisplayName string `json:"display_name"`
+	ID          string  `json:"id"`
+	Username    string  `json:"username"`
+	DisplayName string  `json:"display_name"`
+	AvatarURL   *string `json:"avatar_url,omitempty"`
 }
 
 type TagParticipant struct {
@@ -248,6 +249,7 @@ func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserI
 			ID:          row.OwnerID,
 			Username:    row.OwnerUsername,
 			DisplayName: row.OwnerDisplayName,
+			AvatarURL:   row.OwnerAvatarURL,
 		},
 		CanEdit:   canEdit,
 		CreatedAt: row.CreatedAt,

@@ -3,6 +3,7 @@
 import { use, useState } from "react";
 import { Header } from "@/components/Header";
 import { MoviePosterCard } from "@/components/MoviePosterCard";
+import { AvatarCircle } from "@/components/AvatarCircle";
 import { getTagDetail } from "@/lib/api/tags/detail";
 import { listTagMovies } from "@/lib/api/tags/movies";
 import { Search, Plus, Pencil } from "lucide-react";
@@ -10,29 +11,6 @@ import { useQuery } from "@tanstack/react-query";
 import { MovieAddModal } from "@/components/MovieAddModal";
 import { TagEditModal } from "@/components/TagEditModal";
 import { useAuth } from "@clerk/nextjs";
-
-// TODO: これは共通コンポーネントにする
-function AvatarCircle({
-  name,
-  className,
-}: {
-  name: string;
-  className?: string;
-}) {
-  const initial = (name?.trim()?.[0] ?? "?").toUpperCase();
-  return (
-    <div
-      className={[
-        "flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-700 font-bold",
-        className ?? "",
-      ].join(" ")}
-      aria-label={name}
-      title={name}
-    >
-      <span className="text-xs">{initial}</span>
-    </div>
-  );
-}
 
 export default function TagDetailPage({
   params,
@@ -97,6 +75,7 @@ export default function TagDetailPage({
               <div className="mt-6 flex items-center gap-3">
                 <AvatarCircle
                   name={detail?.author?.name ?? "author"}
+                  avatarUrl={detail?.owner?.avatarUrl}
                   className="h-10 w-10"
                 />
                 <div>

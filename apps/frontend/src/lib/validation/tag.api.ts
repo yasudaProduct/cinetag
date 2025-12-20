@@ -83,11 +83,13 @@ const TagDetailOwnerNameSchema = z
         id: z.string().optional(),
         display_name: z.string().optional(),
         username: z.string().optional(),
+        avatar_url: z.string().nullable().optional(),
     })
     .passthrough()
     .transform((v) => ({
         id: v.id ?? "",
         name: v.display_name ?? v.username ?? "unknown",
+        avatarUrl: v.avatar_url ?? undefined,
     }));
 
 const TagDetailParticipantSchema = z.union([

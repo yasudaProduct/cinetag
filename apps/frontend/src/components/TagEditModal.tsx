@@ -111,7 +111,8 @@ export const TagEditModal = ({
             />
           </div>
 
-          <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+          {/* TODO: 現状タグは全て公開設定とする。タグのオプションを整理後実装 */}
+          {/* <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
             <div>
               <div className="text-sm font-semibold text-gray-900">
                 公開する
@@ -134,7 +135,7 @@ export const TagEditModal = ({
                 "[&_[data-slot=switch-thumb]]:data-[state=unchecked]:translate-x-1",
               ].join(" ")}
             />
-          </div>
+          </div> */}
 
           {errorMessage && (
             <div className="text-sm text-red-600 font-medium">
