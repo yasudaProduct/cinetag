@@ -65,6 +65,7 @@ func (f *fakeTagService) UpdateTag(ctx context.Context, tagID string, userID str
 	return f.UpdateTagFn(ctx, tagID, userID, patch)
 }
 
+// newTagHandlerRouter は TagHandler のテスト用ルーターを生成します。
 func newTagHandlerRouter(t *testing.T, tagSvc service.TagService, user *model.User) *gin.Engine {
 	t.Helper()
 
@@ -73,6 +74,16 @@ func newTagHandlerRouter(t *testing.T, tagSvc service.TagService, user *model.Us
 
 	api := r.Group("/api/v1")
 	api.GET("/tags", h.ListPublicTags)
+
+	// GetTagDetailはOptionalAuthなので、userが設定されている場合のみ設定
+	getTagDetailGroup := api.Group("/")
+	if user != nil {
+		getTagDetailGroup.Use(func(c *gin.Context) {
+			c.Set("user", user)
+			c.Next()
+		})
+	}
+	getTagDetailGroup.GET("/tags/:tagId", h.GetTagDetail)
 
 	auth := api.Group("/")
 	if user != nil {
@@ -250,6 +261,54 @@ func TestTagHandler_CreateTag(t *testing.T) {
 		}
 		if resp["created_at"] == "" || resp["updated_at"] == "" {
 			t.Fatalf("expected created_at/updated_at")
+		}
+	})
+
+	t.Run("成功: add_movie_policy が指定された場合、正しく渡される", func(t *testing.T) {
+		t.Parallel()
+
+		now := time.Now()
+		var got service.CreateTagInput
+		svc := &fakeTagService{
+			CreateTagFn: func(ctx context.Context, in service.CreateTagInput) (*model.Tag, error) {
+				got = in
+				return &model.Tag{
+					ID:             "tag1",
+					UserID:         in.UserID,
+					Title:          in.Title,
+					AddMoviePolicy: "owner_only",
+					IsPublic:       true,
+					MovieCount:     0,
+					FollowerCount:  0,
+					CreatedAt:      now,
+					UpdatedAt:      now,
+				}, nil
+			},
+		}
+
+		u := &model.User{ID: "u1"}
+		r := newTagHandlerRouter(t, svc, u)
+
+		body := testutil.MustMarshalJSON(t, map[string]any{
+			"title":            "t",
+			"add_movie_policy": "owner_only",
+		})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags", body, map[string]string{
+			"Content-Type": "application/json",
+		})
+
+		if rw.Code != http.StatusCreated {
+			t.Fatalf("expected 201, got %d", rw.Code)
+		}
+
+		if got.AddMoviePolicy == nil || *got.AddMoviePolicy != "owner_only" {
+			t.Fatalf("expected add_movie_policy=owner_only, got %v", got.AddMoviePolicy)
+		}
+
+		resp := map[string]any{}
+		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
+		if resp["add_movie_policy"] != "owner_only" {
+			t.Fatalf("expected add_movie_policy=owner_only in response, got %v", resp["add_movie_policy"])
 		}
 	})
 }
@@ -485,6 +544,190 @@ func TestTagHandler_ListPublicTags(t *testing.T) {
 		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags", nil, nil)
 		if rw.Code != http.StatusInternalServerError {
 			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+	})
+}
+
+func TestTagHandler_GetTagDetail(t *testing.T) {
+	t.Parallel()
+
+	t.Run("成功: can_add_movie が正しく返される", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			GetTagDetailFn: func(ctx context.Context, tagID string, viewerUserID *string) (*service.TagDetail, error) {
+				return &service.TagDetail{
+					ID:             "t1",
+					Title:          "Test Tag",
+					AddMoviePolicy: "everyone",
+					CanAddMovie:    true,
+					CanEdit:        false,
+					Owner: service.TagOwner{
+						ID:          "u1",
+						Username:    "user1",
+						DisplayName: "User1",
+					},
+				}, nil
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/t1", nil, nil)
+
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+
+		resp := map[string]any{}
+		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
+		if resp["can_add_movie"] != true {
+			t.Fatalf("expected can_add_movie=true, got %v", resp["can_add_movie"])
+		}
+		if resp["add_movie_policy"] != "everyone" {
+			t.Fatalf("expected add_movie_policy=everyone, got %v", resp["add_movie_policy"])
+		}
+	})
+
+	t.Run("未認証ユーザー: can_add_movie=false が返される", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			GetTagDetailFn: func(ctx context.Context, tagID string, viewerUserID *string) (*service.TagDetail, error) {
+				return &service.TagDetail{
+					ID:             "t1",
+					Title:          "Test Tag",
+					AddMoviePolicy: "everyone",
+					CanAddMovie:    false,
+					CanEdit:        false,
+					Owner: service.TagOwner{
+						ID:          "u1",
+						Username:    "user1",
+						DisplayName: "User1",
+					},
+				}, nil
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, nil)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/t1", nil, nil)
+
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+
+		resp := map[string]any{}
+		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
+		if resp["can_add_movie"] != false {
+			t.Fatalf("expected can_add_movie=false, got %v", resp["can_add_movie"])
+		}
+	})
+}
+
+func TestTagHandler_UpdateTag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("成功: add_movie_policy が更新される", func(t *testing.T) {
+		t.Parallel()
+
+		var gotPatch service.UpdateTagPatch
+		svc := &fakeTagService{
+			UpdateTagFn: func(ctx context.Context, tagID string, userID string, patch service.UpdateTagPatch) (*service.TagDetail, error) {
+				gotPatch = patch
+				return &service.TagDetail{
+					ID:             tagID,
+					Title:          "Updated Tag",
+					AddMoviePolicy: "owner_only",
+					CanEdit:        true,
+					CanAddMovie:    true,
+					Owner: service.TagOwner{
+						ID:          userID,
+						Username:    "user1",
+						DisplayName: "User1",
+					},
+				}, nil
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		body := testutil.MustMarshalJSON(t, map[string]any{
+			"add_movie_policy": "owner_only",
+		})
+		rw := testutil.PerformRequest(r, http.MethodPatch, "/api/v1/tags/t1", body, map[string]string{
+			"Content-Type": "application/json",
+		})
+
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+
+		if gotPatch.AddMoviePolicy == nil || *gotPatch.AddMoviePolicy != "owner_only" {
+			t.Fatalf("expected AddMoviePolicy=owner_only, got %v", gotPatch.AddMoviePolicy)
+		}
+
+		resp := map[string]any{}
+		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
+		if resp["add_movie_policy"] != "owner_only" {
+			t.Fatalf("expected add_movie_policy=owner_only in response, got %v", resp["add_movie_policy"])
+		}
+	})
+
+	t.Run("未認証: 401", func(t *testing.T) {
+		t.Parallel()
+
+		r := newTagHandlerRouter(t, &fakeTagService{}, nil)
+		body := testutil.MustMarshalJSON(t, map[string]any{
+			"title": "Updated",
+		})
+		rw := testutil.PerformRequest(r, http.MethodPatch, "/api/v1/tags/t1", body, map[string]string{
+			"Content-Type": "application/json",
+		})
+
+		if rw.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", rw.Code)
+		}
+	})
+
+	t.Run("タグが存在しない: 404", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			UpdateTagFn: func(ctx context.Context, tagID string, userID string, patch service.UpdateTagPatch) (*service.TagDetail, error) {
+				return nil, service.ErrTagNotFound
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		body := testutil.MustMarshalJSON(t, map[string]any{
+			"title": "Updated",
+		})
+		rw := testutil.PerformRequest(r, http.MethodPatch, "/api/v1/tags/t1", body, map[string]string{
+			"Content-Type": "application/json",
+		})
+
+		if rw.Code != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d", rw.Code)
+		}
+	})
+
+	t.Run("権限なし: 403", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			UpdateTagFn: func(ctx context.Context, tagID string, userID string, patch service.UpdateTagPatch) (*service.TagDetail, error) {
+				return nil, service.ErrTagPermissionDenied
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		body := testutil.MustMarshalJSON(t, map[string]any{
+			"title": "Updated",
+		})
+		rw := testutil.PerformRequest(r, http.MethodPatch, "/api/v1/tags/t1", body, map[string]string{
+			"Content-Type": "application/json",
+		})
+
+		if rw.Code != http.StatusForbidden {
+			t.Fatalf("expected 403, got %d", rw.Code)
 		}
 	})
 }

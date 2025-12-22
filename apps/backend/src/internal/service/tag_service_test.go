@@ -240,8 +240,10 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 				return nil
 			},
 		}
+
 		svc := NewTagService(tagRepo, tagMovieRepo, nil, "")
 
+		// Act
 		note := "hello"
 		out, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
 			TagID:       "t1",
@@ -250,6 +252,8 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 			Note:        &note,
 			Position:    2,
 		})
+
+		// Assert
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
@@ -271,6 +275,100 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 			t.Fatalf("expected IncrementMovieCount(t1, 1), got (%s, %d)", gotTagID, gotDelta)
 		}
 	})
+
+	t.Run("権限チェック: add_movie_policy=owner_only の場合、作成者以外は ErrTagPermissionDenied", func(t *testing.T) {
+		t.Parallel()
+
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{
+					ID:             id,
+					UserID:         "owner1",
+					AddMoviePolicy: "owner_only",
+				}, nil
+			}
+		})
+
+		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
+			TagID:       "t1",
+			UserID:      "other_user",
+			TmdbMovieID: 1,
+			Position:    0,
+		})
+		if !errors.Is(err, ErrTagPermissionDenied) {
+			t.Fatalf("expected ErrTagPermissionDenied, got: %v", err)
+		}
+	})
+
+	t.Run("権限チェック: add_movie_policy=owner_only の場合、作成者は成功", func(t *testing.T) {
+		t.Parallel()
+
+		var created *model.TagMovie
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{
+					ID:             id,
+					UserID:         "owner1",
+					AddMoviePolicy: "owner_only",
+				}, nil
+			}
+			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
+				created = tagMovie
+				return nil
+			}
+			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
+				return nil
+			}
+		})
+
+		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
+			TagID:       "t1",
+			UserID:      "owner1",
+			TmdbMovieID: 1,
+			Position:    0,
+		})
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if created == nil {
+			t.Fatalf("expected TagMovieRepository.Create to be called")
+		}
+	})
+
+	t.Run("権限チェック: add_movie_policy=everyone の場合、誰でも追加可能", func(t *testing.T) {
+		t.Parallel()
+
+		var created *model.TagMovie
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{
+					ID:             id,
+					UserID:         "owner1",
+					AddMoviePolicy: "everyone",
+				}, nil
+			}
+			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
+				created = tagMovie
+				return nil
+			}
+			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
+				return nil
+			}
+		})
+
+		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
+			TagID:       "t1",
+			UserID:      "other_user",
+			TmdbMovieID: 1,
+			Position:    0,
+		})
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if created == nil {
+			t.Fatalf("expected TagMovieRepository.Create to be called")
+		}
+	})
 }
 
 func TestTagService_CreateTag(t *testing.T) {
@@ -290,6 +388,8 @@ func TestTagService_CreateTag(t *testing.T) {
 
 		desc := "desc"
 		cover := "https://example.com/cover.png"
+
+		// Act
 		out, err := svc.CreateTag(context.Background(), CreateTagInput{
 			UserID:        "u1",
 			Title:         "title",
@@ -297,6 +397,8 @@ func TestTagService_CreateTag(t *testing.T) {
 			CoverImageURL: &cover,
 			IsPublic:      nil,
 		})
+
+		// Assert
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
@@ -317,6 +419,15 @@ func TestTagService_CreateTag(t *testing.T) {
 		}
 		if created.IsPublic != true {
 			t.Fatalf("expected IsPublic=true, got %v", created.IsPublic)
+		}
+		if created.AddMoviePolicy != "everyone" {
+			t.Fatalf("expected AddMoviePolicy=everyone, got %v", created.AddMoviePolicy)
+		}
+		if created.MovieCount != 0 {
+			t.Fatalf("expected MovieCount=0, got %v", created.MovieCount)
+		}
+		if created.FollowerCount != 0 {
+			t.Fatalf("expected FollowerCount=0, got %v", created.FollowerCount)
 		}
 		if out.ID != "tag1" {
 			t.Fatalf("expected out.ID=tag1, got %q", out.ID)
@@ -352,6 +463,39 @@ func TestTagService_CreateTag(t *testing.T) {
 		}
 		if out.ID != "tag2" {
 			t.Fatalf("expected out.ID=tag2, got %q", out.ID)
+		}
+	})
+
+	t.Run("映画追加権限の明示指定: AddMoviePolicy=owner_only を指定すると owner_only で作成される", func(t *testing.T) {
+		t.Parallel()
+
+		var created *model.Tag
+
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.CreateFn = func(ctx context.Context, tag *model.Tag) error {
+				created = tag
+				tag.ID = "tag3"
+				return nil
+			}
+		})
+
+		addMoviePolicy := "owner_only"
+		// Act
+		_, err := svc.CreateTag(context.Background(), CreateTagInput{
+			UserID:         "u1",
+			Title:          "title",
+			AddMoviePolicy: &addMoviePolicy,
+		})
+
+		// Assert
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if created == nil {
+			t.Fatalf("expected TagRepository.Create to be called")
+		}
+		if created.AddMoviePolicy != "owner_only" {
+			t.Fatalf("expected AddMoviePolicy=owner_only, got %v", created.AddMoviePolicy)
 		}
 	})
 }
@@ -446,6 +590,175 @@ func TestTagService_ListPublicTags(t *testing.T) {
 		}
 		if items == nil || len(items) != 0 {
 			t.Fatalf("expected empty slice, got %#v", items)
+		}
+	})
+}
+
+func TestTagService_GetTagDetail(t *testing.T) {
+	t.Parallel()
+
+	t.Run("can_add_movie: add_movie_policy=everyone の場合、認証済みユーザーは追加可能", func(t *testing.T) {
+		t.Parallel()
+
+		viewerID := "viewer1"
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindDetailByIDFn = func(ctx context.Context, id string) (*repository.TagDetailRow, error) {
+				return &repository.TagDetailRow{
+					ID:               id,
+					Title:            "Test Tag",
+					IsPublic:         true,
+					AddMoviePolicy:   "everyone",
+					OwnerID:          "owner1",
+					OwnerUsername:    "owner",
+					OwnerDisplayName: "Owner",
+				}, nil
+			}
+		})
+
+		out, err := svc.GetTagDetail(context.Background(), "t1", &viewerID)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if out == nil {
+			t.Fatalf("expected output")
+		}
+		if !out.CanAddMovie {
+			t.Fatalf("expected CanAddMovie=true, got %v", out.CanAddMovie)
+		}
+		if out.AddMoviePolicy != "everyone" {
+			t.Fatalf("expected AddMoviePolicy=everyone, got %v", out.AddMoviePolicy)
+		}
+	})
+
+	t.Run("can_add_movie: add_movie_policy=owner_only の場合、作成者のみ追加可能", func(t *testing.T) {
+		t.Parallel()
+
+		ownerID := "owner1"
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindDetailByIDFn = func(ctx context.Context, id string) (*repository.TagDetailRow, error) {
+				return &repository.TagDetailRow{
+					ID:               id,
+					Title:            "Test Tag",
+					IsPublic:         true,
+					AddMoviePolicy:   "owner_only",
+					OwnerID:          ownerID,
+					OwnerUsername:    "owner",
+					OwnerDisplayName: "Owner",
+				}, nil
+			}
+		})
+
+		// 作成者の場合
+		out, err := svc.GetTagDetail(context.Background(), "t1", &ownerID)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if !out.CanAddMovie {
+			t.Fatalf("expected CanAddMovie=true for owner, got %v", out.CanAddMovie)
+		}
+
+		// 作成者以外の場合
+		otherID := "other1"
+		out2, err := svc.GetTagDetail(context.Background(), "t1", &otherID)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if out2.CanAddMovie {
+			t.Fatalf("expected CanAddMovie=false for non-owner, got %v", out2.CanAddMovie)
+		}
+	})
+
+	t.Run("can_add_movie: 未認証ユーザーの場合、追加不可", func(t *testing.T) {
+		t.Parallel()
+
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindDetailByIDFn = func(ctx context.Context, id string) (*repository.TagDetailRow, error) {
+				return &repository.TagDetailRow{
+					ID:               id,
+					Title:            "Test Tag",
+					IsPublic:         true,
+					AddMoviePolicy:   "everyone",
+					OwnerID:          "owner1",
+					OwnerUsername:    "owner",
+					OwnerDisplayName: "Owner",
+				}, nil
+			}
+		})
+
+		out, err := svc.GetTagDetail(context.Background(), "t1", nil)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if out.CanAddMovie {
+			t.Fatalf("expected CanAddMovie=false for unauthenticated user, got %v", out.CanAddMovie)
+		}
+	})
+}
+
+func TestTagService_UpdateTag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("add_movie_policy の更新: owner_only に変更可能", func(t *testing.T) {
+		t.Parallel()
+
+		var gotPatch repository.TagUpdatePatch
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{
+					ID:     id,
+					UserID: "u1",
+				}, nil
+			}
+			d.tagRepo.UpdateByIDFn = func(ctx context.Context, id string, patch repository.TagUpdatePatch) error {
+				gotPatch = patch
+				return nil
+			}
+			d.tagRepo.FindDetailByIDFn = func(ctx context.Context, id string) (*repository.TagDetailRow, error) {
+				return &repository.TagDetailRow{
+					ID:               id,
+					Title:            "Test Tag",
+					IsPublic:         true,
+					AddMoviePolicy:   "owner_only",
+					OwnerID:          "u1",
+					OwnerUsername:    "user1",
+					OwnerDisplayName: "User1",
+				}, nil
+			}
+		})
+
+		newPolicy := "owner_only"
+		_, err := svc.UpdateTag(context.Background(), "t1", "u1", UpdateTagPatch{
+			AddMoviePolicy: &newPolicy,
+		})
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if gotPatch.AddMoviePolicy == nil || *gotPatch.AddMoviePolicy != "owner_only" {
+			t.Fatalf("expected AddMoviePolicy=owner_only, got %v", gotPatch.AddMoviePolicy)
+		}
+	})
+
+	t.Run("add_movie_policy のバリデーション: 不正な値はエラー", func(t *testing.T) {
+		t.Parallel()
+
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{
+					ID:     id,
+					UserID: "u1",
+				}, nil
+			}
+		})
+
+		invalidPolicy := "invalid"
+		_, err := svc.UpdateTag(context.Background(), "t1", "u1", UpdateTagPatch{
+			AddMoviePolicy: &invalidPolicy,
+		})
+		if err == nil {
+			t.Fatalf("expected error for invalid add_movie_policy")
+		}
+		if !strings.Contains(err.Error(), "add_movie_policy must be") {
+			t.Fatalf("expected error message about add_movie_policy, got: %v", err)
 		}
 	})
 }
