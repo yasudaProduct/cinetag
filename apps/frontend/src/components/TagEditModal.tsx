@@ -5,9 +5,9 @@ import { useMemo, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation } from "@tanstack/react-query";
 import { updateTag } from "@/lib/api/tags/update";
-import { Switch } from "@/components/ui/switch";
 import { getBackendTokenOrThrow } from "@/lib/api/_shared/auth";
 import type { AddMoviePolicy } from "@/lib/validation/tag.api";
+import { Modal } from "@/components/Modal";
 
 type TagEditModalProps = {
   open: boolean;
@@ -32,7 +32,7 @@ export const TagEditModal = ({
 
   const [title, setTitle] = useState(tag.title);
   const [description, setDescription] = useState(tag.description);
-  const [isPublic, setIsPublic] = useState(tag.is_public);
+  const [isPublic] = useState(tag.is_public);
   const [addMoviePolicy, setAddMoviePolicy] = useState<AddMoviePolicy>(
     tag.add_movie_policy ?? "everyone"
   );
@@ -68,10 +68,8 @@ export const TagEditModal = ({
     },
   });
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <Modal open={open} onClose={onClose}>
       <div className="w-full max-w-xl mx-4 rounded-3xl bg-white shadow-xl border border-gray-200">
         <div className="flex items-start justify-between px-7 pt-7">
           <div>
@@ -200,6 +198,6 @@ export const TagEditModal = ({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

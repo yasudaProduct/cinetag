@@ -7,6 +7,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { searchMovies } from "@/lib/api/movies/search";
 import { addMovieToTag } from "@/lib/api/tags/addMovie";
 import { getBackendTokenOrThrow } from "@/lib/api/_shared/auth";
+import { Modal } from "@/components/Modal";
 
 type MovieAddModalProps = {
   open: boolean;
@@ -69,12 +70,10 @@ export const MovieAddModal = ({
     },
   });
 
-  if (!open) return null;
-
   const items = searchQuery.data?.items ?? [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <Modal open={open} onClose={onClose}>
       <div className="w-full max-w-2xl mx-4 rounded-3xl bg-white shadow-xl border border-gray-200">
         <div className="flex items-start justify-between px-7 pt-7">
           <div>
@@ -227,6 +226,6 @@ export const MovieAddModal = ({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

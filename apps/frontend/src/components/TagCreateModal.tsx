@@ -11,6 +11,7 @@ import {
 } from "@/lib/validation/tag.form";
 import { createTag } from "@/lib/api/tags/create";
 import { getBackendTokenOrThrow } from "@/lib/api/_shared/auth";
+import { Modal } from "@/components/Modal";
 
 interface TagCreateModalProps {
   open: boolean;
@@ -36,13 +37,18 @@ export const TagCreateModal = ({
 }: TagCreateModalProps) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [addMoviePolicy, setAddMoviePolicy] = useState<AddMoviePolicyForm>("everyone");
+  const [addMoviePolicy, setAddMoviePolicy] =
+    useState<AddMoviePolicyForm>("everyone");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { getToken } = useAuth();
   const { user } = useUser();
 
   const createMutation = useMutation({
-    mutationFn: async (input: { title: string; description?: string; add_movie_policy: AddMoviePolicyForm }) => {
+    mutationFn: async (input: {
+      title: string;
+      description?: string;
+      add_movie_policy: AddMoviePolicyForm;
+    }) => {
       const token = await getBackendTokenOrThrow(getToken);
       return await createTag({
         token,
@@ -79,8 +85,6 @@ export const TagCreateModal = ({
     },
   });
 
-  if (!open) return null;
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -104,7 +108,7 @@ export const TagCreateModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <Modal open={open} onClose={onClose}>
       {/* Card */}
       <div className="w-full max-w-xl mx-4 rounded-3xl bg-[#FFF9F3] shadow-xl border border-[#F3E1D6]">
         {/* Header */}
@@ -226,6 +230,6 @@ export const TagCreateModal = ({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 };
