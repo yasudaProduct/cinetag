@@ -37,12 +37,18 @@ export const TagsListResponseSchema = z
         z
             .object({
                 items: z.array(TagListItemSchema),
+                total_count: z.number().int().nonnegative().optional(),
+                page: z.number().int().positive().optional(),
+                page_size: z.number().int().positive().optional(),
             })
             .passthrough(),
         z.array(TagListItemSchema).transform((items) => ({ items })),
     ])
     .transform((data) => ({
         items: "items" in data ? data.items : [],
+        totalCount: "total_count" in data ? data.total_count ?? 0 : 0,
+        page: "page" in data ? data.page ?? 1 : 1,
+        pageSize: "page_size" in data ? data.page_size ?? 20 : 20,
     }));
 
 export type TagsListResponse = z.infer<typeof TagsListResponseSchema>;

@@ -3,9 +3,38 @@ import { getPublicApiBaseOrThrow, safeJson, toApiErrorMessage } from "@/lib/api/
 
 export type TagsList = TagListItem[];
 
-export async function listTags(): Promise<TagsList> {
+export type ListTagsResult = {
+  items: TagsList;
+  totalCount: number;
+  page: number;
+  pageSize: number;
+};
+
+export type ListTagsParams = {
+  q?: string;
+  sort?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export async function listTags(params?: ListTagsParams): Promise<ListTagsResult> {
   const base = getPublicApiBaseOrThrow();
-  const res = await fetch(`${base}/api/v1/tags`, { method: "GET" });
+  const url = new URL(`${base}/api/v1/tags`);
+
+  if (params?.q) {
+    url.searchParams.set("q", params.q);
+  }
+  if (params?.sort) {
+    url.searchParams.set("sort", params.sort);
+  }
+  if (params?.page) {
+    url.searchParams.set("page", params.page.toString());
+  }
+  if (params?.pageSize) {
+    url.searchParams.set("page_size", params.pageSize.toString());
+  }
+
+  const res = await fetch(url.toString(), { method: "GET" });
   const body = await safeJson(res);
 
   if (!res.ok) {
@@ -24,7 +53,12 @@ export async function listTags(): Promise<TagsList> {
     throw new Error("タグ一覧レスポンスの形式が不正です。");
   }
 
-  return parsed.data.items ?? [];
+  return {
+    items: parsed.data.items ?? [],
+    totalCount: parsed.data.totalCount ?? 0,
+    page: parsed.data.page ?? 1,
+    pageSize: parsed.data.pageSize ?? 20,
+  };
 }
 
 
