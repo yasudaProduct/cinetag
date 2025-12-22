@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { CategoryCard } from "@/components/CategoryCard";
 import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { TagCreateModal, CreatedTagForList } from "@/components/TagCreateModal";
+import { TagModal, CreatedTagForList } from "@/components/TagModal";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listTags } from "@/lib/api/tags/list";
@@ -134,7 +134,7 @@ export default function Home() {
           </button>
         </div>
         {/* Create Tag Modal */}
-        <TagCreateModal
+        <TagModal
           open={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
           onCreated={(created: CreatedTagForList) => {

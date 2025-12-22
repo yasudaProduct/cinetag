@@ -9,7 +9,7 @@ import { listTagMovies } from "@/lib/api/tags/movies";
 import { Search, Plus, Pencil } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { MovieAddModal } from "@/components/MovieAddModal";
-import { TagEditModal } from "@/components/TagEditModal";
+import { TagModal } from "@/components/TagModal";
 import { useAuth } from "@clerk/nextjs";
 
 export default function TagDetailPage({
@@ -204,7 +204,7 @@ export default function TagDetailPage({
       />
 
       {editOpen && canEditTag ? (
-        <TagEditModal
+        <TagModal
           key={tagId}
           open={true}
           tag={{
