@@ -786,7 +786,7 @@ func TestTagService_RemoveMovieFromTag(t *testing.T) {
 		}
 	})
 
-	t.Run("タグ映画が見つからない: gorm.ErrRecordNotFound は ErrTagNotFound に変換される", func(t *testing.T) {
+	t.Run("タグ映画が見つからない: gorm.ErrRecordNotFound は ErrTagMovieNotFound に変換される", func(t *testing.T) {
 		t.Parallel()
 
 		svc := newTagService(t, func(d *deps) {
@@ -796,8 +796,8 @@ func TestTagService_RemoveMovieFromTag(t *testing.T) {
 		})
 
 		err := svc.RemoveMovieFromTag(context.Background(), "tm1", "u1")
-		if !errors.Is(err, ErrTagNotFound) {
-			t.Fatalf("expected ErrTagNotFound, got: %v", err)
+		if !errors.Is(err, ErrTagMovieNotFound) {
+			t.Fatalf("expected ErrTagMovieNotFound, got: %v", err)
 		}
 	})
 

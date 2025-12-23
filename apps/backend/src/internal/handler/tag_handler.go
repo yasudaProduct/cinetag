@@ -371,8 +371,10 @@ func (h *TagHandler) RemoveMovieFromTag(c *gin.Context) {
 	err := h.tagService.RemoveMovieFromTag(c.Request.Context(), tagMovieID, user.ID)
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrTagNotFound):
+		case errors.Is(err, service.ErrTagMovieNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "tag movie not found"})
+		case errors.Is(err, service.ErrTagNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
 		case errors.Is(err, service.ErrTagPermissionDenied):
 			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 		default:

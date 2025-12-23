@@ -759,7 +759,7 @@ func TestTagHandler_RemoveMovieFromTag(t *testing.T) {
 
 		svc := &fakeTagService{
 			RemoveMovieFromTagFn: func(ctx context.Context, tagMovieID string, userID string) error {
-				return service.ErrTagNotFound
+				return service.ErrTagMovieNotFound
 			},
 		}
 		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})

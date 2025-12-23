@@ -164,6 +164,7 @@ var (
 	ErrTagNotFound           = errors.New("tag not found")            // タグが存在しない
 	ErrTagPermissionDenied   = errors.New("tag permission denied")    // タグの編集権限がない
 	ErrTagMovieAlreadyExists = errors.New("tag movie already exists") // タグに既に映画が存在する
+	ErrTagMovieNotFound      = errors.New("tag movie not found")      // タグ映画が存在しない
 )
 
 func (s *tagService) UpdateTag(ctx context.Context, tagID string, userID string, patch UpdateTagPatch) (*TagDetail, error) {
@@ -571,7 +572,7 @@ func (s *tagService) RemoveMovieFromTag(ctx context.Context, tagMovieID string, 
 	tagMovie, err := s.tagMovieRepo.FindByID(ctx, tagMovieID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrTagNotFound
+			return ErrTagMovieNotFound
 		}
 		return err
 	}
