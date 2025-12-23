@@ -49,6 +49,10 @@ type TagService interface {
 
 	// UpdateTag はタグのメタ情報を更新して返します（作成者のみ）。
 	UpdateTag(ctx context.Context, tagID string, userID string, patch UpdateTagPatch) (*TagDetail, error)
+
+	// RemoveMovieFromTag はタグから映画を削除します。
+	// タグ作成者は全ての映画を削除可能。他のユーザーは自分が追加した映画のみ削除可能。
+	RemoveMovieFromTag(ctx context.Context, tagMovieID string, userID string) error
 }
 
 type tagService struct {
@@ -550,4 +554,58 @@ func (s *tagService) ListPublicTags(ctx context.Context, q, sort string, page, p
 	}
 
 	return items, total, nil
+}
+
+// RemoveMovieFromTag はタグから映画を削除します。
+// タグ作成者は全ての映画を削除可能。タグがowner_onlyの場合は作成者のみ削除可能。
+// それ以外の場合は、自分が追加した映画のみ削除可能。
+func (s *tagService) RemoveMovieFromTag(ctx context.Context, tagMovieID string, userID string) error {
+	if strings.TrimSpace(tagMovieID) == "" {
+		return fmt.Errorf("tag_movie_id is required")
+	}
+	if strings.TrimSpace(userID) == "" {
+		return fmt.Errorf("user_id is required")
+	}
+
+	// タグ映画を取得
+	tagMovie, err := s.tagMovieRepo.FindByID(ctx, tagMovieID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrTagNotFound
+		}
+		return err
+	}
+
+	// タグを取得して権限チェック
+	tag, err := s.tagRepo.FindByID(ctx, tagMovie.TagID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrTagNotFound
+		}
+		return err
+	}
+
+	// 権限チェック
+	// 1. タグがowner_onlyの場合、作成者のみ削除可能
+	if tag.AddMoviePolicy == "owner_only" && tag.UserID != userID {
+		return ErrTagPermissionDenied
+	}
+
+	// 2. タグ作成者は全ての映画を削除可能
+	// 3. それ以外のユーザーは自分が追加した映画のみ削除可能
+	if tag.UserID != userID && tagMovie.AddedByUser != userID {
+		return ErrTagPermissionDenied
+	}
+
+	// 映画を削除
+	if err := s.tagMovieRepo.Delete(ctx, tagMovieID); err != nil {
+		return err
+	}
+
+	// タグの movie_count を減算
+	if err := s.tagRepo.IncrementMovieCount(ctx, tag.ID, -1); err != nil {
+		return err
+	}
+
+	return nil
 }
