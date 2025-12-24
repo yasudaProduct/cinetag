@@ -12,6 +12,7 @@ export type TagDetail = {
     id: string;
     name: string;
     avatarUrl?: string;
+    displayId?: string;
   };
   canEdit: boolean;
   canAddMovie: boolean;
@@ -62,7 +63,7 @@ export function getMockTagDetail(tagId: string): TagDetail {
     title,
     description,
     author: { name: "Eleanor Vance" },
-    owner: { id: "", name: "Eleanor Vance", avatarUrl: undefined },
+    owner: { id: "", name: "Eleanor Vance", avatarUrl: undefined, displayId: "eleanor-vance" },
     canEdit: false,
     canAddMovie: true,
     addMoviePolicy: "everyone" as AddMoviePolicy,

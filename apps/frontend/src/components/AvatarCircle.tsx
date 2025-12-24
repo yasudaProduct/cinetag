@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 
 export type AvatarCircleProps = {
   name: string;
@@ -11,6 +12,10 @@ export type AvatarCircleProps = {
    * 例: "(max-width: 768px) 40px, 48px"
    */
   sizes?: string;
+  /**
+   * 指定するとユーザーページへのリンクになる
+   */
+  displayId?: string;
 };
 
 export const AvatarCircle = ({
@@ -18,10 +23,11 @@ export const AvatarCircle = ({
   avatarUrl,
   className,
   sizes = "40px",
+  displayId,
 }: AvatarCircleProps) => {
   const initial = (name?.trim()?.[0] ?? "?").toUpperCase();
 
-  return (
+  const content = (
     <div
       className={[
         "relative overflow-hidden flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-700 font-bold",
@@ -44,4 +50,14 @@ export const AvatarCircle = ({
       )}
     </div>
   );
+
+  if (displayId) {
+    return (
+      <Link href={`/${displayId}`} className="hover:opacity-80 transition-opacity">
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
 };

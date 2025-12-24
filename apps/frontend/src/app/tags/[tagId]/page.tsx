@@ -77,6 +77,7 @@ export default function TagDetailPage({
                 <AvatarCircle
                   name={detail?.author?.name ?? "author"}
                   avatarUrl={detail?.owner?.avatarUrl}
+                  displayId={detail?.owner?.displayId}
                   className="h-10 w-10"
                 />
                 <div>
@@ -84,7 +85,16 @@ export default function TagDetailPage({
                     作成者
                   </div>
                   <div className="text-sm font-bold text-gray-900">
-                    {detail?.author?.name ?? "-"}
+                    {detail?.owner?.displayId ? (
+                      <a
+                        href={`/${detail.owner.displayId}`}
+                        className="hover:underline"
+                      >
+                        {detail?.author?.name ?? "-"}
+                      </a>
+                    ) : (
+                      detail?.author?.name ?? "-"
+                    )}
                   </div>
                 </div>
               </div>

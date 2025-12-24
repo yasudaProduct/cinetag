@@ -103,6 +103,7 @@ const TagDetailAuthorNameSchema = z.union([
 const TagDetailOwnerNameSchema = z
     .object({
         id: z.string().optional(),
+        display_id: z.string().optional(),
         display_name: z.string().optional(),
         username: z.string().optional(),
         avatar_url: z.string().nullable().optional(),
@@ -110,6 +111,7 @@ const TagDetailOwnerNameSchema = z
     .passthrough()
     .transform((v) => ({
         id: v.id ?? "",
+        displayId: v.display_id,
         name: v.display_name ?? v.username ?? "unknown",
         avatarUrl: v.avatar_url ?? undefined,
     }));
