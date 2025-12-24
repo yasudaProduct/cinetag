@@ -274,8 +274,9 @@ export default function UserPage() {
                     title={tag.title}
                     description={tag.description ?? ""}
                     author={tag.author}
-                    movieCount={tag.movieCount as number}
-                    likes={tag.followerCount as number}
+                    authorDisplayId={tag.authorDisplayId}
+                    movieCount={tag.movieCount}
+                    likes={tag.followerCount}
                     images={tag.images}
                     href={`/tags/${tag.id}`}
                   />

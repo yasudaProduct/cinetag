@@ -20,15 +20,16 @@ type TagListFilter struct {
 
 // TagSummary は公開タグ一覧取得時に返す1件分の情報（DB由来部分）です。
 type TagSummary struct {
-	ID            string    `gorm:"column:id"`
-	Title         string    `gorm:"column:title"`
-	Description   *string   `gorm:"column:description"`
-	CoverImageURL *string   `gorm:"column:cover_image_url"`
-	IsPublic      bool      `gorm:"column:is_public"`
-	MovieCount    int       `gorm:"column:movie_count"`
-	FollowerCount int       `gorm:"column:follower_count"`
-	CreatedAt     time.Time `gorm:"column:created_at"`
-	Author        string    `gorm:"column:author"`
+	ID              string    `gorm:"column:id"`
+	Title           string    `gorm:"column:title"`
+	Description     *string   `gorm:"column:description"`
+	CoverImageURL   *string   `gorm:"column:cover_image_url"`
+	IsPublic        bool      `gorm:"column:is_public"`
+	MovieCount      int       `gorm:"column:movie_count"`
+	FollowerCount   int       `gorm:"column:follower_count"`
+	CreatedAt       time.Time `gorm:"column:created_at"`
+	Author          string    `gorm:"column:author"`
+	AuthorDisplayID string    `gorm:"column:author_display_id"`
 }
 
 // TagDetailRow はタグ詳細取得時に返すDB由来の情報です。
@@ -170,25 +171,27 @@ func (r *tagRepository) ListPublicTags(ctx context.Context, filter TagListFilter
 		return []TagSummary{}, 0, nil
 	}
 
-	qb := r.db.WithContext(ctx).
+	baseQuery := r.db.WithContext(ctx).
 		Table((model.Tag{}).TableName()+" AS t").
-		Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
-				t.movie_count, t.follower_count, t.created_at,
-				u.username AS author`).
 		Joins("JOIN "+(model.User{}).TableName()+" AS u ON u.id = t.user_id").
 		Where("t.is_public = ?", true)
 
 	if filter.Query != "" {
-		qb = qb.Where("t.title ILIKE ?", "%"+filter.Query+"%")
+		baseQuery = baseQuery.Where("t.title ILIKE ?", "%"+filter.Query+"%")
 	}
 
 	var total int64
-	if err := qb.Count(&total).Error; err != nil {
+	if err := baseQuery.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	if total == 0 {
 		return []TagSummary{}, 0, nil
 	}
+
+	// Count()はSELECTをCOUNT(*)に置き換えるため、Select句を再指定
+	qb := baseQuery.Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
+				t.movie_count, t.follower_count, t.created_at,
+				u.username AS author, u.display_id AS author_display_id`)
 
 	switch filter.Sort {
 	case "recent":
@@ -212,28 +215,29 @@ func (r *tagRepository) ListTagsByUserID(ctx context.Context, filter UserTagList
 		return []TagSummary{}, 0, nil
 	}
 
-	qb := r.db.WithContext(ctx).
+	baseQuery := r.db.WithContext(ctx).
 		Table((model.Tag{}).TableName()+" AS t").
-		Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
-				t.movie_count, t.follower_count, t.created_at,
-				u.username AS author`).
 		Joins("JOIN "+(model.User{}).TableName()+" AS u ON u.id = t.user_id").
 		Where("t.user_id = ?", filter.UserID)
 
 	// 公開タグのみにフィルタ（他ユーザーのページ閲覧時）
 	if filter.IncludePublic {
-		qb = qb.Where("t.is_public = ?", true)
+		baseQuery = baseQuery.Where("t.is_public = ?", true)
 	}
 
 	var total int64
-	if err := qb.Count(&total).Error; err != nil {
+	if err := baseQuery.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	if total == 0 {
 		return []TagSummary{}, 0, nil
 	}
 
-	qb = qb.Order("t.created_at DESC")
+	// Count()はSELECTをCOUNT(*)に置き換えるため、Select句を再指定
+	qb := baseQuery.Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
+				t.movie_count, t.follower_count, t.created_at,
+				u.username AS author, u.display_id AS author_display_id`).
+		Order("t.created_at DESC")
 
 	var rows []TagSummary
 	if err := qb.Limit(filter.Limit).Offset(filter.Offset).Scan(&rows).Error; err != nil {

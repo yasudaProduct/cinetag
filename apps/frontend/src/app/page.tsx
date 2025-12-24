@@ -203,8 +203,9 @@ export default function Home() {
                 title={tag.title}
                 description={tag.description ?? ""}
                 author={tag.author}
-                movieCount={tag.movie_count}
-                likes={tag.follower_count}
+                authorDisplayId={tag.authorDisplayId}
+                movieCount={tag.movieCount}
+                likes={tag.followerCount}
                 images={tag.images || []}
                 href={`/tags/${tag.id}`}
               />

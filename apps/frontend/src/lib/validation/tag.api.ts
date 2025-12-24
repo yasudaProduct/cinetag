@@ -17,13 +17,25 @@ export const TagListItemSchema = z
         title: z.string(),
         description: z.string().nullable().optional(),
         author: z.string(),
+        author_display_id: z.string().optional(),
         movie_count: z.number().int().nonnegative(),
         follower_count: z.number().int().nonnegative(),
         // バックエンド実装差分で null が返ることがあるため、null/undefined は [] に正規化する
         images: z.preprocess((v) => (v == null ? [] : v), z.array(z.string()).default([])),
         created_at: z.string().optional(),
     })
-    .passthrough();
+    .passthrough()
+    .transform((data) => ({
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        author: data.author,
+        authorDisplayId: data.author_display_id,
+        movieCount: data.movie_count,
+        followerCount: data.follower_count,
+        images: data.images,
+        createdAt: data.created_at,
+    }));
 
 export type TagListItem = z.infer<typeof TagListItemSchema>;
 

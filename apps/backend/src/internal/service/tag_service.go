@@ -16,16 +16,17 @@ import (
 
 // TagListItem は公開タグ一覧で返す1件分の情報です。
 type TagListItem struct {
-	ID            string    `json:"id"`
-	Title         string    `json:"title"`
-	Description   *string   `json:"description,omitempty"`
-	Author        string    `json:"author"`
-	CoverImageURL *string   `json:"cover_image_url,omitempty"`
-	IsPublic      bool      `json:"is_public"`
-	MovieCount    int       `json:"movie_count"`
-	FollowerCount int       `json:"follower_count"`
-	Images        []string  `json:"images"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID              string    `json:"id"`
+	Title           string    `json:"title"`
+	Description     *string   `json:"description,omitempty"`
+	Author          string    `json:"author"`
+	AuthorDisplayID string    `json:"author_display_id"`
+	CoverImageURL   *string   `json:"cover_image_url,omitempty"`
+	IsPublic        bool      `json:"is_public"`
+	MovieCount      int       `json:"movie_count"`
+	FollowerCount   int       `json:"follower_count"`
+	Images          []string  `json:"images"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 // TagService はタグに関するユースケースを表します。
@@ -539,16 +540,17 @@ func (s *tagService) ListPublicTags(ctx context.Context, q, sort string, page, p
 	items := make([]TagListItem, 0, len(rows))
 	for _, r := range rows {
 		item := TagListItem{
-			ID:            r.ID,
-			Title:         r.Title,
-			Description:   r.Description,
-			Author:        r.Author,
-			CoverImageURL: r.CoverImageURL,
-			IsPublic:      r.IsPublic,
-			MovieCount:    r.MovieCount,
-			FollowerCount: r.FollowerCount,
-			Images:        imagesByTag[r.ID],
-			CreatedAt:     r.CreatedAt,
+			ID:              r.ID,
+			Title:           r.Title,
+			Description:     r.Description,
+			Author:          r.Author,
+			AuthorDisplayID: r.AuthorDisplayID,
+			CoverImageURL:   r.CoverImageURL,
+			IsPublic:        r.IsPublic,
+			MovieCount:      r.MovieCount,
+			FollowerCount:   r.FollowerCount,
+			Images:          imagesByTag[r.ID],
+			CreatedAt:       r.CreatedAt,
 		}
 		items = append(items, item)
 	}
@@ -617,16 +619,17 @@ func (s *tagService) ListTagsByUserID(ctx context.Context, userID string, public
 	items := make([]TagListItem, 0, len(rows))
 	for _, r := range rows {
 		item := TagListItem{
-			ID:            r.ID,
-			Title:         r.Title,
-			Description:   r.Description,
-			Author:        r.Author,
-			CoverImageURL: r.CoverImageURL,
-			IsPublic:      r.IsPublic,
-			MovieCount:    r.MovieCount,
-			FollowerCount: r.FollowerCount,
-			Images:        imagesByTag[r.ID],
-			CreatedAt:     r.CreatedAt,
+			ID:              r.ID,
+			Title:           r.Title,
+			Description:     r.Description,
+			Author:          r.Author,
+			AuthorDisplayID: r.AuthorDisplayID,
+			CoverImageURL:   r.CoverImageURL,
+			IsPublic:        r.IsPublic,
+			MovieCount:      r.MovieCount,
+			FollowerCount:   r.FollowerCount,
+			Images:          imagesByTag[r.ID],
+			CreatedAt:       r.CreatedAt,
 		}
 		items = append(items, item)
 	}

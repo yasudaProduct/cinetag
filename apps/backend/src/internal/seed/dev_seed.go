@@ -123,6 +123,7 @@ func upsertUser(tx *gorm.DB, u model.User) (string, error) {
 		Columns: []clause.Column{{Name: "clerk_user_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"username",
+			"display_id",
 			"display_name",
 			"email",
 			"avatar_url",
