@@ -16,6 +16,7 @@ type FakeTagRepository struct {
 	UpdateByIDFn          func(ctx context.Context, id string, patch repository.TagUpdatePatch) error
 	IncrementMovieCountFn func(ctx context.Context, id string, delta int) error
 	ListPublicTagsFn      func(ctx context.Context, filter repository.TagListFilter) ([]repository.TagSummary, int64, error)
+	ListTagsByUserIDFn    func(ctx context.Context, filter repository.UserTagListFilter) ([]repository.TagSummary, int64, error)
 }
 
 func (f *FakeTagRepository) Create(ctx context.Context, tag *model.Tag) error {
@@ -58,6 +59,13 @@ func (f *FakeTagRepository) ListPublicTags(ctx context.Context, filter repositor
 		return []repository.TagSummary{}, 0, nil
 	}
 	return f.ListPublicTagsFn(ctx, filter)
+}
+
+func (f *FakeTagRepository) ListTagsByUserID(ctx context.Context, filter repository.UserTagListFilter) ([]repository.TagSummary, int64, error) {
+	if f.ListTagsByUserIDFn == nil {
+		return []repository.TagSummary{}, 0, nil
+	}
+	return f.ListTagsByUserIDFn(ctx, filter)
 }
 
 // FakeTagMovieRepository は repository.TagMovieRepository の手書き fake です。

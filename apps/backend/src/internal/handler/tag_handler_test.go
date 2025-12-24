@@ -15,12 +15,13 @@ import (
 )
 
 type fakeTagService struct {
-	ListPublicTagsFn func(ctx context.Context, q, sort string, page, pageSize int) ([]service.TagListItem, int64, error)
-	GetTagDetailFn   func(ctx context.Context, tagID string, viewerUserID *string) (*service.TagDetail, error)
-	ListTagMoviesFn  func(ctx context.Context, tagID string, viewerUserID *string, page, pageSize int) ([]service.TagMovieItem, int64, error)
-	CreateTagFn      func(ctx context.Context, in service.CreateTagInput) (*model.Tag, error)
-	AddMovieToTagFn  func(ctx context.Context, in service.AddMovieToTagInput) (*model.TagMovie, error)
-	UpdateTagFn      func(ctx context.Context, tagID string, userID string, patch service.UpdateTagPatch) (*service.TagDetail, error)
+	ListPublicTagsFn   func(ctx context.Context, q, sort string, page, pageSize int) ([]service.TagListItem, int64, error)
+	ListTagsByUserIDFn func(ctx context.Context, userID string, publicOnly bool, page, pageSize int) ([]service.TagListItem, int64, error)
+	GetTagDetailFn     func(ctx context.Context, tagID string, viewerUserID *string) (*service.TagDetail, error)
+	ListTagMoviesFn    func(ctx context.Context, tagID string, viewerUserID *string, page, pageSize int) ([]service.TagMovieItem, int64, error)
+	CreateTagFn        func(ctx context.Context, in service.CreateTagInput) (*model.Tag, error)
+	AddMovieToTagFn    func(ctx context.Context, in service.AddMovieToTagInput) (*model.TagMovie, error)
+	UpdateTagFn        func(ctx context.Context, tagID string, userID string, patch service.UpdateTagPatch) (*service.TagDetail, error)
 }
 
 func (f *fakeTagService) ListPublicTags(ctx context.Context, q, sort string, page, pageSize int) ([]service.TagListItem, int64, error) {
@@ -28,6 +29,13 @@ func (f *fakeTagService) ListPublicTags(ctx context.Context, q, sort string, pag
 		return []service.TagListItem{}, 0, nil
 	}
 	return f.ListPublicTagsFn(ctx, q, sort, page, pageSize)
+}
+
+func (f *fakeTagService) ListTagsByUserID(ctx context.Context, userID string, publicOnly bool, page, pageSize int) ([]service.TagListItem, int64, error) {
+	if f.ListTagsByUserIDFn == nil {
+		return []service.TagListItem{}, 0, nil
+	}
+	return f.ListTagsByUserIDFn(ctx, userID, publicOnly, page, pageSize)
 }
 
 func (f *fakeTagService) GetTagDetail(ctx context.Context, tagID string, viewerUserID *string) (*service.TagDetail, error) {

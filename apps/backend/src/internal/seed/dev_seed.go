@@ -31,6 +31,7 @@ func SeedDevelop(db *gorm.DB) error {
 		creatorID, err := upsertUser(tx, model.User{
 			ClerkUserID: "user_376ohwfbOYMZnEyFXrIpZpRzU0h", // clerkに登録済みのユーザーID
 			Username:    "デモ01",
+			DisplayID:   "demo01",
 			DisplayName: "デモ01",
 			Email:       "demo01@example.com",
 		})
@@ -41,6 +42,7 @@ func SeedDevelop(db *gorm.DB) error {
 		followerID, err := upsertUser(tx, model.User{
 			ClerkUserID: "user_376ozoBYiBZiFipgkEerZGXCjMm",
 			Username:    "デモ02",
+			DisplayID:   "demo02",
 			DisplayName: "デモ02",
 			Email:       "demo02@example.com",
 		})

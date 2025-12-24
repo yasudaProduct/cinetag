@@ -20,12 +20,18 @@ type ClerkUserInfo struct {
 	AvatarURL   *string // アイコンURL（任意）
 }
 
+// ErrUserNotFound はユーザーが見つからなかった場合のエラーです。
+var ErrUserNotFound = errors.New("user not found")
+
 // UserService は users テーブルに関するユースケースを表します。
 type UserService interface {
 	// EnsureUser は Clerk のユーザー情報をもとに、
 	// users テーブル上に対応するレコードが存在することを保証します。
 	// 既に存在すればそれを返し、存在しなければ新規作成して返します。
 	EnsureUser(ctx context.Context, clerkUser ClerkUserInfo) (*model.User, error)
+
+	// GetUserByDisplayID は display_id からユーザー情報を取得します。
+	GetUserByDisplayID(ctx context.Context, displayID string) (*model.User, error)
 }
 
 type userService struct {
@@ -64,15 +70,36 @@ func (s *userService) EnsureUser(ctx context.Context, clerkInfo ClerkUserInfo) (
 		displayName = username
 	}
 
+	// display_id を生成
+	displayID := GenerateDisplayID(clerkInfo.ID, clerkInfo.Username, clerkInfo.Email)
+
 	user := &model.User{
 		ClerkUserID: clerkInfo.ID,
 		Username:    username,
+		DisplayID:   displayID,
 		DisplayName: displayName,
 		Email:       clerkInfo.Email,
 		AvatarURL:   clerkInfo.AvatarURL,
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+// GetUserByDisplayID は display_id からユーザー情報を取得します。
+func (s *userService) GetUserByDisplayID(ctx context.Context, displayID string) (*model.User, error) {
+	if displayID == "" {
+		return nil, errors.New("display_id is required")
+	}
+
+	user, err := s.userRepo.FindByDisplayID(ctx, displayID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
 		return nil, err
 	}
 

@@ -51,6 +51,14 @@ type TagDetailRow struct {
 	OwnerAvatarURL   *string `gorm:"column:owner_avatar_url"`
 }
 
+// UserTagListFilter はユーザーのタグ一覧取得時のフィルタ条件を表します。
+type UserTagListFilter struct {
+	UserID        string
+	IncludePublic bool // trueなら公開タグのみ、falseなら全て（自分のページ用）
+	Offset        int
+	Limit         int
+}
+
 // TagRepository はタグに関する永続化処理を表します。
 type TagRepository interface {
 	Create(ctx context.Context, tag *model.Tag) error
@@ -59,6 +67,7 @@ type TagRepository interface {
 	UpdateByID(ctx context.Context, id string, patch TagUpdatePatch) error
 	IncrementMovieCount(ctx context.Context, id string, delta int) error
 	ListPublicTags(ctx context.Context, filter TagListFilter) ([]TagSummary, int64, error)
+	ListTagsByUserID(ctx context.Context, filter UserTagListFilter) ([]TagSummary, int64, error)
 }
 
 type tagRepository struct {
@@ -189,6 +198,42 @@ func (r *tagRepository) ListPublicTags(ctx context.Context, filter TagListFilter
 	default:
 		qb = qb.Order("t.follower_count DESC")
 	}
+
+	var rows []TagSummary
+	if err := qb.Limit(filter.Limit).Offset(filter.Offset).Scan(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return rows, total, nil
+}
+
+func (r *tagRepository) ListTagsByUserID(ctx context.Context, filter UserTagListFilter) ([]TagSummary, int64, error) {
+	if filter.Limit <= 0 {
+		return []TagSummary{}, 0, nil
+	}
+
+	qb := r.db.WithContext(ctx).
+		Table((model.Tag{}).TableName()+" AS t").
+		Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
+				t.movie_count, t.follower_count, t.created_at,
+				u.username AS author`).
+		Joins("JOIN "+(model.User{}).TableName()+" AS u ON u.id = t.user_id").
+		Where("t.user_id = ?", filter.UserID)
+
+	// 公開タグのみにフィルタ（他ユーザーのページ閲覧時）
+	if filter.IncludePublic {
+		qb = qb.Where("t.is_public = ?", true)
+	}
+
+	var total int64
+	if err := qb.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if total == 0 {
+		return []TagSummary{}, 0, nil
+	}
+
+	qb = qb.Order("t.created_at DESC")
 
 	var rows []TagSummary
 	if err := qb.Limit(filter.Limit).Offset(filter.Offset).Scan(&rows).Error; err != nil {

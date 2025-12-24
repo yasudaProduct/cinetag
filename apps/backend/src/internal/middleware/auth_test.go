@@ -15,7 +15,8 @@ import (
 )
 
 type fakeUserService struct {
-	EnsureUserFn func(ctx context.Context, clerkUser service.ClerkUserInfo) (*model.User, error)
+	EnsureUserFn         func(ctx context.Context, clerkUser service.ClerkUserInfo) (*model.User, error)
+	GetUserByDisplayIDFn func(ctx context.Context, displayID string) (*model.User, error)
 }
 
 func (f *fakeUserService) EnsureUser(ctx context.Context, clerkUser service.ClerkUserInfo) (*model.User, error) {
@@ -23,6 +24,13 @@ func (f *fakeUserService) EnsureUser(ctx context.Context, clerkUser service.Cler
 		return &model.User{ID: "u1"}, nil
 	}
 	return f.EnsureUserFn(ctx, clerkUser)
+}
+
+func (f *fakeUserService) GetUserByDisplayID(ctx context.Context, displayID string) (*model.User, error) {
+	if f.GetUserByDisplayIDFn == nil {
+		return nil, errors.New("not found")
+	}
+	return f.GetUserByDisplayIDFn(ctx, displayID)
 }
 
 func newAuthTestRouter(t *testing.T, mw gin.HandlerFunc) *gin.Engine {

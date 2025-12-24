@@ -8,6 +8,7 @@ type User struct {
 	ID          string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	ClerkUserID string    `gorm:"type:text;not null;uniqueIndex:users_clerk_user_id_key;column:clerk_user_id" json:"clerk_user_id"`
 	Username    string    `gorm:"type:text;not null;index:users_username_idx" json:"username"`
+	DisplayID   string    `gorm:"type:text;not null;uniqueIndex:users_display_id_key;column:display_id" json:"display_id"`
 	DisplayName string    `gorm:"type:text;not null;column:display_name" json:"display_name"`
 	Email       string    `gorm:"type:text;not null" json:"email"`
 	AvatarURL   *string   `gorm:"type:text;column:avatar_url" json:"avatar_url,omitempty"`

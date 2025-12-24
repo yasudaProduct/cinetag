@@ -31,6 +31,7 @@ func NewRouter() *gin.Engine {
 	userService := service.NewUserService(userRepo)
 	tagHandler := handler.NewTagHandler(tagService)
 	movieHandler := handler.NewMovieHandler(movieService)
+	userHandler := handler.NewUserHandler(userService, tagService)
 	clerkWebhookHandler := handler.NewClerkWebhookHandler(userService)
 	authMiddleware := middleware.NewAuthMiddleware(userService)
 	optionalAuthMiddleware := middleware.NewOptionalAuthMiddleware(userService)
@@ -71,6 +72,10 @@ func NewRouter() *gin.Engine {
 		api.GET("/tags/:tagId", optionalAuthMiddleware, tagHandler.GetTagDetail)
 		api.GET("/tags/:tagId/movies", optionalAuthMiddleware, tagHandler.ListTagMovies)
 
+		// ユーザー情報取得（認証不要）
+		api.GET("/users/:displayId", userHandler.GetUserByDisplayID)
+		api.GET("/users/:displayId/tags", optionalAuthMiddleware, userHandler.ListUserTags)
+
 		// TMDB 検索（認証不要）
 		api.GET("/movies/search", movieHandler.SearchMovies)
 
@@ -78,6 +83,10 @@ func NewRouter() *gin.Engine {
 		authGroup := api.Group("/")
 		authGroup.Use(authMiddleware)
 		{
+			// ユーザー
+			authGroup.GET("/users/me", userHandler.GetMe)
+
+			// タグ
 			authGroup.POST("/tags", tagHandler.CreateTag)
 			authGroup.PATCH("/tags/:tagId", tagHandler.UpdateTag)
 			authGroup.POST("/tags/:tagId/movies", tagHandler.AddMovieToTag)

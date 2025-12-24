@@ -13,6 +13,7 @@ import (
 
 type fakeUserRepo struct {
 	FindByClerkUserIDFn func(ctx context.Context, clerkUserID string) (*model.User, error)
+	FindByDisplayIDFn   func(ctx context.Context, displayID string) (*model.User, error)
 	CreateFn            func(ctx context.Context, user *model.User) error
 }
 
@@ -21,6 +22,13 @@ func (f *fakeUserRepo) FindByClerkUserID(ctx context.Context, clerkUserID string
 		return nil, gorm.ErrRecordNotFound
 	}
 	return f.FindByClerkUserIDFn(ctx, clerkUserID)
+}
+
+func (f *fakeUserRepo) FindByDisplayID(ctx context.Context, displayID string) (*model.User, error) {
+	if f.FindByDisplayIDFn == nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return f.FindByDisplayIDFn(ctx, displayID)
 }
 
 func (f *fakeUserRepo) Create(ctx context.Context, user *model.User) error {

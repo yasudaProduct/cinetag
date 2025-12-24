@@ -33,6 +33,10 @@ type TagService interface {
 	// ListPublicTags は公開タグを検索・ソート・ページングして返します。
 	ListPublicTags(ctx context.Context, q, sort string, page, pageSize int) ([]TagListItem, int64, error)
 
+	// ListTagsByUserID はユーザーIDに紐づくタグ一覧を返します。
+	// publicOnly が true の場合、公開タグのみを返します（他ユーザーのページ閲覧時）。
+	ListTagsByUserID(ctx context.Context, userID string, publicOnly bool, page, pageSize int) ([]TagListItem, int64, error)
+
 	// GetTagDetail は指定タグの詳細を返します。
 	// viewerUserID は任意で、非公開タグの参照権限判定に利用します。
 	GetTagDetail(ctx context.Context, tagID string, viewerUserID *string) (*TagDetail, error)
@@ -532,6 +536,84 @@ func (s *tagService) ListPublicTags(ctx context.Context, q, sort string, page, p
 	}
 
 	// 最終的なレスポンス構築
+	items := make([]TagListItem, 0, len(rows))
+	for _, r := range rows {
+		item := TagListItem{
+			ID:            r.ID,
+			Title:         r.Title,
+			Description:   r.Description,
+			Author:        r.Author,
+			CoverImageURL: r.CoverImageURL,
+			IsPublic:      r.IsPublic,
+			MovieCount:    r.MovieCount,
+			FollowerCount: r.FollowerCount,
+			Images:        imagesByTag[r.ID],
+			CreatedAt:     r.CreatedAt,
+		}
+		items = append(items, item)
+	}
+
+	return items, total, nil
+}
+
+func (s *tagService) ListTagsByUserID(ctx context.Context, userID string, publicOnly bool, page, pageSize int) ([]TagListItem, int64, error) {
+	if strings.TrimSpace(userID) == "" {
+		return nil, 0, fmt.Errorf("user_id is required")
+	}
+	if page < 1 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	rows, total, err := s.tagRepo.ListTagsByUserID(ctx, repository.UserTagListFilter{
+		UserID:        userID,
+		IncludePublic: publicOnly,
+		Offset:        offset,
+		Limit:         pageSize,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	if total == 0 {
+		return []TagListItem{}, 0, nil
+	}
+
+	// 映画ポスター画像の取得
+	imagesByTag := make(map[string][]string, len(rows))
+	if s.movieService != nil {
+		for _, r := range rows {
+			tagMovies, err := s.tagMovieRepo.ListRecentByTag(ctx, r.ID, 4)
+			if err != nil {
+				return nil, 0, err
+			}
+
+			for _, tm := range tagMovies {
+				if len(imagesByTag[r.ID]) >= 4 {
+					break
+				}
+				cache, err := s.movieService.EnsureMovieCache(ctx, tm.TmdbMovieID)
+				if err != nil {
+					continue
+				}
+				if cache.PosterPath == nil || *cache.PosterPath == "" {
+					continue
+				}
+				poster := *cache.PosterPath
+				if s.imageBaseURL != "" {
+					poster = s.imageBaseURL + poster
+				}
+				imagesByTag[r.ID] = append(imagesByTag[r.ID], poster)
+			}
+		}
+	}
+
 	items := make([]TagListItem, 0, len(rows))
 	for _, r := range rows {
 		item := TagListItem{

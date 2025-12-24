@@ -11,6 +11,7 @@ import (
 // UserRepository は users テーブルの永続化処理を表します。
 type UserRepository interface {
 	FindByClerkUserID(ctx context.Context, clerkUserID string) (*model.User, error)
+	FindByDisplayID(ctx context.Context, displayID string) (*model.User, error)
 	Create(ctx context.Context, user *model.User) error
 }
 
@@ -26,6 +27,14 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 func (r *userRepository) FindByClerkUserID(ctx context.Context, clerkUserID string) (*model.User, error) {
 	var user model.User
 	if err := r.db.WithContext(ctx).Where("clerk_user_id = ?", clerkUserID).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *userRepository) FindByDisplayID(ctx context.Context, displayID string) (*model.User, error) {
+	var user model.User
+	if err := r.db.WithContext(ctx).Where("display_id = ?", displayID).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
