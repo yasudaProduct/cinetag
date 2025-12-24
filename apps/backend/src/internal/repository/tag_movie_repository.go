@@ -23,6 +23,10 @@ type TagMovieRepository interface {
 	// Create はタグに映画を追加します。
 	// ユニーク制約違反（tag_movies_unique）の場合は ErrTagMovieAlreadyExists を返します。
 	Create(ctx context.Context, tagMovie *model.TagMovie) error
+	// FindByID は指定したIDのタグ映画を取得します。
+	FindByID(ctx context.Context, tagMovieID string) (*model.TagMovie, error)
+	// Delete は指定したIDのタグ映画を削除します。
+	Delete(ctx context.Context, tagMovieID string) error
 }
 
 // TagMovieWithCache は tag_movies と movie_cache の結合結果です。
@@ -123,4 +127,16 @@ func (r *tagMovieRepository) Create(ctx context.Context, tagMovie *model.TagMovi
 		return ErrTagMovieAlreadyExists
 	}
 	return nil
+}
+
+func (r *tagMovieRepository) FindByID(ctx context.Context, tagMovieID string) (*model.TagMovie, error) {
+	var tagMovie model.TagMovie
+	if err := r.db.WithContext(ctx).Where("id = ?", tagMovieID).First(&tagMovie).Error; err != nil {
+		return nil, err
+	}
+	return &tagMovie, nil
+}
+
+func (r *tagMovieRepository) Delete(ctx context.Context, tagMovieID string) error {
+	return r.db.WithContext(ctx).Where("id = ?", tagMovieID).Delete(&model.TagMovie{}).Error
 }

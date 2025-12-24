@@ -349,6 +349,43 @@ func (h *TagHandler) AddMovieToTag(c *gin.Context) {
 	c.JSON(http.StatusCreated, tagMovie)
 }
 
+// RemoveMovieFromTag はタグから映画を削除します。
+func (h *TagHandler) RemoveMovieFromTag(c *gin.Context) {
+	tagMovieID := c.Param("tagMovieId")
+
+	userVal, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "unauthorized",
+		})
+		return
+	}
+	user, ok := userVal.(*model.User)
+	if !ok || user == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "invalid user in context",
+		})
+		return
+	}
+
+	err := h.tagService.RemoveMovieFromTag(c.Request.Context(), tagMovieID, user.ID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrTagMovieNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "tag movie not found"})
+		case errors.Is(err, service.ErrTagNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
+		case errors.Is(err, service.ErrTagPermissionDenied):
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to remove movie from tag"})
+		}
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 func parseIntDefault(s string, def int) int {
 	if s == "" {
 		return def

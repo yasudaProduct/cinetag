@@ -15,13 +15,14 @@ import (
 )
 
 type fakeTagService struct {
-	ListPublicTagsFn   func(ctx context.Context, q, sort string, page, pageSize int) ([]service.TagListItem, int64, error)
-	ListTagsByUserIDFn func(ctx context.Context, userID string, publicOnly bool, page, pageSize int) ([]service.TagListItem, int64, error)
-	GetTagDetailFn     func(ctx context.Context, tagID string, viewerUserID *string) (*service.TagDetail, error)
-	ListTagMoviesFn    func(ctx context.Context, tagID string, viewerUserID *string, page, pageSize int) ([]service.TagMovieItem, int64, error)
-	CreateTagFn        func(ctx context.Context, in service.CreateTagInput) (*model.Tag, error)
-	AddMovieToTagFn    func(ctx context.Context, in service.AddMovieToTagInput) (*model.TagMovie, error)
-	UpdateTagFn        func(ctx context.Context, tagID string, userID string, patch service.UpdateTagPatch) (*service.TagDetail, error)
+	ListPublicTagsFn     func(ctx context.Context, q, sort string, page, pageSize int) ([]service.TagListItem, int64, error)
+	ListTagsByUserIDFn   func(ctx context.Context, userID string, publicOnly bool, page, pageSize int) ([]service.TagListItem, int64, error)
+	GetTagDetailFn       func(ctx context.Context, tagID string, viewerUserID *string) (*service.TagDetail, error)
+	ListTagMoviesFn      func(ctx context.Context, tagID string, viewerUserID *string, page, pageSize int) ([]service.TagMovieItem, int64, error)
+	CreateTagFn          func(ctx context.Context, in service.CreateTagInput) (*model.Tag, error)
+	AddMovieToTagFn      func(ctx context.Context, in service.AddMovieToTagInput) (*model.TagMovie, error)
+	UpdateTagFn          func(ctx context.Context, tagID string, userID string, patch service.UpdateTagPatch) (*service.TagDetail, error)
+	RemoveMovieFromTagFn func(ctx context.Context, tagMovieID string, userID string) error
 }
 
 func (f *fakeTagService) ListPublicTags(ctx context.Context, q, sort string, page, pageSize int) ([]service.TagListItem, int64, error) {
@@ -73,6 +74,13 @@ func (f *fakeTagService) UpdateTag(ctx context.Context, tagID string, userID str
 	return f.UpdateTagFn(ctx, tagID, userID, patch)
 }
 
+func (f *fakeTagService) RemoveMovieFromTag(ctx context.Context, tagMovieID string, userID string) error {
+	if f.RemoveMovieFromTagFn == nil {
+		return nil
+	}
+	return f.RemoveMovieFromTagFn(ctx, tagMovieID, userID)
+}
+
 // newTagHandlerRouter は TagHandler のテスト用ルーターを生成します。
 func newTagHandlerRouter(t *testing.T, tagSvc service.TagService, user *model.User) *gin.Engine {
 	t.Helper()
@@ -103,6 +111,7 @@ func newTagHandlerRouter(t *testing.T, tagSvc service.TagService, user *model.Us
 	auth.POST("/tags", h.CreateTag)
 	auth.PATCH("/tags/:tagId", h.UpdateTag)
 	auth.POST("/tags/:tagId/movies", h.AddMovieToTag)
+	auth.DELETE("/tags/:tagId/movies/:tagMovieId", h.RemoveMovieFromTag)
 
 	return r
 }
@@ -736,6 +745,88 @@ func TestTagHandler_UpdateTag(t *testing.T) {
 
 		if rw.Code != http.StatusForbidden {
 			t.Fatalf("expected 403, got %d", rw.Code)
+		}
+	})
+}
+
+func TestTagHandler_RemoveMovieFromTag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("未認証(user無し): 401", func(t *testing.T) {
+		t.Parallel()
+
+		r := newTagHandlerRouter(t, &fakeTagService{}, nil)
+		rw := testutil.PerformRequest(r, http.MethodDelete, "/api/v1/tags/t1/movies/tm1", nil, nil)
+		if rw.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", rw.Code)
+		}
+	})
+
+	t.Run("タグ映画が存在しない: 404", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			RemoveMovieFromTagFn: func(ctx context.Context, tagMovieID string, userID string) error {
+				return service.ErrTagMovieNotFound
+			},
+		}
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodDelete, "/api/v1/tags/t1/movies/tm1", nil, nil)
+		if rw.Code != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d", rw.Code)
+		}
+	})
+
+	t.Run("権限なし: 403", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			RemoveMovieFromTagFn: func(ctx context.Context, tagMovieID string, userID string) error {
+				return service.ErrTagPermissionDenied
+			},
+		}
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodDelete, "/api/v1/tags/t1/movies/tm1", nil, nil)
+		if rw.Code != http.StatusForbidden {
+			t.Fatalf("expected 403, got %d", rw.Code)
+		}
+	})
+
+	t.Run("サービスが失敗: 500", func(t *testing.T) {
+		t.Parallel()
+
+		expected := errors.New("boom")
+		svc := &fakeTagService{
+			RemoveMovieFromTagFn: func(ctx context.Context, tagMovieID string, userID string) error {
+				return expected
+			},
+		}
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodDelete, "/api/v1/tags/t1/movies/tm1", nil, nil)
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+	})
+
+	t.Run("成功: 204 No Content", func(t *testing.T) {
+		t.Parallel()
+
+		var gotTagMovieID, gotUserID string
+		svc := &fakeTagService{
+			RemoveMovieFromTagFn: func(ctx context.Context, tagMovieID string, userID string) error {
+				gotTagMovieID = tagMovieID
+				gotUserID = userID
+				return nil
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodDelete, "/api/v1/tags/t1/movies/tm1", nil, nil)
+		if rw.Code != http.StatusNoContent {
+			t.Fatalf("expected 204, got %d", rw.Code)
+		}
+		if gotTagMovieID != "tm1" || gotUserID != "u1" {
+			t.Fatalf("unexpected input: tagMovieID=%s userID=%s", gotTagMovieID, gotUserID)
 		}
 	})
 }

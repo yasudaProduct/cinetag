@@ -762,3 +762,260 @@ func TestTagService_UpdateTag(t *testing.T) {
 		}
 	})
 }
+
+func TestTagService_RemoveMovieFromTag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("入力バリデーション: tag_movie_id が必須", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, nil)
+
+		err := svc.RemoveMovieFromTag(context.Background(), "", "u1")
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("入力バリデーション: user_id が必須", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, nil)
+
+		err := svc.RemoveMovieFromTag(context.Background(), "tm1", "")
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("タグ映画が見つからない: gorm.ErrRecordNotFound は ErrTagMovieNotFound に変換される", func(t *testing.T) {
+		t.Parallel()
+
+		svc := newTagService(t, func(d *deps) {
+			d.tagMovieRepo.FindByIDFn = func(ctx context.Context, tagMovieID string) (*model.TagMovie, error) {
+				return nil, gorm.ErrRecordNotFound
+			}
+		})
+
+		err := svc.RemoveMovieFromTag(context.Background(), "tm1", "u1")
+		if !errors.Is(err, ErrTagMovieNotFound) {
+			t.Fatalf("expected ErrTagMovieNotFound, got: %v", err)
+		}
+	})
+
+	t.Run("タグ映画検索で失敗: FindByID のエラーはそのまま返る", func(t *testing.T) {
+		t.Parallel()
+
+		expected := errors.New("db down")
+		svc := newTagService(t, func(d *deps) {
+			d.tagMovieRepo.FindByIDFn = func(ctx context.Context, tagMovieID string) (*model.TagMovie, error) {
+				return nil, expected
+			}
+		})
+
+		err := svc.RemoveMovieFromTag(context.Background(), "tm1", "u1")
+		if !errors.Is(err, expected) {
+			t.Fatalf("expected propagated error, got: %v", err)
+		}
+	})
+
+	t.Run("タグが見つからない: gorm.ErrRecordNotFound は ErrTagNotFound に変換される", func(t *testing.T) {
+		t.Parallel()
+
+		svc := newTagService(t, func(d *deps) {
+			d.tagMovieRepo.FindByIDFn = func(ctx context.Context, tagMovieID string) (*model.TagMovie, error) {
+				return &model.TagMovie{ID: tagMovieID, TagID: "t1", AddedByUser: "u1"}, nil
+			}
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return nil, gorm.ErrRecordNotFound
+			}
+		})
+
+		err := svc.RemoveMovieFromTag(context.Background(), "tm1", "u1")
+		if !errors.Is(err, ErrTagNotFound) {
+			t.Fatalf("expected ErrTagNotFound, got: %v", err)
+		}
+	})
+
+	t.Run("権限チェック: owner_only タグで作成者以外は削除不可", func(t *testing.T) {
+		t.Parallel()
+
+		svc := newTagService(t, func(d *deps) {
+			d.tagMovieRepo.FindByIDFn = func(ctx context.Context, tagMovieID string) (*model.TagMovie, error) {
+				return &model.TagMovie{ID: tagMovieID, TagID: "t1", AddedByUser: "other_user"}, nil
+			}
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{
+					ID:             id,
+					UserID:         "owner1",
+					AddMoviePolicy: "owner_only",
+				}, nil
+			}
+		})
+
+		err := svc.RemoveMovieFromTag(context.Background(), "tm1", "other_user")
+		if !errors.Is(err, ErrTagPermissionDenied) {
+			t.Fatalf("expected ErrTagPermissionDenied, got: %v", err)
+		}
+	})
+
+	t.Run("権限チェック: owner_only タグで作成者は削除可能", func(t *testing.T) {
+		t.Parallel()
+
+		var deletedID string
+		svc := newTagService(t, func(d *deps) {
+			d.tagMovieRepo.FindByIDFn = func(ctx context.Context, tagMovieID string) (*model.TagMovie, error) {
+				return &model.TagMovie{ID: tagMovieID, TagID: "t1", AddedByUser: "other_user"}, nil
+			}
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{
+					ID:             id,
+					UserID:         "owner1",
+					AddMoviePolicy: "owner_only",
+				}, nil
+			}
+			d.tagMovieRepo.DeleteFn = func(ctx context.Context, tagMovieID string) error {
+				deletedID = tagMovieID
+				return nil
+			}
+			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
+				return nil
+			}
+		})
+
+		err := svc.RemoveMovieFromTag(context.Background(), "tm1", "owner1")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if deletedID != "tm1" {
+			t.Fatalf("expected delete to be called with tm1, got %s", deletedID)
+		}
+	})
+
+	t.Run("権限チェック: タグ作成者は全ての映画を削除可能", func(t *testing.T) {
+		t.Parallel()
+
+		var deletedID string
+		svc := newTagService(t, func(d *deps) {
+			d.tagMovieRepo.FindByIDFn = func(ctx context.Context, tagMovieID string) (*model.TagMovie, error) {
+				return &model.TagMovie{ID: tagMovieID, TagID: "t1", AddedByUser: "other_user"}, nil
+			}
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{
+					ID:             id,
+					UserID:         "owner1",
+					AddMoviePolicy: "everyone",
+				}, nil
+			}
+			d.tagMovieRepo.DeleteFn = func(ctx context.Context, tagMovieID string) error {
+				deletedID = tagMovieID
+				return nil
+			}
+			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
+				return nil
+			}
+		})
+
+		err := svc.RemoveMovieFromTag(context.Background(), "tm1", "owner1")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if deletedID != "tm1" {
+			t.Fatalf("expected delete to be called with tm1, got %s", deletedID)
+		}
+	})
+
+	t.Run("権限チェック: 他ユーザーは自分が追加した映画のみ削除可能", func(t *testing.T) {
+		t.Parallel()
+
+		var deletedID string
+		svc := newTagService(t, func(d *deps) {
+			d.tagMovieRepo.FindByIDFn = func(ctx context.Context, tagMovieID string) (*model.TagMovie, error) {
+				return &model.TagMovie{ID: tagMovieID, TagID: "t1", AddedByUser: "user2"}, nil
+			}
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{
+					ID:             id,
+					UserID:         "owner1",
+					AddMoviePolicy: "everyone",
+				}, nil
+			}
+			d.tagMovieRepo.DeleteFn = func(ctx context.Context, tagMovieID string) error {
+				deletedID = tagMovieID
+				return nil
+			}
+			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
+				return nil
+			}
+		})
+
+		err := svc.RemoveMovieFromTag(context.Background(), "tm1", "user2")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if deletedID != "tm1" {
+			t.Fatalf("expected delete to be called with tm1, got %s", deletedID)
+		}
+	})
+
+	t.Run("権限チェック: 他ユーザーが追加した映画は削除不可", func(t *testing.T) {
+		t.Parallel()
+
+		svc := newTagService(t, func(d *deps) {
+			d.tagMovieRepo.FindByIDFn = func(ctx context.Context, tagMovieID string) (*model.TagMovie, error) {
+				return &model.TagMovie{ID: tagMovieID, TagID: "t1", AddedByUser: "user2"}, nil
+			}
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{
+					ID:             id,
+					UserID:         "owner1",
+					AddMoviePolicy: "everyone",
+				}, nil
+			}
+		})
+
+		err := svc.RemoveMovieFromTag(context.Background(), "tm1", "user3")
+		if !errors.Is(err, ErrTagPermissionDenied) {
+			t.Fatalf("expected ErrTagPermissionDenied, got: %v", err)
+		}
+	})
+
+	t.Run("削除に成功: movie_count が -1 される", func(t *testing.T) {
+		t.Parallel()
+
+		var gotTagID string
+		var gotDelta int
+		var deletedID string
+
+		svc := newTagService(t, func(d *deps) {
+			d.tagMovieRepo.FindByIDFn = func(ctx context.Context, tagMovieID string) (*model.TagMovie, error) {
+				return &model.TagMovie{ID: tagMovieID, TagID: "t1", AddedByUser: "u1"}, nil
+			}
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{
+					ID:             id,
+					UserID:         "owner1",
+					AddMoviePolicy: "everyone",
+				}, nil
+			}
+			d.tagMovieRepo.DeleteFn = func(ctx context.Context, tagMovieID string) error {
+				deletedID = tagMovieID
+				return nil
+			}
+			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
+				gotTagID = id
+				gotDelta = delta
+				return nil
+			}
+		})
+
+		err := svc.RemoveMovieFromTag(context.Background(), "tm1", "u1")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if deletedID != "tm1" {
+			t.Fatalf("expected delete to be called with tm1, got %s", deletedID)
+		}
+		if gotTagID != "t1" || gotDelta != -1 {
+			t.Fatalf("expected IncrementMovieCount(t1, -1), got (%s, %d)", gotTagID, gotDelta)
+		}
+	})
+}

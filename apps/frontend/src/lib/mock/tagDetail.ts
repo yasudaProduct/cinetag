@@ -26,6 +26,7 @@ export type TagMovie = {
   title: string;
   year: number;
   posterUrl?: string;
+  addedByUserId?: string;
 };
 
 const DEFAULT_MOVIES: Omit<TagMovie, "id">[] = [

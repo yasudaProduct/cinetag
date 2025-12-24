@@ -73,6 +73,8 @@ type FakeTagMovieRepository struct {
 	ListRecentByTagFn func(ctx context.Context, tagID string, limit int) ([]model.TagMovie, error)
 	ListByTagFn       func(ctx context.Context, tagID string, offset, limit int) ([]repository.TagMovieWithCache, int64, error)
 	CreateFn          func(ctx context.Context, tagMovie *model.TagMovie) error
+	FindByIDFn        func(ctx context.Context, tagMovieID string) (*model.TagMovie, error)
+	DeleteFn          func(ctx context.Context, tagMovieID string) error
 }
 
 func (f *FakeTagMovieRepository) ListRecentByTag(ctx context.Context, tagID string, limit int) ([]model.TagMovie, error) {
@@ -94,4 +96,18 @@ func (f *FakeTagMovieRepository) Create(ctx context.Context, tagMovie *model.Tag
 		return nil
 	}
 	return f.CreateFn(ctx, tagMovie)
+}
+
+func (f *FakeTagMovieRepository) FindByID(ctx context.Context, tagMovieID string) (*model.TagMovie, error) {
+	if f.FindByIDFn == nil {
+		return nil, nil
+	}
+	return f.FindByIDFn(ctx, tagMovieID)
+}
+
+func (f *FakeTagMovieRepository) Delete(ctx context.Context, tagMovieID string) error {
+	if f.DeleteFn == nil {
+		return nil
+	}
+	return f.DeleteFn(ctx, tagMovieID)
 }

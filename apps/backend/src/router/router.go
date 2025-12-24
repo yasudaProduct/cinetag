@@ -90,6 +90,7 @@ func NewRouter() *gin.Engine {
 			authGroup.POST("/tags", tagHandler.CreateTag)
 			authGroup.PATCH("/tags/:tagId", tagHandler.UpdateTag)
 			authGroup.POST("/tags/:tagId/movies", tagHandler.AddMovieToTag)
+			authGroup.DELETE("/tags/:tagId/movies/:tagMovieId", tagHandler.RemoveMovieFromTag)
 		}
 	}
 

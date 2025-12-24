@@ -335,11 +335,38 @@ Host: localhost:8080
 }
 ```
 
-#### 6.4 DELETE `/api/v1/tags/:tagId/movies/:tagMovieId` **[未実装]**
+#### 6.4 DELETE `/api/v1/tags/:tagId/movies/:tagMovieId`
 
-- **概要**: タグから映画を外す。
+- **概要**: タグから映画を削除する。
 - **認証**: 必須
-- **レスポンス**: `204 No Content`
+- **権限**:
+  - タグ作成者は全ての映画を削除可能
+  - タグの `add_movie_policy` が `owner_only` の場合、作成者のみ削除可能
+  - それ以外の場合、ユーザーは自分が追加した映画のみ削除可能
+- **パスパラメータ**
+
+| 名前          | 型   | 説明              |
+|---------------|------|-------------------|
+| `tagId`       | UUID | タグのID          |
+| `tagMovieId`  | UUID | タグ映画レコードのID |
+
+- **レスポンス例（204）**: `No Content`（ボディなし）
+
+- **レスポンス例（403）**
+
+```json
+{
+  "error": "forbidden"
+}
+```
+
+- **レスポンス例（404）**
+
+```json
+{
+  "error": "tag movie not found"
+}
+```
 
 ---
 
