@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "../components/providers/query-client-provider";
+import { jaJP } from "@clerk/localizations";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,7 +26,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      localization={jaJP}
+      appearance={{
+        variables: {
+          colorPrimary: "#3b82f6",
+          borderRadius: "0.75rem",
+        },
+        elements: {
+          card: "shadow-lg border border-gray-200",
+          headerTitle: "text-gray-900",
+          headerSubtitle: "text-gray-600",
+          formButtonPrimary:
+            "bg-blue-500 hover:bg-blue-600 text-white rounded-lg",
+          formFieldInput:
+            "rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500",
+          footerActionLink: "text-blue-600 hover:text-blue-700",
+        },
+      }}
+    >
       <html lang="ja">
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
