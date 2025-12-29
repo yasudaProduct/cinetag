@@ -70,11 +70,19 @@ func (f *FakeTagRepository) ListTagsByUserID(ctx context.Context, filter reposit
 
 // FakeTagMovieRepository は repository.TagMovieRepository の手書き fake です。
 type FakeTagMovieRepository struct {
-	ListRecentByTagFn func(ctx context.Context, tagID string, limit int) ([]model.TagMovie, error)
-	ListByTagFn       func(ctx context.Context, tagID string, offset, limit int) ([]repository.TagMovieWithCache, int64, error)
-	CreateFn          func(ctx context.Context, tagMovie *model.TagMovie) error
-	FindByIDFn        func(ctx context.Context, tagMovieID string) (*model.TagMovie, error)
-	DeleteFn          func(ctx context.Context, tagMovieID string) error
+	ListRecentByTagFn       func(ctx context.Context, tagID string, limit int) ([]model.TagMovie, error)
+	ListByTagFn             func(ctx context.Context, tagID string, offset, limit int) ([]repository.TagMovieWithCache, int64, error)
+	CreateFn                func(ctx context.Context, tagMovie *model.TagMovie) error
+	FindByIDFn              func(ctx context.Context, tagMovieID string) (*model.TagMovie, error)
+	DeleteFn                func(ctx context.Context, tagMovieID string) error
+	ListContributorsByTagFn func(ctx context.Context, tagID string, ownerID string, limit int) ([]repository.TagContributor, int64, error)
+}
+
+func (f *FakeTagMovieRepository) ListContributorsByTag(ctx context.Context, tagID string, ownerID string, limit int) ([]repository.TagContributor, int64, error) {
+	if f.ListContributorsByTagFn == nil {
+		return []repository.TagContributor{}, 0, nil
+	}
+	return f.ListContributorsByTagFn(ctx, tagID, ownerID, limit)
 }
 
 func (f *FakeTagMovieRepository) ListRecentByTag(ctx context.Context, tagID string, limit int) ([]model.TagMovie, error) {
