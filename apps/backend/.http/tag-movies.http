@@ -17,17 +17,30 @@
 @page = 1
 @page_size = 50
 
+### テストサインイン
+# @name signin
+POST http://localhost:3000/auth/test-signin
+Content-Type: application/json
+
+{
+  "email": "demo01@example.com",
+  "password": "demodemo"
+}
+
+### テストサインイントークン
+@authToken = {{signin.response.body.accessToken}}
+
 ### タグ内の映画一覧（Authorization があれば認証、無ければ匿名）
 GET {{host}}{{api_prefix}}/tags/{{tag_id}}/movies?page={{page}}&page_size={{page_size}}
 
 ### タグ内の映画一覧（Authorization 付き）
 GET {{host}}{{api_prefix}}/tags/{{tag_id}}/movies?page=1&page_size=50
-Authorization: Bearer {{$dotenv AUTH_TOKEN}}
+Authorization: Bearer {{authToken}}
 
 ### タグに映画を追加（認証必須 / 作成者のみ）
 POST {{host}}{{api_prefix}}/tags/{{tag_id}}/movies
 Content-Type: application/json
-Authorization: Bearer {{$dotenv AUTH_TOKEN}}
+Authorization: Bearer {{authToken}}
 
 {
   "tmdb_movie_id": {{tmdb_movie_id}},

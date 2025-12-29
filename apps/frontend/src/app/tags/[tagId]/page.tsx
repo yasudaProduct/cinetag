@@ -11,7 +11,7 @@ import { Search, Plus, Pencil } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { MovieAddModal } from "@/components/MovieAddModal";
 import { TagModal } from "@/components/TagModal";
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 
 export default function TagDetailPage({
   params,
@@ -23,7 +23,6 @@ export default function TagDetailPage({
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const { getToken } = useAuth();
-  const { user } = useUser();
 
   const detailQuery = useQuery({
     queryKey: ["tagDetail", tagId],
@@ -61,17 +60,6 @@ export default function TagDetailPage({
   const movies = moviesQuery.data ?? [];
   const canEditTag = detail?.canEdit ?? false;
   const canAddMovie = detail?.canAddMovie ?? false;
-
-  // 削除権限チェック関数
-  const canDeleteMovie = (movie: { id: string; addedByUserId?: string }) => {
-    if (!user) return false;
-    // タグ作成者は全ての映画を削除可能
-    if (canEditTag) return true;
-    // タグがowner_onlyの場合、作成者以外は削除不可
-    if (detail?.addMoviePolicy === "owner_only" && !canEditTag) return false;
-    // 自分が追加した映画のみ削除可能
-    return movie.addedByUserId === user.id;
-  };
 
   const filtered = (() => {
     const q = query.trim().toLowerCase();
@@ -210,9 +198,13 @@ export default function TagDetailPage({
                   year={m.year}
                   posterUrl={m.posterUrl}
                   onDelete={
-                    canDeleteMovie(m)
+                    m.canDelete
                       ? () => {
-                          if (confirm(`「${m.title}」をこのタグから削除しますか？`)) {
+                          if (
+                            confirm(
+                              `「${m.title}」をこのタグから削除しますか？`
+                            )
+                          ) {
                             deleteMutation.mutate(m.id);
                           }
                         }

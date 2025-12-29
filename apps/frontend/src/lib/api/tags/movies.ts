@@ -64,6 +64,7 @@ export async function listTagMovies(tagId: string, options?: { token?: string })
       year,
       posterUrl: posterUrl ?? undefined,
       addedByUserId: item.added_by_user_id,
+      canDelete: item.can_delete ?? false,
     };
   });
 }

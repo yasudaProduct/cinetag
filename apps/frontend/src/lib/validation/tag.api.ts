@@ -171,6 +171,7 @@ const TagMovieItemSchema = z
         id: z.union([z.string(), z.number()]).optional(),
         tmdb_movie_id: z.union([z.string(), z.number()]).optional(),
         added_by_user_id: z.string().optional(),
+        can_delete: z.boolean().optional(),
         title: z.string().optional(),
         year: z.number().optional(),
         release_year: z.number().optional(),

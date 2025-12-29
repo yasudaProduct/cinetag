@@ -1019,3 +1019,93 @@ func TestTagService_RemoveMovieFromTag(t *testing.T) {
 		}
 	})
 }
+
+func TestTagService_ListTagMovies_CanDelete(t *testing.T) {
+	t.Parallel()
+
+	makeSvc := func(tag *model.Tag, rows []repository.TagMovieWithCache) TagService {
+		return newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return tag, nil
+			}
+			d.tagMovieRepo.ListByTagFn = func(ctx context.Context, tagID string, offset, limit int) ([]repository.TagMovieWithCache, int64, error) {
+				return rows, int64(len(rows)), nil
+			}
+		})
+	}
+
+	rows := []repository.TagMovieWithCache{
+		{ID: "tm1", TagID: "t1", TmdbMovieID: 101, AddedByUser: "userA", Position: 0, CreatedAt: time.Now()},
+		{ID: "tm2", TagID: "t1", TmdbMovieID: 102, AddedByUser: "userB", Position: 1, CreatedAt: time.Now()},
+	}
+
+	t.Run("未認証(viewerUserID=nil): can_delete は全て false", func(t *testing.T) {
+		t.Parallel()
+
+		svc := makeSvc(&model.Tag{ID: "t1", UserID: "owner1", IsPublic: true, AddMoviePolicy: "everyone"}, rows)
+		out, _, err := svc.ListTagMovies(context.Background(), "t1", nil, 1, 50)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if len(out) != 2 {
+			t.Fatalf("expected 2 items, got %d", len(out))
+		}
+		if out[0].CanDelete || out[1].CanDelete {
+			t.Fatalf("expected all can_delete=false, got: %+v", out)
+		}
+	})
+
+	t.Run("タグ作成者: can_delete は全て true", func(t *testing.T) {
+		t.Parallel()
+
+		viewer := "owner1"
+		svc := makeSvc(&model.Tag{ID: "t1", UserID: "owner1", IsPublic: true, AddMoviePolicy: "everyone"}, rows)
+		out, _, err := svc.ListTagMovies(context.Background(), "t1", &viewer, 1, 50)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if len(out) != 2 {
+			t.Fatalf("expected 2 items, got %d", len(out))
+		}
+		if !out[0].CanDelete || !out[1].CanDelete {
+			t.Fatalf("expected all can_delete=true, got: %+v", out)
+		}
+	})
+
+	t.Run("owner_only タグ: 作成者以外は can_delete=false（追加者でも不可）", func(t *testing.T) {
+		t.Parallel()
+
+		viewer := "userA"
+		svc := makeSvc(&model.Tag{ID: "t1", UserID: "owner1", IsPublic: true, AddMoviePolicy: "owner_only"}, rows)
+		out, _, err := svc.ListTagMovies(context.Background(), "t1", &viewer, 1, 50)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if len(out) != 2 {
+			t.Fatalf("expected 2 items, got %d", len(out))
+		}
+		if out[0].CanDelete || out[1].CanDelete {
+			t.Fatalf("expected all can_delete=false, got: %+v", out)
+		}
+	})
+
+	t.Run("everyone タグ: 追加者のみ can_delete=true", func(t *testing.T) {
+		t.Parallel()
+
+		viewer := "userA"
+		svc := makeSvc(&model.Tag{ID: "t1", UserID: "owner1", IsPublic: true, AddMoviePolicy: "everyone"}, rows)
+		out, _, err := svc.ListTagMovies(context.Background(), "t1", &viewer, 1, 50)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if len(out) != 2 {
+			t.Fatalf("expected 2 items, got %d", len(out))
+		}
+		if out[0].ID != "tm1" || out[1].ID != "tm2" {
+			t.Fatalf("unexpected item ids: %+v", out)
+		}
+		if out[0].CanDelete != true || out[1].CanDelete != false {
+			t.Fatalf("expected [true,false], got: [%v,%v]", out[0].CanDelete, out[1].CanDelete)
+		}
+	})
+}

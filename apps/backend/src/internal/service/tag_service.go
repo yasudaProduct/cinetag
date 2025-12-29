@@ -144,6 +144,7 @@ type TagMovieItem struct {
 	Note          *string   `json:"note,omitempty"`
 	Position      int       `json:"position"`
 	AddedByUserID string    `json:"added_by_user_id"`
+	CanDelete     bool      `json:"can_delete"`
 	CreatedAt     time.Time `json:"created_at"`
 	Movie         *MovieRef `json:"movie,omitempty"`
 }
@@ -273,7 +274,7 @@ func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserI
 	return &TagDetail{
 		ID:             row.ID,
 		Title:          row.Title,
-		Description:   row.Description,
+		Description:    row.Description,
 		CoverImageURL:  row.CoverImageURL,
 		IsPublic:       row.IsPublic,
 		AddMoviePolicy: row.AddMoviePolicy,
@@ -318,11 +319,18 @@ func (s *tagService) ListTagMovies(ctx context.Context, tagID string, viewerUser
 		return nil, 0, err
 	}
 
+	// 非公開タグの場合、ビューアーの権限をチェックする。
 	if !tag.IsPublic {
 		if viewerUserID == nil || strings.TrimSpace(*viewerUserID) == "" || *viewerUserID != tag.UserID {
 			return nil, 0, ErrTagPermissionDenied
 		}
 	}
+
+	viewerID := ""
+	if viewerUserID != nil {
+		viewerID = strings.TrimSpace(*viewerUserID)
+	}
+	viewerIsOwner := viewerID != "" && viewerID == tag.UserID
 
 	offset := (page - 1) * pageSize
 	rows, total, err := s.tagMovieRepo.ListByTag(ctx, tagID, offset, pageSize)
@@ -371,6 +379,22 @@ func (s *tagService) ListTagMovies(ctx context.Context, tagID string, viewerUser
 			}
 		}
 
+		// can_delete はバックエンドの削除権限ルールに従って判定する。
+		// - 未認証: false
+		// - タグ作成者: true（全て削除可能）
+		// - owner_only タグ: 作成者以外は false
+		// - それ以外: 自分が追加した映画のみ true
+		canDelete := false
+		if viewerID != "" {
+			if viewerIsOwner {
+				canDelete = true
+			} else if tag.AddMoviePolicy == "owner_only" {
+				canDelete = false
+			} else {
+				canDelete = r.AddedByUser == viewerID
+			}
+		}
+
 		items = append(items, TagMovieItem{
 			ID:            r.ID,
 			TagID:         r.TagID,
@@ -378,6 +402,7 @@ func (s *tagService) ListTagMovies(ctx context.Context, tagID string, viewerUser
 			Note:          r.Note,
 			Position:      r.Position,
 			AddedByUserID: r.AddedByUser,
+			CanDelete:     canDelete,
 			CreatedAt:     r.CreatedAt,
 			Movie:         movie,
 		})
