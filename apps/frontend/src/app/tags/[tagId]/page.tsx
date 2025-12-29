@@ -123,7 +123,12 @@ export default function TagDetailPage({
                       key={`${p.name}-${idx}`}
                       className={idx === 0 ? "" : "-ml-2"}
                     >
-                      <AvatarCircle name={p.name} className="h-9 w-9" />
+                      <AvatarCircle
+                        name={p.name}
+                        avatarUrl={p.avatarUrl}
+                        displayId={p.displayId}
+                        className="h-9 w-9"
+                      />
                     </div>
                   ))}
                   {detail && detail.participantCount > 4 && (

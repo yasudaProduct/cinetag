@@ -27,6 +27,17 @@ type TagMovieRepository interface {
 	FindByID(ctx context.Context, tagMovieID string) (*model.TagMovie, error)
 	// Delete は指定したIDのタグ映画を削除します。
 	Delete(ctx context.Context, tagMovieID string) error
+	// ListContributorsByTag は指定したタグに映画を追加したユーザー（参加者）を取得します。
+	// タグ作成者(ownerID)は除外されます。
+	ListContributorsByTag(ctx context.Context, tagID string, ownerID string, limit int) ([]TagContributor, int64, error)
+}
+
+// TagContributor はタグに映画を追加したユーザー情報です。
+type TagContributor struct {
+	UserID      string  `gorm:"column:user_id"`
+	DisplayID   string  `gorm:"column:display_id"`
+	DisplayName string  `gorm:"column:display_name"`
+	AvatarURL   *string `gorm:"column:avatar_url"`
 }
 
 // TagMovieWithCache は tag_movies と movie_cache の結合結果です。
@@ -139,4 +150,43 @@ func (r *tagMovieRepository) FindByID(ctx context.Context, tagMovieID string) (*
 
 func (r *tagMovieRepository) Delete(ctx context.Context, tagMovieID string) error {
 	return r.db.WithContext(ctx).Where("id = ?", tagMovieID).Delete(&model.TagMovie{}).Error
+}
+
+func (r *tagMovieRepository) ListContributorsByTag(ctx context.Context, tagID string, ownerID string, limit int) ([]TagContributor, int64, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+
+	// サブクエリで distinct なユーザーIDを取得（タグ作成者は除外）
+	// total count
+	var total int64
+	countQuery := r.db.WithContext(ctx).
+		Table((model.TagMovie{}).TableName()).
+		Select("COUNT(DISTINCT added_by_user_id)").
+		Where("tag_id = ?", tagID).
+		Where("added_by_user_id != ?", ownerID)
+	if err := countQuery.Scan(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if total == 0 {
+		return []TagContributor{}, 0, nil
+	}
+
+	// ユーザー情報を取得（GROUP BYでユニーク化し、最初に追加した日時順でソート）
+	var rows []TagContributor
+	err := r.db.WithContext(ctx).
+		Table((model.TagMovie{}).TableName()+" AS tm").
+		Select("u.id AS user_id, u.display_id, u.display_name, u.avatar_url").
+		Joins("JOIN "+(model.User{}).TableName()+" AS u ON u.id = tm.added_by_user_id").
+		Where("tm.tag_id = ?", tagID).
+		Where("tm.added_by_user_id != ?", ownerID).
+		Group("u.id, u.display_id, u.display_name, u.avatar_url").
+		Order("MIN(tm.created_at) ASC").
+		Limit(limit).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return rows, total, nil
 }

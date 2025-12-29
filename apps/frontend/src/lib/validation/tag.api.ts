@@ -117,12 +117,19 @@ const TagDetailOwnerNameSchema = z
     }));
 
 const TagDetailParticipantSchema = z.union([
-    z.string().transform((name) => ({ name })),
+    z.string().transform((name) => ({ name, displayId: undefined as string | undefined, avatarUrl: undefined as string | undefined })),
     z
         .object({
             name: z.string(),
+            display_id: z.string().optional(),
+            avatar_url: z.string().nullable().optional(),
         })
-        .passthrough(),
+        .passthrough()
+        .transform((p) => ({
+            name: p.name,
+            displayId: p.display_id as string | undefined,
+            avatarUrl: (p.avatar_url ?? undefined) as string | undefined,
+        })),
 ]);
 
 export const TagDetailResponseSchema = z

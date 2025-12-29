@@ -133,7 +133,9 @@ type TagOwner struct {
 }
 
 type TagParticipant struct {
-	Name string `json:"name"`
+	Name      string  `json:"name"`
+	DisplayID string  `json:"display_id,omitempty"`
+	AvatarURL *string `json:"avatar_url,omitempty"`
 }
 
 // TagMovieItem はタグ内映画一覧API向けのレスポンスモデルです。
@@ -270,6 +272,23 @@ func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserI
 		}
 	}
 
+	// 参加者（タグに映画を追加したユーザー、作成者除く）を取得
+	contributors, contributorCount, err := s.tagMovieRepo.ListContributorsByTag(ctx, tagID, row.OwnerID, 10)
+	if err != nil {
+		// 参加者取得に失敗しても詳細自体は返す（ベストエフォート）
+		contributors = []repository.TagContributor{}
+		contributorCount = 0
+	}
+
+	participants := make([]TagParticipant, 0, len(contributors))
+	for _, c := range contributors {
+		participants = append(participants, TagParticipant{
+			Name:      c.DisplayName,
+			DisplayID: c.DisplayID,
+			AvatarURL: c.AvatarURL,
+		})
+	}
+
 	// タグの詳細を返す。
 	return &TagDetail{
 		ID:             row.ID,
@@ -287,13 +306,12 @@ func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserI
 			DisplayName: row.OwnerDisplayName,
 			AvatarURL:   row.OwnerAvatarURL,
 		},
-		CanEdit:     canEdit,
-		CanAddMovie: canAddMovie,
-		CreatedAt:   row.CreatedAt,
-		UpdatedAt:   row.UpdatedAt,
-		// UI互換
-		ParticipantCount: row.FollowerCount,
-		Participants:     []TagParticipant{},
+		CanEdit:          canEdit,
+		CanAddMovie:      canAddMovie,
+		CreatedAt:        row.CreatedAt,
+		UpdatedAt:        row.UpdatedAt,
+		ParticipantCount: int(contributorCount),
+		Participants:     participants,
 	}, nil
 }
 
