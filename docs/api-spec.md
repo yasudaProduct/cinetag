@@ -48,31 +48,110 @@ Host: localhost:8080
 }
 ```
 
+#### 3.2 GET `/swagger/*any`
+
+- **概要**: Swagger UI を表示する（開発用）。
+- **認証**: 不要
+- **備考**:
+  - API 仕様としての JSON を返すエンドポイントではなく、HTML を返す。
+  - 本番公開の可否は運用方針に従う。
+
 ---
 
 ### 4. 認証ユーザー系エンドポイント
 
-#### 4.1 GET `/api/v1/me` **[未実装]**
+#### 4.1 GET `/api/v1/users/me`
 
-- **概要**: ログイン中ユーザー（`users` テーブル）の情報を取得する。
+- **概要**: 認証済みユーザー自身のプロフィール情報を取得する。
 - **認証**: 必須
 - **レスポンス例（200）**
 
 ```json
 {
   "id": "b1e4f0e8-1234-5678-9012-abcdefabcdef",
-  "clerk_user_id": "user_2aBcDeFgHiJk",
-  "username": "cinephile_jane",
+  "display_id": "cinephile_jane",
   "display_name": "cinephile_jane",
-  "email": "jane@example.com",
   "avatar_url": "https://images.example.com/avatar.jpg",
-  "bio": "映画が好きです",
-  "created_at": "2025-01-01T12:00:00Z",
-  "updated_at": "2025-01-01T12:00:00Z"
+  "bio": "映画が好きです"
 }
 ```
 
-#### 4.2 GET `/api/v1/me/tags` **[未実装]**
+#### 4.2 GET `/api/v1/users/:displayId`
+
+- **概要**: 指定ユーザー（`displayId`）のユーザー情報を取得する。
+- **認証**: 不要
+- **パスパラメータ**
+
+| 名前         | 型   | 説明 |
+|--------------|------|------|
+| `displayId`  | text | ユーザーの表示ID（`display_id`） |
+
+- **レスポンス例（200）**
+
+```json
+{
+  "id": "b1e4f0e8-1234-5678-9012-abcdefabcdef",
+  "display_id": "cinephile_jane",
+  "display_name": "cinephile_jane",
+  "avatar_url": "https://images.example.com/avatar.jpg",
+  "bio": "映画が好きです"
+}
+```
+
+- **レスポンス例（404）**
+
+```json
+{
+  "error": "user not found"
+}
+```
+
+#### 4.3 GET `/api/v1/users/:displayId/tags`
+
+- **概要**: 指定ユーザー（`displayId`）が作成したタグの一覧を取得する。
+- **認証**: 任意（公開/非公開タグの扱いに応じて将来変更の可能性あり）
+- **クエリパラメータ**
+
+| 名前        | 型  | 必須 | 説明                                             |
+|-------------|-----|------|--------------------------------------------------|
+| `page`      | int | 任意 | ページ番号（デフォルト: 1）                     |
+| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限例: 100） |
+
+- **備考**
+  - 未認証、または閲覧者が本人以外の場合は **公開タグのみ** を返す。
+  - 認証済みで閲覧者が本人の場合は **非公開タグも含めて** 返す。
+
+- **レスポンス例（200）**
+
+```json
+{
+  "items": [
+    {
+      "id": "tag-uuid-1",
+      "title": "90年代SFクラシック",
+      "description": "黄金時代の象徴的なSF作品。",
+      "author": "retro_future",
+      "author_display_id": "retro_future",
+      "cover_image_url": null,
+      "is_public": true,
+      "movie_count": 55,
+      "follower_count": 2100,
+      "images": [
+        "https://image.tmdb.org/t/p/w400/poster1.jpg",
+        "https://image.tmdb.org/t/p/w400/poster2.jpg",
+        "https://image.tmdb.org/t/p/w400/poster3.jpg",
+        "https://image.tmdb.org/t/p/w400/poster4.jpg"
+      ],
+      "created_at": "2025-01-01T12:00:00Z"
+    }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total_count": 1
+}
+```
+
+#### 4.4 GET `/api/v1/me/tags` **[未実装]**
 
 - **概要**: ログインユーザーが作成したタグの一覧を取得する。
 - **認証**: 必須
@@ -106,11 +185,58 @@ Host: localhost:8080
 }
 ```
 
-#### 4.3 GET `/api/v1/me/following-tags` **[未実装]**
+#### 4.5 GET `/api/v1/me/following-tags` **[未実装]**
 
 - **概要**: ログインユーザーがフォローしているタグ一覧を取得する。
 - **認証**: 必須
 - **クエリ / レスポンス形式**: `/api/v1/me/tags` と同様（`items` の中身が「フォロー中タグ」となる）。
+
+#### 4.6 POST `/api/v1/clerk/webhook`
+
+- **概要**: Clerk Webhook を受信し、`user.created` イベントをローカル `users` テーブルに同期する。
+- **認証**: 不要
+- **注意**
+  - 現時点では **svix署名検証は未実装**（将来追加予定）。
+  - `type` が `user.created` 以外のイベントは `200 OK` で無視する。
+
+- **リクエストボディ（例）**
+
+```json
+{
+  "type": "user.created",
+  "data": {
+    "id": "user_2aBcDeFgHiJk",
+    "username": "cinephile_jane",
+    "first_name": "Jane",
+    "last_name": "Doe",
+    "image_url": "https://images.example.com/avatar.jpg",
+    "email_addresses": [
+      {
+        "email_address": "jane@example.com"
+      }
+    ]
+  }
+}
+```
+
+- **レスポンス**
+  - `200 OK`（ボディなし）
+
+- **レスポンス例（400）**
+
+```json
+{
+  "error": "invalid webhook payload"
+}
+```
+
+- **レスポンス例（500）**
+
+```json
+{
+  "error": "failed to sync user"
+}
+```
 
 ---
 
@@ -139,6 +265,7 @@ Host: localhost:8080
       "title": "90年代SFクラシック",
       "description": "黄金時代の象徴的なSF作品。",
       "author": "retro_future",
+      "author_display_id": "retro_future",
       "cover_image_url": null,
       "is_public": true,
       "movie_count": 55,
@@ -161,7 +288,7 @@ Host: localhost:8080
 #### 5.2 GET `/api/v1/tags/:tagId`
 
 - **概要**: 指定タグの詳細情報を取得する。
-- **認証**: なし（ただし非公開タグアクセス時は `AuthMiddleware` で作成者チェックを行う想定）
+- **認証**: 任意（未認証時は公開タグのみ参照可能。非公開タグの参照権限はサーバー側で判定する）
 - **パスパラメータ**
 
 | 名前     | 型    | 説明          |
@@ -177,13 +304,20 @@ Host: localhost:8080
   "description": "スタジオジブリの不朽の名作アニメ。",
   "cover_image_url": "https://example.com/cover.jpg",
   "is_public": true,
+  "add_movie_policy": "everyone",
   "movie_count": 32,
   "follower_count": 120,
   "owner": {
     "id": "user-uuid-1",
     "username": "cinephile_jane",
-    "display_name": "cinephile_jane"
+    "display_id": "cinephile_jane",
+    "display_name": "cinephile_jane",
+    "avatar_url": "https://images.example.com/avatar.jpg"
   },
+  "can_edit": true,
+  "can_add_movie": true,
+  "participant_count": 120,
+  "participants": [],
   "created_at": "2025-01-01T12:00:00Z",
   "updated_at": "2025-01-01T12:00:00Z"
 }
@@ -200,13 +334,18 @@ Host: localhost:8080
   "title": "ジブリの名作",
   "description": "スタジオジブリの不朽の名作アニメ。",
   "cover_image_url": "https://example.com/cover.jpg",
-  "is_public": true
+  "is_public": true,
+  "add_movie_policy": "everyone"
 }
 ```
 
 - **バリデーション**
   - `title`: 1〜100文字
   - `description`: 最大500文字
+  - `add_movie_policy`: `everyone` / `owner_only`（省略時: `everyone`）
+
+- **備考**
+  - `is_public` を省略した場合は `true` として作成される。
 
 - **レスポンス例（201）**
 
@@ -217,6 +356,7 @@ Host: localhost:8080
   "description": "スタジオジブリの不朽の名作アニメ。",
   "cover_image_url": "https://example.com/cover.jpg",
   "is_public": true,
+  "add_movie_policy": "everyone",
   "movie_count": 0,
   "follower_count": 0,
   "created_at": "2025-01-01T12:00:00Z",
@@ -235,9 +375,14 @@ Host: localhost:8080
   "title": "ジブリの名作（日本語版）",
   "description": "説明を更新しました",
   "cover_image_url": null,
-  "is_public": false
+  "is_public": false,
+  "add_movie_policy": "owner_only"
 }
 ```
+
+- **備考**
+  - 省略したフィールドは更新されない（部分更新）。
+  - `description` / `cover_image_url` は `null` を送ることで値をクリアできる。
 
 - **レスポンス例（200）**: 更新後のタグオブジェクト。
 
@@ -275,6 +420,7 @@ Host: localhost:8080
       "note": "子どもの頃に観た思い出の作品",
       "position": 1,
       "added_by_user_id": "user-uuid-1",
+      "can_delete": true,
       "created_at": "2025-01-01T12:00:00Z",
       "movie": {
         "title": "千と千尋の神隠し",
@@ -319,6 +465,14 @@ Host: localhost:8080
   "position": 1,
   "added_by_user_id": "user-uuid-1",
   "created_at": "2025-01-01T12:00:00Z"
+}
+```
+
+- **レスポンス例（409）**
+
+```json
+{
+  "error": "movie already added to tag"
 }
 ```
 
