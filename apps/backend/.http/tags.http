@@ -11,7 +11,7 @@
 # Auth: Clerk JWT (Bearer) - 認証が必要なAPIのみで使用
 # - token は `apps/backend/.env` の `AUTH_TOKEN` から参照します（`{{$dotenv AUTH_TOKEN}}`）
 
-@tag_id = 2c4ca3e6-c3e9-4c63-b58d-5eddc546f2fb
+@tag_id = 154c44ab-3ba9-4c26-9642-49d11d3d1ff5
 
 ### 公開タグ一覧取得（認証不要）
 GET {{host}}{{api_prefix}}/tags

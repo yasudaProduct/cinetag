@@ -18,7 +18,11 @@ export type TagDetail = {
   canAddMovie: boolean;
   addMoviePolicy: AddMoviePolicy;
   participantCount: number;
-  participants: { name: string }[];
+  participants: {
+    username: string;
+    avatarUrl?: string;
+    displayId?: string;
+  }[];
 };
 
 export type TagMovie = {
@@ -59,7 +63,7 @@ export function getMockTagDetail(tagId: string): TagDetail {
   const title = h % 3 === 0 ? "SF映画の映像美" : h % 3 === 1 ? "心を揺さぶる傑作SF" : "夜に観たい静かなSF";
   const description =
     "革新的なビジュアルと息をのむようなカメラワークで知られるSF映画のコレクション。未来を、フレームごとに探検しよう。";
-  const participants = ["Aki", "Yuta", "Ema", "Ren", "Hana", "Sora", "Kenta", "Mio"].map((name) => ({ name }));
+  const participants = ["Aki", "Yuta", "Ema", "Ren", "Hana", "Sora", "Kenta", "Mio"].map((name) => ({ id: `user-${name}`, username: name, avatarUrl: undefined, displayId: `${name}-vance` }));
   return {
     id: tagId,
     title,

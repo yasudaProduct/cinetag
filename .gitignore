@@ -3,3 +3,7 @@ apps/backend/.gocache
 apps/backend/gocache/
 apps/backend/gotmp/
 apps/backend/coverage.out
+
+apps/frontend/.open-next/
+apps/frontend/.wrangler/
+apps/frontend/.dev.vars/

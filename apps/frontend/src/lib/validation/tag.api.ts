@@ -117,7 +117,13 @@ const TagDetailOwnerNameSchema = z
     }));
 
 const TagDetailParticipantSchema = z.union([
-    z.string().transform((name) => ({ name, displayId: undefined as string | undefined, avatarUrl: undefined as string | undefined })),
+    z.string().transform((name) => (
+        {
+            username: name,
+            displayId: undefined as string | undefined,
+            avatarUrl: undefined as string | undefined
+
+        })),
     z
         .object({
             name: z.string(),
@@ -126,7 +132,7 @@ const TagDetailParticipantSchema = z.union([
         })
         .passthrough()
         .transform((p) => ({
-            name: p.name,
+            username: p.name,
             displayId: p.display_id as string | undefined,
             avatarUrl: (p.avatar_url ?? undefined) as string | undefined,
         })),
@@ -151,7 +157,7 @@ export const TagDetailResponseSchema = z
     .transform((data) => {
         const owner = data.owner;
         const authorName = data.author ?? owner?.name ?? "unknown";
-        const participants = (data.participants ?? []).filter((p) => p.name.length > 0);
+        const participants = (data.participants ?? []).filter((p) => p.username.length > 0);
         return {
             id: data.id ?? "",
             title: data.title ?? "",

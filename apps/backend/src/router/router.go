@@ -38,7 +38,7 @@ func NewRouter() *gin.Engine {
 
 	r.Use(cors.New(cors.Config{
 		// 許可するオリジン
-		AllowOrigins: []string{"http://localhost:3000"},
+		AllowOrigins: []string{"http://localhost:3000", "http://localhost:8787", "https://*.pages.dev"},
 		// 許可するHTTPメソッド
 		AllowMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 		// 許可するリクエストヘッダー（Origin, Content-Type, Authorizationを許可）
