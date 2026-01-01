@@ -190,7 +190,7 @@ npm run deploy
 
 #### GitHub Actions からの自動デプロイ
 
-`develop` ブランチへの push 時に、GitHub Actions が自動的に Cloudflare Pages/Workers へデプロイします。
+GitHub Actions を導入する場合、`develop` ブランチへの push をトリガーにして Cloudflare（Pages/Workers）へ自動デプロイできます。
 
 ##### 設定手順
 
@@ -215,7 +215,7 @@ npm run deploy
 
 3. **ワークフローの動作**
 
-   `.github/workflows/ci-develop.yml` の `frontend-deploy` ジョブが以下を実行:
+   ワークフロー（例: `.github/workflows/ci-develop.yml`）の `frontend-deploy` ジョブで以下を実行:
    - 依存パッケージのインストール
    - `npm run deploy` によるビルドとデプロイ
    - 環境変数をビルド時に注入
@@ -226,6 +226,8 @@ npm run deploy
    - 他のCIジョブ（テスト、マイグレーションなど）と並列実行
 
 詳細は `docs/infrastructure-configuration.md` を参照してください。
+
+> 補足: 既存のワークフローは `/.github/workflows/ci-develop.yml` を参照してください。CI/CD全体の方針は `docs/cicd.md` にまとめています。
 
 ---
 

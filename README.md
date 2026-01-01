@@ -44,4 +44,5 @@
 - フロントエンドの詳細: [apps/frontend/README.md](apps/frontend/README.md)
 - API 仕様: [docs/api-spec.md](docs/api-spec.md)
 - アーキテクチャ: [docs/backend-architecture.md](docs/backend-architecture.md)
+- CI/CD: [docs/cicd.md](docs/cicd.md)
 

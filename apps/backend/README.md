@@ -236,7 +236,7 @@ go run ./src/cmd/migrate
 
 ### GitHub Actions からのマイグレーション実行
 
-`develop` ブランチへの push 時に、GitHub Actions が自動的に開発用Neonデータベースへマイグレーションを実行します。
+GitHub Actions を導入する場合、`develop` ブランチへの push をトリガーにして「開発用DBへマイグレーション」を自動実行できます。
 
 #### 設定手順
 
@@ -250,7 +250,7 @@ go run ./src/cmd/migrate
 
 2. **ワークフローの動作**
 
-   `.github/workflows/ci-develop.yml` の `backend-migrate` ジョブが以下を実行:
+   ワークフロー（例: `.github/workflows/ci-develop.yml`）の `backend-migrate` ジョブで以下を実行:
    - `ENV=develop` を設定してマイグレーション実行
    - 全テーブル削除 → スキーマ再作成 → seedデータ投入
 
@@ -258,6 +258,8 @@ go run ./src/cmd/migrate
 
    - `develop` ブランチへの push 時に自動実行
    - 他のCIジョブ（テストなど）と並列実行
+
+> 補足: 既存のワークフローは `/.github/workflows/ci-develop.yml` を参照してください。CI/CD全体の方針は `docs/cicd.md` にまとめています。
 
 #### 手動でのマイグレーション実行
 
