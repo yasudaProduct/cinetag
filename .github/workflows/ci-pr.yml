@@ -90,7 +90,7 @@ jobs:
   backend-vulncheck:
     name: backend / govulncheck
     runs-on: ubuntu-latest
-    continue-on-error: ${{ github.event_name == 'pull_request' && true || false  }}
+    continue-on-error: true
     defaults:
       run:
         working-directory: apps/backend
@@ -116,7 +116,7 @@ jobs:
   frontend-dependency-audit:
     name: frontend / npm audit
     runs-on: ubuntu-latest
-    continue-on-error: ${{ github.event_name == 'pull_request' && true || false  }}
+    continue-on-error: true
     defaults:
       run:
         working-directory: apps/frontend
