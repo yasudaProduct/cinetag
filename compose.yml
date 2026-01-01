@@ -16,6 +16,22 @@ services:
       timeout: 5s
       retries: 5
 
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: cinetag-backend
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./apps/backend/.env
+    environment:
+      DATABASE_URL: "postgres://postgres:postgres@postgres:5432/postgres?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   # integration テスト用（開発用DBと分離）
   postgres-test:
     image: postgres:16

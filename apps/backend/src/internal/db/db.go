@@ -12,7 +12,8 @@ import (
 func init() {
 	err := godotenv.Load()
 	if err != nil {
-		panic(".envファイルの情報が取得できません")
+		// panic(".envファイルの情報が取得できません")
+		log.Println(".envファイルの情報が取得できません")
 	}
 }
 

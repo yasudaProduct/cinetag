@@ -73,7 +73,9 @@ cp .env.example .env
 
 `.env` ファイルを編集して、以下の環境変数を設定してください:
 
-- `DATABASE_URL` - PostgreSQL 接続文字列（例: `postgres://postgres:postgres@localhost:5432/cinetag?sslmode=disable`）
+- `DATABASE_URL` - PostgreSQL 接続文字列
+  - **ローカル実行時**: `postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable`
+  - **Docker Compose実行時**: `compose.yml`で自動的に`postgres:5432`に上書きされます
 - `CLERK_JWKS_URL` - Clerk JWKS エンドポイント（必須）
 - `CLERK_ISSUER`, `CLERK_AUDIENCE` - JWT 検証用（任意）
 - `TMDB_API_KEY` - TMDB API キー（映画データ取得用）
@@ -94,6 +96,28 @@ go run ./src/cmd/migrate
 
 ## サーバーの起動
 
+### Docker Composeで起動（推奨）
+
+プロジェクトルートから以下を実行します:
+
+```bash
+cd /Users/yuta/Develop/cinetag
+docker compose up backend
+```
+
+または、バックグラウンドで起動:
+
+```bash
+docker compose up -d backend
+```
+
+この方法では:
+- `.env` ファイルが自動的に読み込まれます
+- PostgreSQL との接続が自動的に設定されます（`postgres` サービス名で接続）
+- ポート `8080` で起動します
+
+### 通常起動（ローカル）
+
 `apps/backend` ディレクトリで以下を実行します:
 
 ```bash
@@ -102,6 +126,33 @@ go run ./src/cmd
 ```
 
 デフォルトではポート `8080` で起動する想定です（実際のポートや環境変数の仕様は `cmd/main.go` を参照してください）。
+
+> **注意**: ローカル実行時は `.env` の `DATABASE_URL` が `localhost:5432` で接続されます。事前に `docker compose up -d postgres` で PostgreSQL を起動しておく必要があります。
+
+### ホットリロード（開発用）
+
+ファイル変更を自動検知して再ビルド・再起動するホットリロード機能を使用する場合は、`air` を使用します。
+
+1. **`air` のインストール**
+
+   ```bash
+   # Go 1.16以降の場合
+   go install github.com/air-verse/air@latest
+   
+   # または、Homebrew (macOS)
+   brew install air-verse/air/air
+   ```
+
+2. **ホットリロードでサーバー起動**
+
+   ```bash
+   cd apps/backend
+   air
+   ```
+
+   `air` は `.air.toml` 設定ファイルを読み込み、`src/` ディレクトリ内の `.go` ファイルの変更を監視します。ファイルを保存すると自動的に再ビルド・再起動されます。
+
+   > **注意**: 初回実行時に `tmp/` ディレクトリが作成され、ビルド済みバイナリが保存されます。このディレクトリは `.gitignore` に追加することを推奨します。
 
 ---
 

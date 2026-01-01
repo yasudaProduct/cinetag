@@ -1,0 +1,7 @@
+gocache/
+gotmp/
+coverage.out
+*.md
+.git/
+.env
+.env.local
