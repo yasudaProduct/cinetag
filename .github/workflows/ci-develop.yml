@@ -104,6 +104,37 @@ jobs:
           ENV: develop
         run: go run ./src/cmd/migrate
 
+  # frontend-deploy は Next.js アプリケーションを Cloudflare Pages/Workers にデプロイするジョブ
+  frontend-deploy:
+    name: frontend / deploy (Cloudflare)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy to Cloudflare
+        env:
+          NEXT_PUBLIC_BACKEND_API_BASE: ${{ secrets.NEXT_PUBLIC_BACKEND_API_BASE }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          NEXT_PUBLIC_CLERK_SIGN_UP_URL: ${{ secrets.NEXT_PUBLIC_CLERK_SIGN_UP_URL }}
+          NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: ${{ secrets.NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL }}
+          NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: ${{ secrets.NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL }}
+        run: npm run deploy
+
   # frontend-check は frontend ディレクトリの lint と build を実行するジョブ
 #   frontend-check:
 #     name: frontend / lint + build

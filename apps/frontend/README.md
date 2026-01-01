@@ -178,6 +178,8 @@ export async function listTags(): Promise<TagsList> {
 
 このプロジェクトは Cloudflare Pages へのデプロイを想定しています。
 
+#### ローカルからのデプロイ
+
 ```bash
 # ビルドとプレビュー
 npm run preview
@@ -185,6 +187,43 @@ npm run preview
 # デプロイ
 npm run deploy
 ```
+
+#### GitHub Actions からの自動デプロイ
+
+`develop` ブランチへの push 時に、GitHub Actions が自動的に Cloudflare Pages/Workers へデプロイします。
+
+##### 設定手順
+
+1. **Cloudflare API Token の作成**
+
+   - Cloudflare ダッシュボード → My Profile → API Tokens
+   - 「Create Token」をクリック
+   - 「Edit Cloudflare Workers」テンプレートを使用、またはカスタムトークンを作成
+   - 必要な権限:
+     - Account: Cloudflare Workers:Edit
+     - Zone: Zone Settings:Read, Zone:Read
+   - トークンをコピー（一度しか表示されません）
+
+2. **GitHub Secrets の設定**
+
+   GitHub リポジトリの Settings → Secrets and variables → Actions で、以下のシークレットを追加:
+
+   - `CLOUDFLARE_API_TOKEN`: Cloudflare API Token（必須）
+   - `NEXT_PUBLIC_BACKEND_API_BASE`: バックエンドAPIのURL（例: `https://api.example.com`）
+   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Clerk公開キー
+   - `CLERK_SECRET_KEY`: Clerkシークレットキー
+
+3. **ワークフローの動作**
+
+   `.github/workflows/ci-develop.yml` の `frontend-deploy` ジョブが以下を実行:
+   - 依存パッケージのインストール
+   - `npm run deploy` によるビルドとデプロイ
+   - 環境変数をビルド時に注入
+
+4. **実行タイミング**
+
+   - `develop` ブランチへの push 時に自動実行
+   - 他のCIジョブ（テスト、マイグレーションなど）と並列実行
 
 詳細は `docs/infrastructure-configuration.md` を参照してください。
 
