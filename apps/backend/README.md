@@ -98,7 +98,9 @@ go run ./src/cmd/migrate
 
 ## サーバーの起動
 
-### Docker Composeで起動（推奨）
+### 1. APIサーバー
+
+#### Docker Composeで起動
 
 プロジェクトルートから以下を実行します:
 
@@ -118,7 +120,7 @@ docker compose up -d backend
 - PostgreSQL との接続が自動的に設定されます（`postgres` サービス名で接続）
 - ポート `8080` で起動します
 
-### 通常起動（ローカル）
+#### 通常起動（ローカル）
 
 `apps/backend` ディレクトリで以下を実行します:
 
@@ -131,7 +133,7 @@ go run ./src/cmd
 
 > **注意**: ローカル実行時は `.env` の `DATABASE_URL` が `localhost:5432` で接続されます。事前に `docker compose up -d postgres` で PostgreSQL を起動しておく必要があります。
 
-### ホットリロード（開発用）
+#### ホットリロード（開発用）
 
 ファイル変更を自動検知して再ビルド・再起動するホットリロード機能を使用する場合は、`air` を使用します。
 
@@ -157,6 +159,19 @@ go run ./src/cmd
    > **注意**: 初回実行時に `tmp/` ディレクトリが作成され、ビルド済みバイナリが保存されます。このディレクトリは `.gitignore` に追加することを推奨します。
 
 ---
+
+
+### 2. Webhook のローカル受信
+
+Clerk などの Webhook をローカル環境で受信する場合は ngrok を使用します。
+
+```bash
+# 別ターミナルで
+ngrok http 8080
+
+# 表示された HTTPS URL を Clerk ダッシュボードに設定
+# 例: https://xxxxx.ngrok.io/api/v1/clerk/webhook
+```
 
 ## テストの実行
 
