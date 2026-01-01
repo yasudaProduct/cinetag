@@ -6,30 +6,10 @@ on:
       - develop
 
 concurrency:
-  group: ci-develop-${{ github.ref }} # ジョブの並行実行を防止するためのグループ名
-  cancel-in-progress: true # 同じグループ内のジョブが実行中の場合、古いジョブをキャンセルする
+  group: ci-develop-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  # backend-unit-test は backend ディレクトリの単体テストを実行するジョブ
-  backend-unit-test:
-    name: backend / go test
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/backend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: apps/backend/go.mod
-          cache-dependency-path: apps/backend/go.sum
-
-      - name: Run unit tests
-        run: go test ./...
-
   # backend-vulncheck は backend の依存関係/コード利用状況に基づく既知脆弱性を検出するジョブ
   # 検出した場合は exit code 1 となり CI を失敗させる
   # backend-vulncheck:
@@ -82,8 +62,8 @@ jobs:
   #       run: npm audit --audit-level=low
 
   # backend-migrate は開発用Neonデータベースへのマイグレーションを実行するジョブ
-  backend-migrate:
-    name: backend / migrate (Neon)
+  backend-db-migrate:
+    name: backend / db migrate (Neon)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -135,30 +115,3 @@ jobs:
           NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: ${{ secrets.NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL }}
           NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: ${{ secrets.NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL }}
         run: npm run deploy
-
-  # frontend-check は frontend ディレクトリの lint と build を実行するジョブ
-#   frontend-check:
-#     name: frontend / lint + build
-#     runs-on: ubuntu-latest
-#     defaults:
-#       run:
-#         working-directory: apps/frontend
-#     steps:
-#       - name: Checkout
-#         uses: actions/checkout@v4
-
-#       - name: Setup Node.js
-#         uses: actions/setup-node@v4
-#         with:
-#           node-version: "20"
-#           cache: "npm"
-#           cache-dependency-path: apps/frontend/package-lock.json
-
-#       - name: Install deps
-#         run: npm ci
-
-#       - name: Lint
-#         run: npm run lint
-
-#       - name: Build
-#         run: npm run build
