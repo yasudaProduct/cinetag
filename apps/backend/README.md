@@ -22,6 +22,7 @@ apps/backend/
 ├── src/
 │   ├── cmd/
 │   │   ├── main.go              # API サーバーのエントリーポイント
+│   │   ├── docs/                # Swagger ドキュメント生成用
 │   │   └── migrate/
 │   │       └── main.go          # DB マイグレーション用コマンド
 │   ├── internal/
@@ -60,6 +61,34 @@ docker compose up -d postgres
 ```
 
 > ポート `5432` で `postgres/postgres` ユーザー・パスワードの DB が立ち上がります。
+
+### 3. 環境変数の設定
+
+`.env.example` ファイルをコピーして `.env` ファイルを作成し、必要な環境変数を設定します:
+
+```bash
+cd apps/backend
+cp .env.example .env
+```
+
+`.env` ファイルを編集して、以下の環境変数を設定してください:
+
+- `DATABASE_URL` - PostgreSQL 接続文字列（例: `postgres://postgres:postgres@localhost:5432/cinetag?sslmode=disable`）
+- `CLERK_JWKS_URL` - Clerk JWKS エンドポイント（必須）
+- `CLERK_ISSUER`, `CLERK_AUDIENCE` - JWT 検証用（任意）
+- `TMDB_API_KEY` - TMDB API キー（映画データ取得用）
+- `PORT` - サーバーポート（デフォルト: 8080）
+
+### 4. DB マイグレーションの実行
+
+データベーススキーマを作成するため、マイグレーションコマンドを実行します:
+
+```bash
+cd apps/backend
+go run ./src/cmd/migrate
+```
+
+> 注意: マイグレーション実行時は既存のテーブルが全て削除され、スキーマが再作成されます。開発環境でのみ使用してください。
 
 ---
 
