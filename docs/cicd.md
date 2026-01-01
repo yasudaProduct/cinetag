@@ -32,7 +32,7 @@
   - **`frontend-deploy`**: `apps/frontend` で `npm run deploy`（Cloudflare向け）
   - `backend-vulncheck` / `frontend-dependency-audit` / `frontend-check` は現状コメントアウト
 
-> 補足: PR 向けのCI（lint/buildの品質ゲートをPRでブロックする等）は、別ワークフローで追加する運用がおすすめです。
+> 補足: PR 向けのCI（lint/build/test の品質ゲート）は `/.github/workflows/ci-pr.yml` で実行します（deploy/migrate は行いません）。
 
 ---
 
