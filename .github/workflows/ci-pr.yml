@@ -90,7 +90,6 @@ jobs:
   backend-vulncheck:
     name: backend / govulncheck
     runs-on: ubuntu-latest
-    continue-on-error: true
     defaults:
       run:
         working-directory: apps/backend
@@ -111,12 +110,12 @@ jobs:
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
 
       - name: Run govulncheck
+        continue-on-error: true
         run: govulncheck ./...
 
   frontend-dependency-audit:
     name: frontend / npm audit
     runs-on: ubuntu-latest
-    continue-on-error: true
     defaults:
       run:
         working-directory: apps/frontend
@@ -135,4 +134,5 @@ jobs:
         run: npm ci
 
       - name: Run npm audit
+        continue-on-error: true
         run: npm audit --audit-level=low
