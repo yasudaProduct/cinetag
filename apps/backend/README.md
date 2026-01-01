@@ -217,6 +217,43 @@ go run ./src/cmd/migrate
 
 > seed の定義は `src/internal/seed/dev_seed.go` を参照してください。
 
+### GitHub Actions からのマイグレーション実行
+
+`develop` ブランチへの push 時に、GitHub Actions が自動的に開発用Neonデータベースへマイグレーションを実行します。
+
+#### 設定手順
+
+1. **GitHub Secrets の設定**
+
+   GitHub リポジトリの Settings → Secrets and variables → Actions で、以下のシークレットを追加:
+
+   - `NEON_DATABASE_URL`: 開発用Neonデータベースの接続文字列
+     - 例: `postgres://user:password@ep-xxx-xxx.region.aws.neon.tech/dbname?sslmode=require`
+     - Neonダッシュボードの「Connection Details」から取得
+
+2. **ワークフローの動作**
+
+   `.github/workflows/ci-develop.yml` の `backend-migrate` ジョブが以下を実行:
+   - `ENV=develop` を設定してマイグレーション実行
+   - 全テーブル削除 → スキーマ再作成 → seedデータ投入
+
+3. **実行タイミング**
+
+   - `develop` ブランチへの push 時に自動実行
+   - 他のCIジョブ（テストなど）と並列実行
+
+#### 手動でのマイグレーション実行
+
+ローカル環境や手動実行が必要な場合は、以下のコマンドを使用:
+
+```bash
+cd apps/backend
+
+# 開発用Neonデータベースへのマイグレーション
+export DATABASE_URL="<開発用Neon接続文字列>"
+ENV=develop go run ./src/cmd/migrate
+```
+
 ### 補足（AutoMigrate の注意点）
 
 - **GORM の `AutoMigrate` は「削除系」を自動反映しません**（カラム削除、制約/インデックス削除など）
