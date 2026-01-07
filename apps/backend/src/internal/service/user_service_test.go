@@ -46,7 +46,17 @@ func TestUserService_EnsureUser(t *testing.T) {
 		t.Parallel()
 
 		svc := NewUserService(&fakeUserRepo{})
-		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: ""})
+		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "", Email: "a@example.com"})
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("入力バリデーション: email が必須", func(t *testing.T) {
+		t.Parallel()
+
+		svc := NewUserService(&fakeUserRepo{})
+		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1", Email: ""})
 		if err == nil {
 			t.Fatalf("expected error")
 		}
@@ -68,7 +78,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 		}
 		svc := NewUserService(repo)
 
-		out, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1"})
+		out, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1", Email: "a@example.com"})
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
@@ -91,7 +101,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 		}
 		svc := NewUserService(repo)
 
-		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1"})
+		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1", Email: "a@example.com"})
 		if !errors.Is(err, expected) {
 			t.Fatalf("expected propagated error, got: %v", err)
 		}
@@ -195,7 +205,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 		}
 		svc := NewUserService(repo)
 
-		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1"})
+		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1", Email: "a@example.com"})
 		if !errors.Is(err, expected) {
 			t.Fatalf("expected propagated error, got: %v", err)
 		}

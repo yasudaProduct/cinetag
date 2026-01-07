@@ -49,6 +49,9 @@ func (s *userService) EnsureUser(ctx context.Context, clerkInfo ClerkUserInfo) (
 	if clerkInfo.ID == "" {
 		return nil, errors.New("clerk user id is required")
 	}
+	if strings.TrimSpace(clerkInfo.Email) == "" {
+		return nil, errors.New("email is required")
+	}
 
 	existing, err := s.userRepo.FindByClerkUserID(ctx, clerkInfo.ID)
 

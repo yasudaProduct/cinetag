@@ -76,12 +76,18 @@ func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 		avatarURL = &url
 	}
 
-	clerkUser := service.ClerkUserInfo{
-		ID:        event.Data.ID,
-		Email:     email,
-		FirstName: event.Data.FirstName,
-		LastName:  event.Data.LastName,
-		AvatarURL: avatarURL,
+	clerkUser, err := service.NewClerkUserInfoFromWebhook(
+		event.Data.ID,
+		email,
+		event.Data.FirstName,
+		event.Data.LastName,
+		avatarURL,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "failed to sync user",
+		})
+		return
 	}
 
 	if _, err := h.userService.EnsureUser(c.Request.Context(), clerkUser); err != nil {
