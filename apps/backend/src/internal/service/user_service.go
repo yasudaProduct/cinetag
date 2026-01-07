@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"cinetag-backend/src/internal/model"
 	"cinetag-backend/src/internal/repository"
@@ -13,11 +14,11 @@ import (
 // ClerkUserInfo は、Clerk 側のユーザー情報のうち、
 // バックエンドが users テーブル同期に利用する最小限の情報を表します。
 type ClerkUserInfo struct {
-	ID          string  // Clerk の user ID
-	Username    string  // ユーザー名（なければ生成する）
-	Email       string  // メールアドレス
-	DisplayName string  // 表示名（なければ Username を使う）
-	AvatarURL   *string // アイコンURL（任意）
+	ID        string  // Clerk の user ID
+	Email     string  // メールアドレス
+	FirstName string  // 名（任意）
+	LastName  string  // 姓（任意）
+	AvatarURL *string // アイコンURL（任意）
 }
 
 // ErrUserNotFound はユーザーが見つからなかった場合のエラーです。
@@ -60,22 +61,14 @@ func (s *userService) EnsureUser(ctx context.Context, clerkInfo ClerkUserInfo) (
 		return nil, err
 	}
 
-	// 見つからなかった場合は新規作成
-	username := clerkInfo.DisplayName
-	if username == "" {
-		username = "未設定"
-	}
-	displayName := clerkInfo.DisplayName
-	if displayName == "" {
-		displayName = username
-	}
+	displayName := resolveDisplayName(clerkInfo)
 
-	// display_id を生成
-	displayID := GenerateDisplayID(clerkInfo.ID, clerkInfo.Username, clerkInfo.Email)
+	// display_id はランダム生成（重複したら内部で再生成）
+	displayID := GenerateUserDisplayID(ctx, s.userRepo)
 
 	user := &model.User{
 		ClerkUserID: clerkInfo.ID,
-		Username:    username,
+		Username:    "廃止予定",
 		DisplayID:   displayID,
 		DisplayName: displayName,
 		Email:       clerkInfo.Email,
@@ -87,6 +80,21 @@ func (s *userService) EnsureUser(ctx context.Context, clerkInfo ClerkUserInfo) (
 	}
 
 	return user, nil
+}
+
+func resolveDisplayName(clerkInfo ClerkUserInfo) string {
+	first := strings.TrimSpace(clerkInfo.FirstName)
+	last := strings.TrimSpace(clerkInfo.LastName)
+	switch {
+	case first != "" && last != "":
+		return first + " " + last
+	case first != "":
+		return first
+	case last != "":
+		return last
+	}
+
+	return "名無し"
 }
 
 // GetUserByDisplayID は display_id からユーザー情報を取得します。

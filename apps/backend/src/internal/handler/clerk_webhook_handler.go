@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"cinetag-backend/src/internal/service"
@@ -41,6 +42,7 @@ func NewClerkWebhookHandler(userService service.UserService) *ClerkWebhookHandle
 // TODO: svix の署名検証を追加し、Clerk からの正当なリクエストのみを受け付ける。
 func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 
+	// ペイロードをバインド
 	var event clerkUserCreatedEvent
 	if err := c.ShouldBindJSON(&event); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -48,6 +50,12 @@ func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 		})
 		return
 	}
+	fmt.Println("[HandleWebhook] clerkUserCreatedEvent.Type", event.Type)
+	fmt.Println("[HandleWebhook] clerkUserCreatedEvent.Data.ID", event.Data.ID)
+	fmt.Println("[HandleWebhook] clerkUserCreatedEvent.Data.Username", event.Data.Username)
+	fmt.Println("[HandleWebhook] clerkUserCreatedEvent.Data.FirstName", event.Data.FirstName)
+	fmt.Println("[HandleWebhook] clerkUserCreatedEvent.Data.LastName", event.Data.LastName)
+	fmt.Println("[HandleWebhook] clerkUserCreatedEvent.Data.ImageURL", event.Data.ImageURL)
 
 	// 他のイベントタイプは無視
 	if event.Type != "user.created" {
@@ -62,11 +70,6 @@ func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 		email = event.Data.EmailAddresses[0].EmailAddress
 	}
 
-	displayName := event.Data.Username
-	if event.Data.FirstName != "" || event.Data.LastName != "" {
-		displayName = event.Data.FirstName + " " + event.Data.LastName
-	}
-
 	var avatarURL *string
 	if event.Data.ImageURL != "" {
 		url := event.Data.ImageURL
@@ -74,11 +77,11 @@ func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 	}
 
 	clerkUser := service.ClerkUserInfo{
-		ID:          event.Data.ID,
-		Username:    event.Data.Username,
-		Email:       email,
-		DisplayName: displayName,
-		AvatarURL:   avatarURL,
+		ID:        event.Data.ID,
+		Email:     email,
+		FirstName: event.Data.FirstName,
+		LastName:  event.Data.LastName,
+		AvatarURL: avatarURL,
 	}
 
 	if _, err := h.userService.EnsureUser(c.Request.Context(), clerkUser); err != nil {

@@ -1,90 +1,46 @@
 package service
 
 import (
-	"regexp"
-	"strings"
+	"context"
+	"math/rand"
+
+	"cinetag-backend/src/internal/repository"
 )
 
-// GenerateDisplayID は Clerk のユーザー情報から display_id を生成します。
-//
-// 優先順位:
-// 1. Clerk の username（GitHubログインなど）
-// 2. email のローカル部分（Google/Emailログイン）
-// 3. clerk_user_id から生成（フォールバック）
-func GenerateDisplayID(clerkUserID, username, email string) string {
-	// 1. Clerkのusernameがあればそれを使用
-	if username != "" {
-		sanitized := sanitizeDisplayID(username)
-		if isValidDisplayID(sanitized) {
-			return sanitized
-		}
-	}
+const (
+	userDisplayIDPrefix    = "user-"
+	userDisplayIDSuffixLen = 6
+	userDisplayIDChars     = "abcdefghijklmnopqrstuvwxyz0123456789"
+)
 
-	// 2. emailのローカル部分を使用
-	if email != "" {
-		parts := strings.Split(email, "@")
-		if len(parts) == 2 {
-			localPart := parts[0]
-			sanitized := sanitizeDisplayID(localPart)
-			if isValidDisplayID(sanitized) {
-				return sanitized
-			}
-		}
+// generateRandomString は指定長のランダム英数字を生成して返します。
+func generateRandomString(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = userDisplayIDChars[rand.Intn(len(userDisplayIDChars))]
 	}
-
-	// 3. clerk_user_idから生成（フォールバック）
-	// "user_2abc123def..." → "user-2abc123d"
-	shortID := strings.TrimPrefix(clerkUserID, "user_")
-	if len(shortID) > 8 {
-		shortID = shortID[:8]
-	}
-	return "user-" + shortID
+	return string(b)
 }
 
-// sanitizeDisplayID は文字列を display_id のフォーマットに変換します。
-//
-// ルール:
-// - 小文字化
-// - 英数字以外をハイフンに変換
-// - 連続したハイフンを1つに
-// - 先頭・末尾のハイフンを削除
-// - 3-20文字に制限
-func sanitizeDisplayID(s string) string {
-	// 小文字化
-	s = strings.ToLower(s)
+// generateUniqueUserDisplayID は user display_id を生成します。
+// 重複がないかチェックし、重複していたら再帰的に生成し直します。
+func generateUniqueUserDisplayID(ctx context.Context, userRepo repository.UserRepository) string {
+	displayID := userDisplayIDPrefix + generateRandomString(userDisplayIDSuffixLen)
 
-	// 英数字以外をハイフンに変換
-	reg := regexp.MustCompile(`[^a-z0-9]+`)
-	s = reg.ReplaceAllString(s, "-")
-
-	// 先頭・末尾のハイフンを削除
-	s = strings.Trim(s, "-")
-
-	// 長さ制限（3-20文字）
-	if len(s) > 20 {
-		s = s[:20]
-		// 末尾がハイフンになった場合は削除
-		s = strings.TrimRight(s, "-")
+	if IsValidUserDisplayID(ctx, userRepo, displayID) {
+		return displayID
 	}
-
-	return s
+	return generateUniqueUserDisplayID(ctx, userRepo)
 }
 
-// isValidDisplayID は display_id が有効なフォーマットかチェックします。
-//
-// 条件:
-// - 3-20文字
-// - 英小文字、数字、ハイフンのみ
-// - 先頭と末尾はハイフン不可
-func isValidDisplayID(s string) bool {
-	if len(s) < 3 || len(s) > 20 {
+// GenerateUserDisplayID は user display_id を生成します。
+func GenerateUserDisplayID(ctx context.Context, userRepo repository.UserRepository) string {
+	return generateUniqueUserDisplayID(ctx, userRepo)
+}
+
+func IsValidUserDisplayID(ctx context.Context, userRepo repository.UserRepository, displayID string) bool {
+	if _, err := userRepo.FindByDisplayID(ctx, displayID); err == nil {
 		return false
 	}
-
-	// 正規表現でフォーマットチェック
-	// ^[a-z0-9] : 先頭は英小文字または数字
-	// [a-z0-9-]{1,18} : 中間は英小文字、数字、ハイフンで1-18文字
-	// [a-z0-9]$ : 末尾は英小文字または数字
-	matched, _ := regexp.MatchString(`^[a-z0-9][a-z0-9-]{1,18}[a-z0-9]$`, s)
-	return matched
+	return true
 }

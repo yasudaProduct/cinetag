@@ -81,14 +81,14 @@ func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc 
 			return
 		}
 
-		userName := "未設定"
-		if s, ok := claims["full_name"].(string); ok && strings.TrimSpace(s) != "" {
-			userName = strings.TrimSpace(s)
+		firstName := ""
+		if s, ok := claims["first_name"].(string); ok {
+			firstName = strings.TrimSpace(s)
 		}
 
-		displayName := userName
-		if s, ok := claims["first_name"].(string); ok && strings.TrimSpace(s) != "" {
-			displayName = strings.TrimSpace(s)
+		lastName := ""
+		if s, ok := claims["last_name"].(string); ok {
+			lastName = strings.TrimSpace(s)
 		}
 
 		var imageURL *string
@@ -98,11 +98,11 @@ func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc 
 		}
 
 		clerkUser := service.ClerkUserInfo{
-			ID:          sub,
-			Username:    userName,
-			DisplayName: displayName,
-			Email:       email,
-			AvatarURL:   imageURL,
+			ID:        sub,
+			FirstName: firstName,
+			LastName:  lastName,
+			Email:     email,
+			AvatarURL: imageURL,
 		}
 
 		user, err := userService.EnsureUser(c.Request.Context(), clerkUser)
@@ -116,5 +116,3 @@ func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc 
 		c.Next()
 	}
 }
-
-

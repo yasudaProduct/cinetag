@@ -121,11 +121,11 @@ func TestUserService_EnsureUser(t *testing.T) {
 
 		avatar := "https://example.com/a.png"
 		out, err := svc.EnsureUser(context.Background(), ClerkUserInfo{
-			ID:          "clerk_1",
-			Username:    "user_name",
-			DisplayName: "display",
-			Email:       "a@example.com",
-			AvatarURL:   &avatar,
+			ID:        "clerk_1",
+			FirstName: "first",
+			LastName:  "last",
+			Email:     "a@example.com",
+			AvatarURL: &avatar,
 		})
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
@@ -139,8 +139,8 @@ func TestUserService_EnsureUser(t *testing.T) {
 		if created.ClerkUserID != "clerk_1" || created.Email != "a@example.com" {
 			t.Fatalf("unexpected created user: %+v", created)
 		}
-		// 現実装は DisplayName を Username にも使う（DisplayName優先）
-		if created.Username != "display" || created.DisplayName != "display" {
+		// displayName は FirstName + LastName を優先して使う
+		if created.Username != "廃止予定" || created.DisplayName != "first last" {
 			t.Fatalf("unexpected name fields: %+v", created)
 		}
 		if created.AvatarURL == nil || *created.AvatarURL != avatar {
@@ -148,7 +148,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 		}
 	})
 
-	t.Run("新規作成: DisplayName が空なら \"未設定\" を使う", func(t *testing.T) {
+	t.Run("新規作成: FirstName/LastName が空なら \"名無し\" を使う", func(t *testing.T) {
 		t.Parallel()
 
 		var created *model.User
@@ -165,10 +165,10 @@ func TestUserService_EnsureUser(t *testing.T) {
 		svc := NewUserService(repo)
 
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{
-			ID:          "clerk_1",
-			Username:    "",
-			DisplayName: "",
-			Email:       "a@example.com",
+			ID:        "clerk_1",
+			FirstName: "",
+			LastName:  "",
+			Email:     "a@example.com",
 		})
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
@@ -176,8 +176,8 @@ func TestUserService_EnsureUser(t *testing.T) {
 		if created == nil {
 			t.Fatalf("expected Create to be called")
 		}
-		if created.Username != "未設定" || created.DisplayName != "未設定" {
-			t.Fatalf("expected 未設定, got username=%q displayName=%q", created.Username, created.DisplayName)
+		if created.Username != "廃止予定" || created.DisplayName != "名無し" {
+			t.Fatalf("expected 名無し, got username=%q displayName=%q", created.Username, created.DisplayName)
 		}
 	})
 
