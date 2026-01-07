@@ -4,36 +4,23 @@
 
 ---
 
-## 1. 目的 / スコープ
+## 1. GitHub Actions
 
-- **目的**
-  - PR/Pushごとに品質ゲート（lint/test/build）を自動実行し、回帰を早期検知する
-  - デプロイ手順を定型化し、手作業ミスを削減する
-  - secrets/環境変数、マイグレーション、ロールバックを運用として明確化する
-- **スコープ**
-  - バックエンド（`apps/backend`）
-  - フロントエンド（`apps/frontend`）
-  - 依存サービス（PostgreSQL、Clerk、TMDB）
-  - 推奨デプロイ先: Cloudflare（`docs/infrastructure-configuration.md` の方針に準拠）
-
----
-
-## 2. 現状の GitHub Actions（`ci-develop.yml`）
-
-`/.github/workflows/ci-develop.yml` の要点:
-
-- **トリガー**: `develop` ブランチへの push
-- **concurrency**
-  - `group: ci-develop-${{ github.ref }}`
-  - `cancel-in-progress: true`
+### 1-1. **トリガー**:`main` `develop` ブランチへの pull_request
 - **ジョブ**
   - **`backend-unit-test`**: `apps/backend` で `go test ./...`
-  - **`backend-migrate`**: `apps/backend` で `ENV=develop` を付けて `go run ./src/cmd/migrate`（Neon向け）
-  - **`frontend-deploy`**: `apps/frontend` で `npm run deploy`（Cloudflare向け）
-  - `backend-vulncheck` / `frontend-dependency-audit` / `frontend-check` は現状コメントアウト
+  - **`frontend-lint`**: `apps/frontend` で `npm run lint`
+  - **`frontend-build`** `apps/frontend` で `npm run build`
+  - **`backend-vulncheck`** `apps/backend` で `govulncheck ./...`
+  - **`frontend-dependency-audit`** `apps/frontend`で`npm audit --audit-level=low`
 
 > 補足: PR 向けのCI（lint/build/test の品質ゲート）は `/.github/workflows/ci-pr.yml` で実行します（deploy/migrate は行いません）。
 
+### 1-2. **トリガー**:`main` `develop` ブランチへの push
+- **ジョブ**
+  - **`backend-migrate`**: `apps/backend` で `ENV=develop` を付けて `go run ./src/cmd/migrate`（Neon向け）
+  - **`frontend-deploy`**: `apps/frontend` で `npm run deploy`（Cloudflare向け）
+  - `1-1`と同様
 ---
 
 ## 2. 前提（構成とコマンド）
@@ -58,25 +45,9 @@
 
 ---
 
-## 3. ブランチ / 環境戦略（推奨）
+## 3. CI（継続的インテグレーション）設計
 
-`docs/infrastructure-configuration.md` の環境分離に合わせ、以下を推奨します。
-
-- **`main`**: 本番（Production）
-- **`staging`**: ステージング（任意）
-- **`develop`**: 開発（Develop）
-
-運用の基本:
-
-- **PRは必ずCIを通す**（`main`/`develop` へのマージ前に必須）
-- **CDはブランチに紐付けて自動化**（例: `develop` へpush→開発環境へデプロイ）
-- **本番は自動デプロイより「手動承認（approval）」を挟む**（誤デプロイ防止）
-
----
-
-## 4. CI（継続的インテグレーション）設計
-
-### 4.1 共通方針
+### 3.1 共通方針
 
 - **トリガー（推奨）**
   - PR: `main`, `develop` 向け（※現状は未実装）
@@ -86,7 +57,7 @@
   - Go: `~/go/pkg/mod`, `~/.cache/go-build`
   - Node: npm キャッシュ（`~/.npm`）または `node_modules` キャッシュ（推奨はnpm cache）
 
-### 4.2 バックエンドCI（推奨ジョブ）
+### 3.2 バックエンドCI（推奨ジョブ）
 
 - **format（推奨）**
   - `gofmt`（差分が出たら失敗）
@@ -189,18 +160,5 @@
   - DB変更が絡む場合: 事前に後方互換な変更（expand/contract）にするか、別途ロールバック手順を準備する
 
 ---
-
-## 8. 導入チェックリスト
-
-- **CI**
-  - [ ] `apps/backend` の `go test ./...` がCI上で成功する
-  - [ ] `apps/frontend` の `npm run lint` / `npm run build` がCI上で成功する
-  - [ ] キャッシュが有効化され、実行時間が許容範囲
-- **CD（フロント）**
-  - [ ] `CLOUDFLARE_API_TOKEN` を設定し、CIから `npm run deploy` が成功する
-  - [ ] `NEXT_PUBLIC_*` / `CLERK_SECRET_KEY` を適切に注入できる
-- **CD（バック）**
-  - [ ] デプロイ先を決め、必要な設定（例: Cloudflare Containers の設定）を追加する
-  - [ ] `DATABASE_URL` など必須環境変数を安全に管理できる
 
 
