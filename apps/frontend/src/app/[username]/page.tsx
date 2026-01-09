@@ -3,13 +3,16 @@
 import { Header } from "@/components/Header";
 import { AvatarCircle } from "@/components/AvatarCircle";
 import { CategoryCard } from "@/components/CategoryCard";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, UserPlus, UserMinus } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getUserByDisplayId } from "@/lib/api/users/getUser";
 import { getMe } from "@/lib/api/users/getMe";
 import { listUserTags } from "@/lib/api/users/listUserTags";
+import { getFollowStats } from "@/lib/api/users/getFollowStats";
+import { followUser } from "@/lib/api/users/followUser";
+import { unfollowUser } from "@/lib/api/users/unfollowUser";
 import { useParams } from "next/navigation";
 import { notFound } from "next/navigation";
 
@@ -62,6 +65,52 @@ export default function UserPage() {
     enabled: !!username && !!profileUser,
   });
 
+  // フォロー統計を取得
+  const { data: followStats } = useQuery({
+    queryKey: ["followStats", username],
+    queryFn: async () => {
+      const token = await getToken({ template: "cinetag-backend" }).catch(
+        () => null
+      );
+      return getFollowStats(username, token ?? undefined);
+    },
+    enabled: !!username && !!profileUser,
+  });
+
+  const queryClient = useQueryClient();
+
+  // フォローミューテーション
+  const followMutation = useMutation({
+    mutationFn: async () => {
+      const token = await getToken({ template: "cinetag-backend" });
+      if (!token) throw new Error("認証情報の取得に失敗しました");
+      return followUser(username, token);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["followStats", username] });
+    },
+  });
+
+  // アンフォローミューテーション
+  const unfollowMutation = useMutation({
+    mutationFn: async () => {
+      const token = await getToken({ template: "cinetag-backend" });
+      if (!token) throw new Error("認証情報の取得に失敗しました");
+      return unfollowUser(username, token);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["followStats", username] });
+    },
+  });
+
+  const handleFollowToggle = () => {
+    if (followStats?.is_following) {
+      unfollowMutation.mutate();
+    } else {
+      followMutation.mutate();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#FFF5F5]">
@@ -80,7 +129,9 @@ export default function UserPage() {
   const displayName = profileUser.display_name;
   const userTags = userTagsData?.items ?? [];
   const createdCount = userTagsData?.totalCount ?? 0;
-  const registeredCount = 0; // TODO: 登録映画数のAPIを実装
+  const followingCount = followStats?.following_count ?? 0;
+  const followersCount = followStats?.followers_count ?? 0;
+  const isFollowing = followStats?.is_following ?? false;
 
   return (
     <div className="min-h-screen bg-[#FFF5F5]">
@@ -112,6 +163,33 @@ export default function UserPage() {
                 </p>
               </div>
 
+              {/* Follow Button - 他人のページのみ表示 */}
+              {!isOwnPage && isLoaded && isSignedIn && (
+                <button
+                  onClick={handleFollowToggle}
+                  disabled={
+                    followMutation.isPending || unfollowMutation.isPending
+                  }
+                  className={`w-full mb-6 py-3 px-6 rounded-full flex items-center justify-center gap-2 font-medium transition-all ${
+                    isFollowing
+                      ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      : "bg-pink-500 text-white hover:bg-pink-600"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {isFollowing ? (
+                    <>
+                      <UserMinus className="w-5 h-5" />
+                      <span>フォロー中</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-5 h-5" />
+                      <span>フォローする</span>
+                    </>
+                  )}
+                </button>
+              )}
+
               {/* Stats */}
               <div className="flex justify-center gap-8 mb-6">
                 <div className="text-center">
@@ -122,9 +200,15 @@ export default function UserPage() {
                 </div>
                 <div className="text-center">
                   <div className="text-3xl font-bold text-blue-500 mb-1">
-                    {registeredCount}
+                    {followingCount}
                   </div>
-                  <div className="text-sm text-gray-600">登録ムービー</div>
+                  <div className="text-sm text-gray-600">フォロー中</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-purple-500 mb-1">
+                    {followersCount}
+                  </div>
+                  <div className="text-sm text-gray-600">フォロワー</div>
                 </div>
               </div>
 
