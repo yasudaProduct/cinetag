@@ -24,6 +24,15 @@ type ClerkUserInfo struct {
 // ErrUserNotFound はユーザーが見つからなかった場合のエラーです。
 var ErrUserNotFound = errors.New("user not found")
 
+// ErrCannotFollowSelf は自分自身をフォローしようとした場合のエラーです。
+var ErrCannotFollowSelf = errors.New("cannot follow yourself")
+
+// ErrAlreadyFollowing は既にフォロー済みの場合のエラーです。
+var ErrAlreadyFollowing = errors.New("already following")
+
+// ErrNotFollowing はフォローしていないユーザーをアンフォローしようとした場合のエラーです。
+var ErrNotFollowing = errors.New("not following")
+
 // UserService は users テーブルに関するユースケースを表します。
 type UserService interface {
 	// EnsureUser は Clerk のユーザー情報をもとに、
@@ -33,15 +42,37 @@ type UserService interface {
 
 	// GetUserByDisplayID は display_id からユーザー情報を取得します。
 	GetUserByDisplayID(ctx context.Context, displayID string) (*model.User, error)
+
+	// FollowUser は指定ユーザーをフォローします。
+	FollowUser(ctx context.Context, followerID, followeeID string) error
+
+	// UnfollowUser は指定ユーザーをアンフォローします。
+	UnfollowUser(ctx context.Context, followerID, followeeID string) error
+
+	// IsFollowing は followerID が followeeID をフォローしているかチェックします。
+	IsFollowing(ctx context.Context, followerID, followeeID string) (bool, error)
+
+	// ListFollowing は指定ユーザーがフォローしているユーザー一覧を取得します。
+	ListFollowing(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error)
+
+	// ListFollowers は指定ユーザーをフォローしているユーザー一覧を取得します。
+	ListFollowers(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error)
+
+	// GetFollowStats はフォロー数とフォロワー数を取得します。
+	GetFollowStats(ctx context.Context, userID string) (following int64, followers int64, err error)
 }
 
 type userService struct {
-	userRepo repository.UserRepository
+	userRepo         repository.UserRepository
+	userFollowerRepo repository.UserFollowerRepository
 }
 
 // NewUserService は UserService の実装を生成します。
-func NewUserService(userRepo repository.UserRepository) UserService {
-	return &userService{userRepo: userRepo}
+func NewUserService(userRepo repository.UserRepository, userFollowerRepo repository.UserFollowerRepository) UserService {
+	return &userService{
+		userRepo:         userRepo,
+		userFollowerRepo: userFollowerRepo,
+	}
 }
 
 // EnsureUser は Clerk ユーザーに対応する users レコードの存在を保証します。
@@ -112,4 +143,107 @@ func (s *userService) GetUserByDisplayID(ctx context.Context, displayID string) 
 	}
 
 	return user, nil
+}
+
+// FollowUser は指定ユーザーをフォローします。
+func (s *userService) FollowUser(ctx context.Context, followerID, followeeID string) error {
+	if followerID == "" || followeeID == "" {
+		return errors.New("follower_id and followee_id are required")
+	}
+
+	if followerID == followeeID {
+		return ErrCannotFollowSelf
+	}
+
+	// フォロー対象のユーザーが存在するか確認
+	if _, err := s.userRepo.FindByDisplayID(ctx, followeeID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+
+	// 既にフォロー済みかチェック
+	isFollowing, err := s.userFollowerRepo.IsFollowing(ctx, followerID, followeeID)
+	if err != nil {
+		return err
+	}
+	if isFollowing {
+		return ErrAlreadyFollowing
+	}
+
+	return s.userFollowerRepo.Create(ctx, followerID, followeeID)
+}
+
+// UnfollowUser は指定ユーザーをアンフォローします。
+func (s *userService) UnfollowUser(ctx context.Context, followerID, followeeID string) error {
+	if followerID == "" || followeeID == "" {
+		return errors.New("follower_id and followee_id are required")
+	}
+
+	// フォローしているかチェック
+	isFollowing, err := s.userFollowerRepo.IsFollowing(ctx, followerID, followeeID)
+	if err != nil {
+		return err
+	}
+	if !isFollowing {
+		return ErrNotFollowing
+	}
+
+	return s.userFollowerRepo.Delete(ctx, followerID, followeeID)
+}
+
+// IsFollowing は followerID が followeeID をフォローしているかチェックします。
+func (s *userService) IsFollowing(ctx context.Context, followerID, followeeID string) (bool, error) {
+	if followerID == "" || followeeID == "" {
+		return false, nil
+	}
+	return s.userFollowerRepo.IsFollowing(ctx, followerID, followeeID)
+}
+
+// ListFollowing は指定ユーザーがフォローしているユーザー一覧を取得します。
+func (s *userService) ListFollowing(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error) {
+	if userID == "" {
+		return nil, 0, errors.New("user_id is required")
+	}
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+	return s.userFollowerRepo.ListFollowing(ctx, userID, page, pageSize)
+}
+
+// ListFollowers は指定ユーザーをフォローしているユーザー一覧を取得します。
+func (s *userService) ListFollowers(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error) {
+	if userID == "" {
+		return nil, 0, errors.New("user_id is required")
+	}
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+	return s.userFollowerRepo.ListFollowers(ctx, userID, page, pageSize)
+}
+
+// GetFollowStats はフォロー数とフォロワー数を取得します。
+func (s *userService) GetFollowStats(ctx context.Context, userID string) (following int64, followers int64, err error) {
+	if userID == "" {
+		return 0, 0, errors.New("user_id is required")
+	}
+
+	following, err = s.userFollowerRepo.CountFollowing(ctx, userID)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	followers, err = s.userFollowerRepo.CountFollowers(ctx, userID)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return following, followers, nil
 }

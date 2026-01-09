@@ -39,6 +39,7 @@ func main() {
 		&model.Tag{},
 		&model.TagMovie{},
 		&model.TagFollower{},
+		&model.UserFollower{},
 		&model.MovieCache{},
 	); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)

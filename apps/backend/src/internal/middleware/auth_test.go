@@ -33,6 +33,30 @@ func (f *fakeUserService) GetUserByDisplayID(ctx context.Context, displayID stri
 	return f.GetUserByDisplayIDFn(ctx, displayID)
 }
 
+func (f *fakeUserService) FollowUser(ctx context.Context, followerID, followeeID string) error {
+	return nil
+}
+
+func (f *fakeUserService) UnfollowUser(ctx context.Context, followerID, followeeID string) error {
+	return nil
+}
+
+func (f *fakeUserService) IsFollowing(ctx context.Context, followerID, followeeID string) (bool, error) {
+	return false, nil
+}
+
+func (f *fakeUserService) ListFollowing(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error) {
+	return []*model.User{}, 0, nil
+}
+
+func (f *fakeUserService) ListFollowers(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error) {
+	return []*model.User{}, 0, nil
+}
+
+func (f *fakeUserService) GetFollowStats(ctx context.Context, userID string) (following int64, followers int64, err error) {
+	return 0, 0, nil
+}
+
 func newAuthTestRouter(t *testing.T, mw gin.HandlerFunc) *gin.Engine {
 	t.Helper()
 

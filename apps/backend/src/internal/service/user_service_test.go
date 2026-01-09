@@ -39,13 +39,72 @@ func (f *fakeUserRepo) Create(ctx context.Context, user *model.User) error {
 	return f.CreateFn(ctx, user)
 }
 
+type fakeUserFollowerRepo struct {
+	CreateFn        func(ctx context.Context, followerID, followeeID string) error
+	DeleteFn        func(ctx context.Context, followerID, followeeID string) error
+	IsFollowingFn   func(ctx context.Context, followerID, followeeID string) (bool, error)
+	ListFollowingFn func(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error)
+	ListFollowersFn func(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error)
+	CountFollowingFn func(ctx context.Context, userID string) (int64, error)
+	CountFollowersFn func(ctx context.Context, userID string) (int64, error)
+}
+
+func (f *fakeUserFollowerRepo) Create(ctx context.Context, followerID, followeeID string) error {
+	if f.CreateFn == nil {
+		return nil
+	}
+	return f.CreateFn(ctx, followerID, followeeID)
+}
+
+func (f *fakeUserFollowerRepo) Delete(ctx context.Context, followerID, followeeID string) error {
+	if f.DeleteFn == nil {
+		return nil
+	}
+	return f.DeleteFn(ctx, followerID, followeeID)
+}
+
+func (f *fakeUserFollowerRepo) IsFollowing(ctx context.Context, followerID, followeeID string) (bool, error) {
+	if f.IsFollowingFn == nil {
+		return false, nil
+	}
+	return f.IsFollowingFn(ctx, followerID, followeeID)
+}
+
+func (f *fakeUserFollowerRepo) ListFollowing(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error) {
+	if f.ListFollowingFn == nil {
+		return []*model.User{}, 0, nil
+	}
+	return f.ListFollowingFn(ctx, userID, page, pageSize)
+}
+
+func (f *fakeUserFollowerRepo) ListFollowers(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error) {
+	if f.ListFollowersFn == nil {
+		return []*model.User{}, 0, nil
+	}
+	return f.ListFollowersFn(ctx, userID, page, pageSize)
+}
+
+func (f *fakeUserFollowerRepo) CountFollowing(ctx context.Context, userID string) (int64, error) {
+	if f.CountFollowingFn == nil {
+		return 0, nil
+	}
+	return f.CountFollowingFn(ctx, userID)
+}
+
+func (f *fakeUserFollowerRepo) CountFollowers(ctx context.Context, userID string) (int64, error) {
+	if f.CountFollowersFn == nil {
+		return 0, nil
+	}
+	return f.CountFollowersFn(ctx, userID)
+}
+
 func TestUserService_EnsureUser(t *testing.T) {
 	t.Parallel()
 
 	t.Run("入力バリデーション: clerk user id が必須", func(t *testing.T) {
 		t.Parallel()
 
-		svc := NewUserService(&fakeUserRepo{})
+		svc := NewUserService(&fakeUserRepo{}, &fakeUserFollowerRepo{})
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: ""})
 		if err == nil {
 			t.Fatalf("expected error")
@@ -66,7 +125,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewUserService(repo)
+		svc := NewUserService(repo, &fakeUserFollowerRepo{})
 
 		out, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1"})
 		if err != nil {
@@ -89,7 +148,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 				return nil, expected
 			},
 		}
-		svc := NewUserService(repo)
+		svc := NewUserService(repo, &fakeUserFollowerRepo{})
 
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1"})
 		if !errors.Is(err, expected) {
@@ -117,7 +176,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewUserService(repo)
+		svc := NewUserService(repo, &fakeUserFollowerRepo{})
 
 		avatar := "https://example.com/a.png"
 		out, err := svc.EnsureUser(context.Background(), ClerkUserInfo{
@@ -162,7 +221,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewUserService(repo)
+		svc := NewUserService(repo, &fakeUserFollowerRepo{})
 
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{
 			ID:        "clerk_1",
@@ -193,7 +252,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 				return expected
 			},
 		}
-		svc := NewUserService(repo)
+		svc := NewUserService(repo, &fakeUserFollowerRepo{})
 
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1"})
 		if !errors.Is(err, expected) {
@@ -202,4 +261,5 @@ func TestUserService_EnsureUser(t *testing.T) {
 	})
 
 	_ = repository.UserRepository(nil) // compile-time check: fakeUserRepo implements interface
+	_ = repository.UserFollowerRepository(nil) // compile-time check: fakeUserFollowerRepo implements interface
 }
