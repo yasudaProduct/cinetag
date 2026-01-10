@@ -151,7 +151,178 @@ Host: localhost:8080
 }
 ```
 
-#### 4.4 GET `/api/v1/me/tags` **[未実装]**
+#### 4.4 POST `/api/v1/users/:displayId/follow`
+
+- **概要**: 指定ユーザー（`displayId`）をフォローする。
+- **認証**: 必須
+- **パスパラメータ**
+
+| 名前         | 型   | 説明 |
+|--------------|------|------|
+| `displayId`  | text | ユーザーの表示ID（`display_id`） |
+
+- **レスポンス例（200）**
+
+```json
+{
+  "message": "successfully followed"
+}
+```
+
+- **レスポンス例（400）**
+
+```json
+{
+  "error": "cannot follow yourself"
+}
+```
+
+- **レスポンス例（404）**
+
+```json
+{
+  "error": "user not found"
+}
+```
+
+- **レスポンス例（409）**
+
+```json
+{
+  "error": "already following"
+}
+```
+
+#### 4.5 DELETE `/api/v1/users/:displayId/follow`
+
+- **概要**: 指定ユーザー（`displayId`）のフォローを解除する。
+- **認証**: 必須
+- **パスパラメータ**
+
+| 名前         | 型   | 説明 |
+|--------------|------|------|
+| `displayId`  | text | ユーザーの表示ID（`display_id`） |
+
+- **レスポンス例（200）**
+
+```json
+{
+  "message": "successfully unfollowed"
+}
+```
+
+- **レスポンス例（404）**
+
+```json
+{
+  "error": "user not found"
+}
+```
+
+- **レスポンス例（409）**
+
+```json
+{
+  "error": "not following"
+}
+```
+
+#### 4.6 GET `/api/v1/users/:displayId/following`
+
+- **概要**: 指定ユーザー（`displayId`）がフォローしているユーザー一覧を取得する。
+- **認証**: 不要
+- **パスパラメータ**
+
+| 名前         | 型   | 説明 |
+|--------------|------|------|
+| `displayId`  | text | ユーザーの表示ID（`display_id`） |
+
+- **クエリパラメータ**
+
+| 名前        | 型  | 必須 | 説明                                             |
+|-------------|-----|------|--------------------------------------------------|
+| `page`      | int | 任意 | ページ番号（デフォルト: 1）                     |
+| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限例: 100） |
+
+- **レスポンス例（200）**
+
+```json
+{
+  "items": [
+    {
+      "id": "b1e4f0e8-1234-5678-9012-abcdefabcdef",
+      "display_id": "cinephile_jane",
+      "display_name": "cinephile_jane",
+      "avatar_url": "https://images.example.com/avatar.jpg",
+      "bio": "映画が好きです"
+    }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total_count": 1
+}
+```
+
+#### 4.7 GET `/api/v1/users/:displayId/followers`
+
+- **概要**: 指定ユーザー（`displayId`）をフォローしているユーザー一覧を取得する。
+- **認証**: 不要
+- **パスパラメータ**
+
+| 名前         | 型   | 説明 |
+|--------------|------|------|
+| `displayId`  | text | ユーザーの表示ID（`display_id`） |
+
+- **クエリパラメータ**
+
+| 名前        | 型  | 必須 | 説明                                             |
+|-------------|-----|------|--------------------------------------------------|
+| `page`      | int | 任意 | ページ番号（デフォルト: 1）                     |
+| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限例: 100） |
+
+- **レスポンス例（200）**
+
+```json
+{
+  "items": [
+    {
+      "id": "b1e4f0e8-1234-5678-9012-abcdefabcdef",
+      "display_id": "cinephile_jane",
+      "display_name": "cinephile_jane",
+      "avatar_url": "https://images.example.com/avatar.jpg",
+      "bio": "映画が好きです"
+    }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total_count": 1
+}
+```
+
+#### 4.8 GET `/api/v1/users/:displayId/follow-stats`
+
+- **概要**: 指定ユーザー（`displayId`）のフォロー数・フォロワー数を取得する。
+- **認証**: 任意
+- **備考**
+  - 認証済みの場合、閲覧者がこのユーザーをフォローしているか（`is_following`）も返す。
+  - 未認証の場合は `is_following: false` を返す。
+- **パスパラメータ**
+
+| 名前         | 型   | 説明 |
+|--------------|------|------|
+| `displayId`  | text | ユーザーの表示ID（`display_id`） |
+
+- **レスポンス例（200）**
+
+```json
+{
+  "following_count": 12,
+  "followers_count": 34,
+  "is_following": false
+}
+```
+
+#### 4.9 GET `/api/v1/me/tags` **[未実装]**
 
 - **概要**: ログインユーザーが作成したタグの一覧を取得する。
 - **認証**: 必須
@@ -185,13 +356,13 @@ Host: localhost:8080
 }
 ```
 
-#### 4.5 GET `/api/v1/me/following-tags` **[未実装]**
+#### 4.10 GET `/api/v1/me/following-tags` **[未実装]**
 
 - **概要**: ログインユーザーがフォローしているタグ一覧を取得する。
 - **認証**: 必須
 - **クエリ / レスポンス形式**: `/api/v1/me/tags` と同様（`items` の中身が「フォロー中タグ」となる）。
 
-#### 4.6 POST `/api/v1/clerk/webhook`
+#### 4.11 POST `/api/v1/clerk/webhook`
 
 - **概要**: Clerk Webhook を受信し、`user.created` イベントをローカル `users` テーブルに同期する。
 - **認証**: 不要
