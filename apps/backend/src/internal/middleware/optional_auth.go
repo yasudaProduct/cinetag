@@ -38,6 +38,7 @@ func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc 
 			return
 		}
 
+		// Authorization Bearer トークンが付いている場合のみ検証する
 		authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
 		if authHeader == "" {
 			c.Next()
@@ -49,6 +50,7 @@ func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc 
 			return
 		}
 
+		// Bearer トークンを取得する
 		rawToken := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
 		if rawToken == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
@@ -56,6 +58,7 @@ func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc 
 			return
 		}
 
+		// トークンを検証する
 		claims, err := validator.Verify(c.Request.Context(), rawToken)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
@@ -63,6 +66,7 @@ func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc 
 			return
 		}
 
+		// ClerkUserInfo を作成する
 		clerkUser, err := service.NewClerkUserInfoFromJWTClaims(claims)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})

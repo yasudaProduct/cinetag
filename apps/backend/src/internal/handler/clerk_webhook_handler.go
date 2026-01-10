@@ -76,6 +76,7 @@ func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 		avatarURL = &url
 	}
 
+	// clerkUserInfo を作成
 	clerkUser, err := service.NewClerkUserInfoFromWebhook(
 		event.Data.ID,
 		email,
