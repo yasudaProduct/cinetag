@@ -13,10 +13,13 @@ import { listUserTags } from "@/lib/api/users/listUserTags";
 import { getFollowStats } from "@/lib/api/users/getFollowStats";
 import { followUser } from "@/lib/api/users/followUser";
 import { unfollowUser } from "@/lib/api/users/unfollowUser";
+import { listFollowing } from "@/lib/api/users/listFollowing";
+import { listFollowers } from "@/lib/api/users/listFollowers";
 import { useParams } from "next/navigation";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 
-type TabType = "created" | "registered" | "favorite";
+type TabType = "created" | "registered" | "favorite" | "following" | "followers";
 
 export default function UserPage() {
   const params = useParams();
@@ -75,6 +78,20 @@ export default function UserPage() {
       return getFollowStats(username, token ?? undefined);
     },
     enabled: !!username && !!profileUser,
+  });
+
+  // フォロー中ユーザー一覧を取得
+  const { data: followingData, isLoading: isFollowingLoading } = useQuery({
+    queryKey: ["following", username],
+    queryFn: () => listFollowing(username),
+    enabled: !!username && !!profileUser && activeTab === "following",
+  });
+
+  // フォロワー一覧を取得
+  const { data: followersData, isLoading: isFollowersLoading } = useQuery({
+    queryKey: ["followers", username],
+    queryFn: () => listFollowers(username),
+    enabled: !!username && !!profileUser && activeTab === "followers",
   });
 
   const queryClient = useQueryClient();
@@ -285,10 +302,10 @@ export default function UserPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-2 mb-8 border-b border-gray-200">
+            <div className="flex items-center gap-2 mb-8 border-b border-gray-200 overflow-x-auto">
               <button
                 onClick={() => setActiveTab("created")}
-                className={`px-6 py-3 font-medium transition-colors relative ${
+                className={`px-6 py-3 font-medium transition-colors relative whitespace-nowrap ${
                   activeTab === "created"
                     ? "text-pink-600"
                     : "text-gray-600 hover:text-gray-900"
@@ -301,7 +318,7 @@ export default function UserPage() {
               </button>
               <button
                 onClick={() => setActiveTab("registered")}
-                className={`px-6 py-3 font-medium transition-colors relative ${
+                className={`px-6 py-3 font-medium transition-colors relative whitespace-nowrap ${
                   activeTab === "registered"
                     ? "text-pink-600"
                     : "text-gray-600 hover:text-gray-900"
@@ -314,7 +331,7 @@ export default function UserPage() {
               </button>
               <button
                 onClick={() => setActiveTab("favorite")}
-                className={`px-6 py-3 font-medium transition-colors relative ${
+                className={`px-6 py-3 font-medium transition-colors relative whitespace-nowrap ${
                   activeTab === "favorite"
                     ? "text-pink-600"
                     : "text-gray-600 hover:text-gray-900"
@@ -325,48 +342,167 @@ export default function UserPage() {
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-600" />
                 )}
               </button>
+              <button
+                onClick={() => setActiveTab("following")}
+                className={`px-6 py-3 font-medium transition-colors relative whitespace-nowrap ${
+                  activeTab === "following"
+                    ? "text-pink-600"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                フォロー中
+                {activeTab === "following" && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-600" />
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab("followers")}
+                className={`px-6 py-3 font-medium transition-colors relative whitespace-nowrap ${
+                  activeTab === "followers"
+                    ? "text-pink-600"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                フォロワー
+                {activeTab === "followers" && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-600" />
+                )}
+              </button>
             </div>
 
-            {/* Search Bar */}
-            <div className="relative mb-8">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
+            {/* Search Bar - カテゴリタブのみ表示 */}
+            {(activeTab === "created" ||
+              activeTab === "registered" ||
+              activeTab === "favorite") && (
+              <div className="relative mb-8">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="カテゴリや映画を検索..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="block w-full pl-12 pr-4 py-3.5 rounded-full border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm"
+                />
               </div>
-              <input
-                type="text"
-                placeholder="カテゴリや映画を検索..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="block w-full pl-12 pr-4 py-3.5 rounded-full border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm"
-              />
-            </div>
+            )}
 
-            {/* Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {isTagsLoading ? (
-                <p className="text-gray-600 col-span-full text-center py-8">
-                  読み込み中...
-                </p>
-              ) : userTags.length === 0 ? (
-                <p className="text-gray-600 col-span-full text-center py-8">
-                  まだカテゴリがありません
-                </p>
-              ) : (
-                userTags.map((tag) => (
-                  <CategoryCard
-                    key={tag.id}
-                    title={tag.title}
-                    description={tag.description ?? ""}
-                    author={tag.author}
-                    authorDisplayId={tag.authorDisplayId}
-                    movieCount={tag.movieCount}
-                    likes={tag.followerCount}
-                    images={tag.images}
-                    href={`/tags/${tag.id}`}
-                  />
-                ))
-              )}
-            </div>
+            {/* Cards Grid - カテゴリタブ */}
+            {activeTab === "created" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {isTagsLoading ? (
+                  <p className="text-gray-600 col-span-full text-center py-8">
+                    読み込み中...
+                  </p>
+                ) : userTags.length === 0 ? (
+                  <p className="text-gray-600 col-span-full text-center py-8">
+                    まだカテゴリがありません
+                  </p>
+                ) : (
+                  userTags.map((tag) => (
+                    <CategoryCard
+                      key={tag.id}
+                      title={tag.title}
+                      description={tag.description ?? ""}
+                      author={tag.author}
+                      authorDisplayId={tag.authorDisplayId}
+                      movieCount={tag.movieCount}
+                      likes={tag.followerCount}
+                      images={tag.images}
+                      href={`/tags/${tag.id}`}
+                    />
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* フォロー中ユーザー一覧 */}
+            {activeTab === "following" && (
+              <div className="space-y-4">
+                {isFollowingLoading ? (
+                  <p className="text-gray-600 text-center py-8">読み込み中...</p>
+                ) : (followingData?.items ?? []).length === 0 ? (
+                  <p className="text-gray-600 text-center py-8">
+                    フォローしているユーザーはいません
+                  </p>
+                ) : (
+                  (followingData?.items ?? []).map((user) => (
+                    <Link
+                      key={user.id}
+                      href={`/${user.display_id}`}
+                      className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-200 hover:border-pink-300 hover:shadow-sm transition-all"
+                    >
+                      <AvatarCircle
+                        name={user.display_name}
+                        avatarUrl={user.avatar_url ?? undefined}
+                        className="w-12 h-12"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-gray-900 truncate">
+                          {user.display_name}
+                        </div>
+                        <div className="text-sm text-gray-500 truncate">
+                          @{user.display_id}
+                        </div>
+                        {user.bio && (
+                          <div className="text-sm text-gray-600 mt-1 line-clamp-1">
+                            {user.bio}
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* フォロワー一覧 */}
+            {activeTab === "followers" && (
+              <div className="space-y-4">
+                {isFollowersLoading ? (
+                  <p className="text-gray-600 text-center py-8">読み込み中...</p>
+                ) : (followersData?.items ?? []).length === 0 ? (
+                  <p className="text-gray-600 text-center py-8">
+                    フォロワーはいません
+                  </p>
+                ) : (
+                  (followersData?.items ?? []).map((user) => (
+                    <Link
+                      key={user.id}
+                      href={`/${user.display_id}`}
+                      className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-200 hover:border-pink-300 hover:shadow-sm transition-all"
+                    >
+                      <AvatarCircle
+                        name={user.display_name}
+                        avatarUrl={user.avatar_url ?? undefined}
+                        className="w-12 h-12"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-gray-900 truncate">
+                          {user.display_name}
+                        </div>
+                        <div className="text-sm text-gray-500 truncate">
+                          @{user.display_id}
+                        </div>
+                        {user.bio && (
+                          <div className="text-sm text-gray-600 mt-1 line-clamp-1">
+                            {user.bio}
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* 登録した映画・お気に入り（未実装） */}
+            {(activeTab === "registered" || activeTab === "favorite") && (
+              <p className="text-gray-600 text-center py-8">
+                この機能は準備中です
+              </p>
+            )}
           </div>
         </div>
       </main>
