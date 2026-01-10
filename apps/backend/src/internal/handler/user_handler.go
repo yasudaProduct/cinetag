@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -128,6 +129,245 @@ func (h *UserHandler) ListUserTags(c *gin.Context) {
 		"page":        page,
 		"page_size":   pageSize,
 		"total_count": total,
+	})
+}
+
+// FollowUser は指定ユーザーをフォローします。
+// POST /api/v1/users/:displayId/follow
+func (h *UserHandler) FollowUser(c *gin.Context) {
+	fmt.Println("[user_handler] FollowUser")
+	fmt.Println("[user_handler] displayId", c.Param("displayId"))
+	displayID := c.Param("displayId")
+	if displayID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "display_id is required"})
+		return
+	}
+
+	// 認証ユーザーを取得
+	userRaw, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	currentUser, ok := userRaw.(*model.User)
+	if !ok || currentUser == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		return
+	}
+
+	// フォロー対象のユーザーを取得
+	targetUser, err := h.userService.GetUserByDisplayID(c.Request.Context(), displayID)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user"})
+		return
+	}
+
+	// フォローを実行
+	err = h.userService.FollowUser(c.Request.Context(), currentUser.ID, targetUser.ID)
+	if err != nil {
+		if errors.Is(err, service.ErrCannotFollowSelf) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot follow yourself"})
+			return
+		}
+		if errors.Is(err, service.ErrAlreadyFollowing) {
+			c.JSON(http.StatusConflict, gin.H{"error": "already following"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to follow user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "successfully followed"})
+}
+
+// UnfollowUser は指定ユーザーをアンフォローします。
+// DELETE /api/v1/users/:displayId/follow
+func (h *UserHandler) UnfollowUser(c *gin.Context) {
+	displayID := c.Param("displayId")
+	if displayID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "display_id is required"})
+		return
+	}
+
+	// 認証ユーザーを取得
+	userRaw, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	currentUser, ok := userRaw.(*model.User)
+	if !ok || currentUser == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		return
+	}
+
+	// アンフォロー対象のユーザーを取得
+	targetUser, err := h.userService.GetUserByDisplayID(c.Request.Context(), displayID)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user"})
+		return
+	}
+
+	// アンフォローを実行
+	err = h.userService.UnfollowUser(c.Request.Context(), currentUser.ID, targetUser.ID)
+	if err != nil {
+		if errors.Is(err, service.ErrNotFollowing) {
+			c.JSON(http.StatusConflict, gin.H{"error": "not following"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unfollow user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "successfully unfollowed"})
+}
+
+// ListFollowing は指定ユーザーがフォローしているユーザー一覧を取得します。
+// GET /api/v1/users/:displayId/following
+func (h *UserHandler) ListFollowing(c *gin.Context) {
+	displayID := c.Param("displayId")
+	if displayID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "display_id is required"})
+		return
+	}
+
+	// ユーザーを取得
+	user, err := h.userService.GetUserByDisplayID(c.Request.Context(), displayID)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user"})
+		return
+	}
+
+	page := parseIntDefaultUser(c.Query("page"), 1)
+	pageSize := parseIntDefaultUser(c.Query("page_size"), 20)
+
+	users, total, err := h.userService.ListFollowing(c.Request.Context(), user.ID, page, pageSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list following"})
+		return
+	}
+
+	// レスポンス用に変換
+	items := make([]UserProfileResponse, len(users))
+	for i, u := range users {
+		items[i] = UserProfileResponse{
+			ID:          u.ID,
+			DisplayID:   u.DisplayID,
+			DisplayName: u.DisplayName,
+			AvatarURL:   u.AvatarURL,
+			Bio:         u.Bio,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items":       items,
+		"page":        page,
+		"page_size":   pageSize,
+		"total_count": total,
+	})
+}
+
+// ListFollowers は指定ユーザーをフォローしているユーザー一覧を取得します。
+// GET /api/v1/users/:displayId/followers
+func (h *UserHandler) ListFollowers(c *gin.Context) {
+	displayID := c.Param("displayId")
+	if displayID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "display_id is required"})
+		return
+	}
+
+	// ユーザーを取得
+	user, err := h.userService.GetUserByDisplayID(c.Request.Context(), displayID)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user"})
+		return
+	}
+
+	page := parseIntDefaultUser(c.Query("page"), 1)
+	pageSize := parseIntDefaultUser(c.Query("page_size"), 20)
+
+	users, total, err := h.userService.ListFollowers(c.Request.Context(), user.ID, page, pageSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list followers"})
+		return
+	}
+
+	// レスポンス用に変換
+	items := make([]UserProfileResponse, len(users))
+	for i, u := range users {
+		items[i] = UserProfileResponse{
+			ID:          u.ID,
+			DisplayID:   u.DisplayID,
+			DisplayName: u.DisplayName,
+			AvatarURL:   u.AvatarURL,
+			Bio:         u.Bio,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items":       items,
+		"page":        page,
+		"page_size":   pageSize,
+		"total_count": total,
+	})
+}
+
+// GetUserFollowStats はユーザーのフォロー数・フォロワー数を取得します。
+// GET /api/v1/users/:displayId/follow-stats
+func (h *UserHandler) GetUserFollowStats(c *gin.Context) {
+	displayID := c.Param("displayId")
+	if displayID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "display_id is required"})
+		return
+	}
+
+	// ユーザーを取得
+	user, err := h.userService.GetUserByDisplayID(c.Request.Context(), displayID)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user"})
+		return
+	}
+
+	following, followers, err := h.userService.GetFollowStats(c.Request.Context(), user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get follow stats"})
+		return
+	}
+
+	// 認証ユーザーがこのユーザーをフォローしているかチェック
+	isFollowing := false
+	if viewerRaw, exists := c.Get("user"); exists {
+		if viewer, ok := viewerRaw.(*model.User); ok && viewer != nil {
+			isFollowing, _ = h.userService.IsFollowing(c.Request.Context(), viewer.ID, user.ID)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"following_count": following,
+		"followers_count": followers,
+		"is_following":    isFollowing,
 	})
 }
 

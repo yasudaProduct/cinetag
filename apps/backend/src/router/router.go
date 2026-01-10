@@ -28,7 +28,8 @@ func NewRouter() *gin.Engine {
 	tagMovieRepo := repository.NewTagMovieRepository(database)
 	tagService := service.NewTagService(tagRepo, tagMovieRepo, movieService, imageBaseURL)
 	userRepo := repository.NewUserRepository(database)
-	userService := service.NewUserService(userRepo)
+	userFollowerRepo := repository.NewUserFollowerRepository(database)
+	userService := service.NewUserService(userRepo, userFollowerRepo)
 	tagHandler := handler.NewTagHandler(tagService)
 	movieHandler := handler.NewMovieHandler(movieService)
 	userHandler := handler.NewUserHandler(userService, tagService)
@@ -79,6 +80,9 @@ func NewRouter() *gin.Engine {
 		// ユーザー情報取得（認証不要）
 		api.GET("/users/:displayId", userHandler.GetUserByDisplayID)
 		api.GET("/users/:displayId/tags", optionalAuthMiddleware, userHandler.ListUserTags)
+		api.GET("/users/:displayId/following", userHandler.ListFollowing)
+		api.GET("/users/:displayId/followers", userHandler.ListFollowers)
+		api.GET("/users/:displayId/follow-stats", optionalAuthMiddleware, userHandler.GetUserFollowStats)
 
 		// TMDB 検索（認証不要）
 		api.GET("/movies/search", movieHandler.SearchMovies)
@@ -89,6 +93,8 @@ func NewRouter() *gin.Engine {
 		{
 			// ユーザー
 			authGroup.GET("/users/me", userHandler.GetMe)
+			authGroup.POST("/users/:displayId/follow", userHandler.FollowUser)
+			authGroup.DELETE("/users/:displayId/follow", userHandler.UnfollowUser)
 
 			// タグ
 			authGroup.POST("/tags", tagHandler.CreateTag)
