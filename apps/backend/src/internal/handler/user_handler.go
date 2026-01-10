@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -134,6 +135,8 @@ func (h *UserHandler) ListUserTags(c *gin.Context) {
 // FollowUser は指定ユーザーをフォローします。
 // POST /api/v1/users/:displayId/follow
 func (h *UserHandler) FollowUser(c *gin.Context) {
+	fmt.Println("[user_handler] FollowUser")
+	fmt.Println("[user_handler] displayId", c.Param("displayId"))
 	displayID := c.Param("displayId")
 	if displayID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "display_id is required"})

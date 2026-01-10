@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"cinetag-backend/src/internal/model"
@@ -130,6 +131,7 @@ func resolveDisplayName(clerkInfo ClerkUserInfo) string {
 
 // GetUserByDisplayID は display_id からユーザー情報を取得します。
 func (s *userService) GetUserByDisplayID(ctx context.Context, displayID string) (*model.User, error) {
+	fmt.Println("[user_service] GetUserByDisplayID", displayID)
 	if displayID == "" {
 		return nil, errors.New("display_id is required")
 	}
@@ -147,6 +149,7 @@ func (s *userService) GetUserByDisplayID(ctx context.Context, displayID string) 
 
 // FollowUser は指定ユーザーをフォローします。
 func (s *userService) FollowUser(ctx context.Context, followerID, followeeID string) error {
+	fmt.Println("[user_service] FollowUser", followerID, followeeID)
 	if followerID == "" || followeeID == "" {
 		return errors.New("follower_id and followee_id are required")
 	}
@@ -156,7 +159,7 @@ func (s *userService) FollowUser(ctx context.Context, followerID, followeeID str
 	}
 
 	// フォロー対象のユーザーが存在するか確認
-	if _, err := s.userRepo.FindByDisplayID(ctx, followeeID); err != nil {
+	if _, err := s.userRepo.FindByID(ctx, followeeID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
 		}

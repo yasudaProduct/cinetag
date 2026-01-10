@@ -12,9 +12,17 @@ import (
 )
 
 type fakeUserRepo struct {
+	FindByIDFn          func(ctx context.Context, userID string) (*model.User, error)
 	FindByClerkUserIDFn func(ctx context.Context, clerkUserID string) (*model.User, error)
 	FindByDisplayIDFn   func(ctx context.Context, displayID string) (*model.User, error)
 	CreateFn            func(ctx context.Context, user *model.User) error
+}
+
+func (f *fakeUserRepo) FindByID(ctx context.Context, userID string) (*model.User, error) {
+	if f.FindByIDFn == nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return f.FindByIDFn(ctx, userID)
 }
 
 func (f *fakeUserRepo) FindByClerkUserID(ctx context.Context, clerkUserID string) (*model.User, error) {
@@ -40,11 +48,11 @@ func (f *fakeUserRepo) Create(ctx context.Context, user *model.User) error {
 }
 
 type fakeUserFollowerRepo struct {
-	CreateFn        func(ctx context.Context, followerID, followeeID string) error
-	DeleteFn        func(ctx context.Context, followerID, followeeID string) error
-	IsFollowingFn   func(ctx context.Context, followerID, followeeID string) (bool, error)
-	ListFollowingFn func(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error)
-	ListFollowersFn func(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error)
+	CreateFn         func(ctx context.Context, followerID, followeeID string) error
+	DeleteFn         func(ctx context.Context, followerID, followeeID string) error
+	IsFollowingFn    func(ctx context.Context, followerID, followeeID string) (bool, error)
+	ListFollowingFn  func(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error)
+	ListFollowersFn  func(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error)
 	CountFollowingFn func(ctx context.Context, userID string) (int64, error)
 	CountFollowersFn func(ctx context.Context, userID string) (int64, error)
 }
@@ -260,6 +268,6 @@ func TestUserService_EnsureUser(t *testing.T) {
 		}
 	})
 
-	_ = repository.UserRepository(nil) // compile-time check: fakeUserRepo implements interface
+	_ = repository.UserRepository(nil)         // compile-time check: fakeUserRepo implements interface
 	_ = repository.UserFollowerRepository(nil) // compile-time check: fakeUserFollowerRepo implements interface
 }
