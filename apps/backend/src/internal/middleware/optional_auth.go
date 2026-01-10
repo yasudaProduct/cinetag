@@ -38,6 +38,7 @@ func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc 
 			return
 		}
 
+		// Authorization Bearer トークンが付いている場合のみ検証する
 		authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
 		if authHeader == "" {
 			c.Next()
@@ -49,6 +50,7 @@ func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc 
 			return
 		}
 
+		// Bearer トークンを取得する
 		rawToken := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
 		if rawToken == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
@@ -56,6 +58,7 @@ func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc 
 			return
 		}
 
+		// トークンを検証する
 		claims, err := validator.Verify(c.Request.Context(), rawToken)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
@@ -63,46 +66,12 @@ func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc 
 			return
 		}
 
-		sub, _ := claims["sub"].(string)
-		sub = strings.TrimSpace(sub)
-		if sub == "" {
+		// ClerkUserInfo を作成する
+		clerkUser, err := service.NewClerkUserInfoFromJWTClaims(claims)
+		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			c.Abort()
 			return
-		}
-
-		email := ""
-		if s, ok := claims["email"].(string); ok {
-			email = strings.TrimSpace(s)
-		}
-		if email == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-			c.Abort()
-			return
-		}
-
-		firstName := ""
-		if s, ok := claims["first_name"].(string); ok {
-			firstName = strings.TrimSpace(s)
-		}
-
-		lastName := ""
-		if s, ok := claims["last_name"].(string); ok {
-			lastName = strings.TrimSpace(s)
-		}
-
-		var imageURL *string
-		if s, ok := claims["image_url"].(string); ok && strings.TrimSpace(s) != "" {
-			url := strings.TrimSpace(s)
-			imageURL = &url
-		}
-
-		clerkUser := service.ClerkUserInfo{
-			ID:        sub,
-			FirstName: firstName,
-			LastName:  lastName,
-			Email:     email,
-			AvatarURL: imageURL,
 		}
 
 		user, err := userService.EnsureUser(c.Request.Context(), clerkUser)
