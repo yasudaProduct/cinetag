@@ -1,17 +1,13 @@
 name: CI (develop)
 
 on:
-  workflow_run:
-    workflows:
-      - CI (PR)
-    types:
-      - completed
+  push:
     branches:
       - develop
   workflow_dispatch:
 
 concurrency:
-  group: ci-develop-${{ github.event.workflow_run.head_branch || github.ref_name }}
+  group: ci-develop-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -19,7 +15,6 @@ jobs:
   backend-db-migrate:
     name: backend / db migrate (Neon)
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     defaults:
       run:
         working-directory: apps/backend
@@ -27,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.sha }}
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -45,7 +40,6 @@ jobs:
   frontend-deploy:
     name: frontend / deploy (Cloudflare)
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     defaults:
       run:
         working-directory: apps/frontend
@@ -53,7 +47,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
