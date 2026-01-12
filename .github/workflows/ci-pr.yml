@@ -5,10 +5,18 @@ on:
     branches:
       - develop
       - main
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - "plans/**"
   push:
     branches:
       - develop
       - main
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - "plans/**"
 
 concurrency:
   group: ci-pr-${{ github.event.pull_request.number || github.sha }}
