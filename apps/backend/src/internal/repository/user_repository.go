@@ -16,8 +16,7 @@ type UserRepository interface {
 	FindByClerkUserID(ctx context.Context, clerkUserID string) (*model.User, error)
 	FindByDisplayID(ctx context.Context, displayID string) (*model.User, error)
 	Create(ctx context.Context, user *model.User) error
-	// UpdateForClerkUserDeleted は Clerk 側で削除されたユーザーを論理削除し、匿名化します。
-	UpdateForClerkUserDeleted(ctx context.Context, userID string, now time.Time, anonymizedEmail string) error
+	UpdateForUserDeactivated(ctx context.Context, userID string, now time.Time, anonymizedEmail string) error
 }
 
 type userRepository struct {
@@ -58,7 +57,7 @@ func (r *userRepository) Create(ctx context.Context, user *model.User) error {
 	return r.db.WithContext(ctx).Create(user).Error
 }
 
-func (r *userRepository) UpdateForClerkUserDeleted(ctx context.Context, userID string, now time.Time, anonymizedEmail string) error {
+func (r *userRepository) UpdateForUserDeactivated(ctx context.Context, userID string, now time.Time, anonymizedEmail string) error {
 	updates := map[string]any{
 		"deleted_at":   now,
 		"display_name": "退会済みユーザー",

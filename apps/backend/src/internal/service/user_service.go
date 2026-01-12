@@ -42,6 +42,10 @@ type UserService interface {
 	// 既に存在すればそれを返し、存在しなければ新規作成して返します。
 	EnsureUser(ctx context.Context, clerkUser ClerkUserInfo) (*model.User, error)
 
+	// FindUserByClerkUserID は clerk_user_id からユーザー情報を取得します。
+	// 削除済みユーザーも取得対象とします（必要に応じて呼び出し側で扱いを決める）。
+	FindUserByClerkUserID(ctx context.Context, clerkUserID string) (*model.User, error)
+
 	// GetUserByDisplayID は display_id からユーザー情報を取得します。
 	GetUserByDisplayID(ctx context.Context, displayID string) (*model.User, error)
 
@@ -63,9 +67,8 @@ type UserService interface {
 	// GetFollowStats はフォロー数とフォロワー数を取得します。
 	GetFollowStats(ctx context.Context, userID string) (following int64, followers int64, err error)
 
-	// HandleClerkUserDeleted は Clerk 側で削除されたユーザーをローカルDBへ反映します。
-	// users を論理削除＋匿名化し、関連するフォロー関係をクリーンアップします。
-	HandleClerkUserDeleted(ctx context.Context, clerkUserID string) error
+	// DeactivateUser はユーザーを論理削除＋匿名化し、関連データをクリーンアップします。
+	DeactivateUser(ctx context.Context, userID string) error
 }
 
 type userService struct {
@@ -125,6 +128,23 @@ func (s *userService) EnsureUser(ctx context.Context, clerkInfo ClerkUserInfo) (
 	}
 
 	return user, nil
+}
+
+// FindUserByClerkUserID は clerk_user_id からユーザー情報を取得します。
+func (s *userService) FindUserByClerkUserID(ctx context.Context, clerkUserID string) (*model.User, error) {
+	clerkUserID = strings.TrimSpace(clerkUserID)
+	if clerkUserID == "" {
+		return nil, errors.New("clerk user id is required")
+	}
+
+	u, err := s.userRepo.FindByClerkUserID(ctx, clerkUserID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	return u, nil
 }
 
 func resolveDisplayName(clerkInfo ClerkUserInfo) string {
@@ -271,11 +291,11 @@ func (s *userService) GetFollowStats(ctx context.Context, userID string) (follow
 	return following, followers, nil
 }
 
-// HandleClerkUserDeleted は Clerk 側で削除されたユーザーを、DB側で論理削除＋匿名化し、関連データをクリーンアップします。
-func (s *userService) HandleClerkUserDeleted(ctx context.Context, clerkUserID string) error {
-	clerkUserID = strings.TrimSpace(clerkUserID)
-	if clerkUserID == "" {
-		return errors.New("clerk user id is required")
+// DeactivateUser はユーザーを、DB側で論理削除＋匿名化し、関連データをクリーンアップします。
+func (s *userService) DeactivateUser(ctx context.Context, userID string) error {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return errors.New("user id is required")
 	}
 	if s.db == nil {
 		return errors.New("db is required")
@@ -288,18 +308,17 @@ func (s *userService) HandleClerkUserDeleted(ctx context.Context, clerkUserID st
 		userFollowerRepo := repository.NewUserFollowerRepository(tx)
 		tagFollowerRepo := repository.NewTagFollowerRepository(tx)
 
-		u, err := userRepo.FindByClerkUserID(ctx, clerkUserID)
+		u, err := userRepo.FindByID(ctx, userID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// 既に同期されていない/存在しない場合は成功扱い
-				return nil
+				return ErrUserNotFound
 			}
 			return err
 		}
 
 		// ユーザーを論理削除＋匿名化
 		anonymizedEmail := fmt.Sprintf("deleted+%s@example.invalid", u.ID)
-		if err := userRepo.UpdateForClerkUserDeleted(ctx, u.ID, now, anonymizedEmail); err != nil {
+		if err := userRepo.UpdateForUserDeactivated(ctx, u.ID, now, anonymizedEmail); err != nil {
 			return err
 		}
 

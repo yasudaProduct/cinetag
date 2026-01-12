@@ -13,11 +13,11 @@ import (
 )
 
 type fakeUserRepo struct {
-	FindByIDFn                  func(ctx context.Context, userID string) (*model.User, error)
-	FindByClerkUserIDFn         func(ctx context.Context, clerkUserID string) (*model.User, error)
-	FindByDisplayIDFn           func(ctx context.Context, displayID string) (*model.User, error)
-	CreateFn                    func(ctx context.Context, user *model.User) error
-	UpdateForClerkUserDeletedFn func(ctx context.Context, userID string, now time.Time, anonymizedEmail string) error
+	FindByIDFn                 func(ctx context.Context, userID string) (*model.User, error)
+	FindByClerkUserIDFn        func(ctx context.Context, clerkUserID string) (*model.User, error)
+	FindByDisplayIDFn          func(ctx context.Context, displayID string) (*model.User, error)
+	CreateFn                   func(ctx context.Context, user *model.User) error
+	UpdateForUserDeactivatedFn func(ctx context.Context, userID string, now time.Time, anonymizedEmail string) error
 }
 
 func (f *fakeUserRepo) FindByID(ctx context.Context, userID string) (*model.User, error) {
@@ -49,11 +49,11 @@ func (f *fakeUserRepo) Create(ctx context.Context, user *model.User) error {
 	return f.CreateFn(ctx, user)
 }
 
-func (f *fakeUserRepo) UpdateForClerkUserDeleted(ctx context.Context, userID string, now time.Time, anonymizedEmail string) error {
-	if f.UpdateForClerkUserDeletedFn == nil {
+func (f *fakeUserRepo) UpdateForUserDeactivated(ctx context.Context, userID string, now time.Time, anonymizedEmail string) error {
+	if f.UpdateForUserDeactivatedFn == nil {
 		return nil
 	}
-	return f.UpdateForClerkUserDeletedFn(ctx, userID, now, anonymizedEmail)
+	return f.UpdateForUserDeactivatedFn(ctx, userID, now, anonymizedEmail)
 }
 
 type fakeUserFollowerRepo struct {

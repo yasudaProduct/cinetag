@@ -129,10 +129,23 @@ func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 		}
 		fmt.Println("[HandleWebhook] clerkUserDeletedData.ID", data.ID)
 
-		// Clerk側で削除されたユーザーを、DB側で論理削除＋匿名化し、関連データをクリーンアップする。
-		if err := h.userService.HandleClerkUserDeleted(c.Request.Context(), data.ID); err != nil {
+		// ユーザーが存在しない場合は成功とする
+		u, err := h.userService.FindUserByClerkUserID(c.Request.Context(), data.ID)
+		if err != nil {
+			if err == service.ErrUserNotFound {
+				c.Status(http.StatusOK)
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "failed to handle user deleted",
+				"error": "failed to resolve user by clerk user id",
+			})
+			return
+		}
+
+		// ユーザー削除
+		if err := h.userService.DeactivateUser(c.Request.Context(), u.ID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "failed to deactivate user",
 			})
 			return
 		}

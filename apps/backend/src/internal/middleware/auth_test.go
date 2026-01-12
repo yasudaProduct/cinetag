@@ -33,6 +33,10 @@ func (f *fakeUserService) GetUserByDisplayID(ctx context.Context, displayID stri
 	return f.GetUserByDisplayIDFn(ctx, displayID)
 }
 
+func (f *fakeUserService) FindUserByClerkUserID(ctx context.Context, clerkUserID string) (*model.User, error) {
+	return nil, service.ErrUserNotFound
+}
+
 func (f *fakeUserService) FollowUser(ctx context.Context, followerID, followeeID string) error {
 	return nil
 }
@@ -57,7 +61,7 @@ func (f *fakeUserService) GetFollowStats(ctx context.Context, userID string) (fo
 	return 0, 0, nil
 }
 
-func (f *fakeUserService) HandleClerkUserDeleted(ctx context.Context, clerkUserID string) error {
+func (f *fakeUserService) DeactivateUser(ctx context.Context, userID string) error {
 	return nil
 }
 
