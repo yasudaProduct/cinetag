@@ -16,8 +16,8 @@ import (
 	"time"
 )
 
-// ClerkJWTValidator は Clerk が発行する JWT を JWKS を使って検証するためのヘルパーです。
-// 外部依存（JWTライブラリ）を追加せず、RS256 のみを最小実装でサポートします。
+// Clerk が発行する JWT を JWKS を使って検証するためのヘルパー。
+// 外部依存（JWTライブラリ）を追加せず、RS256 のみを最小実装でサポートする。
 type ClerkJWTValidator struct {
 	jwksURL  string
 	issuer   string
@@ -27,14 +27,16 @@ type ClerkJWTValidator struct {
 	cache  *jwksCache
 }
 
-// NewClerkJWTValidator は検証器を生成します。
-// jwksURL は必須です。issuer/audience は空なら検証しません。
+// Clerk JWT 検証器を生成する。
+// - jwksURL は必須。
+// - issuer/audience は空の場合は検証しない。
 func NewClerkJWTValidator(jwksURL, issuer, audience string) (*ClerkJWTValidator, error) {
 	jwksURL = strings.TrimSpace(jwksURL)
 	if jwksURL == "" {
 		return nil, errors.New("CLERK_JWKS_URL is required")
 	}
 
+	// Clerk JWT 検証器を生成。
 	v := &ClerkJWTValidator{
 		jwksURL:  jwksURL,
 		issuer:   strings.TrimSpace(issuer),
@@ -45,43 +47,55 @@ func NewClerkJWTValidator(jwksURL, issuer, audience string) (*ClerkJWTValidator,
 	return v, nil
 }
 
+// JWT ヘッダーの構造。
 type jwtHeader struct {
 	Alg string `json:"alg"`
 	Kid string `json:"kid"`
 	Typ string `json:"typ"`
 }
 
-// Verify は JWT の署名/期限/（任意でiss/aud）を検証し、payload(claims)を返します。
+// JWT の署名/期限/（任意でiss/aud）を検証し、payload(claims)を返す。
 func (v *ClerkJWTValidator) Verify(ctx context.Context, token string) (map[string]any, error) {
 	token = strings.TrimSpace(token)
 	if token == "" {
 		return nil, errors.New("empty token")
 	}
 
+	// JWT をパース。
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
 		return nil, errors.New("invalid token format")
 	}
 
+	// JWT ヘッダーをデコード。
 	headerJSON, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
 		return nil, errors.New("invalid token header encoding")
 	}
+
+	// JWT ヘッダーをパース。
 	var h jwtHeader
 	if err := json.Unmarshal(headerJSON, &h); err != nil {
 		return nil, errors.New("invalid token header json")
 	}
+
+	// JWT アルゴリズムが RS256 でない場合はエラー。
 	if h.Alg != "RS256" {
 		return nil, fmt.Errorf("unsupported jwt alg: %s", h.Alg)
 	}
+
+	// JWT ヘッダーに kid がない場合はエラー。
 	if strings.TrimSpace(h.Kid) == "" {
 		return nil, errors.New("missing kid in jwt header")
 	}
 
+	// JWT ペイロードをデコード。
 	payloadJSON, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
 		return nil, errors.New("invalid token payload encoding")
 	}
+
+	// JWT ペイロードをパース。
 	claims := map[string]any{}
 	if err := json.Unmarshal(payloadJSON, &claims); err != nil {
 		return nil, errors.New("invalid token payload json")
@@ -112,22 +126,29 @@ func (v *ClerkJWTValidator) Verify(ctx context.Context, token string) (map[strin
 		}
 	}
 
-	// 署名検証
+	// JWT 署名をデコード。
 	sig, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil {
 		return nil, errors.New("invalid token signature encoding")
 	}
+
+	// JWT 署名を検証。
 	signingInput := parts[0] + "." + parts[1]
 	sum := sha256.Sum256([]byte(signingInput))
 
+	// JWK を取得。
 	pubAny, err := v.cache.getKey(ctx, h.Kid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get jwk: %w", err)
 	}
+
+	// JWK をパース。
 	pub, ok := pubAny.(*rsa.PublicKey)
 	if !ok || pub == nil {
 		return nil, errors.New("invalid jwk type")
 	}
+
+	// JWT 署名を検証。
 	if err := rsa.VerifyPKCS1v15(pub, crypto.SHA256, sum[:], sig); err != nil {
 		return nil, errors.New("invalid token signature")
 	}
@@ -135,6 +156,7 @@ func (v *ClerkJWTValidator) Verify(ctx context.Context, token string) (map[strin
 	return claims, nil
 }
 
+// JWT ペイロードの数値型のクレームを取得する。
 func getNumericClaim(claims map[string]any, key string) (int64, bool) {
 	v, ok := claims[key]
 	if !ok || v == nil {
@@ -158,6 +180,7 @@ func getNumericClaim(claims map[string]any, key string) (int64, bool) {
 	}
 }
 
+// JWT ペイロードの aud が expected と一致するか確認する。
 func audMatches(aud any, expected string) bool {
 	switch t := aud.(type) {
 	case string:
@@ -181,6 +204,7 @@ func audMatches(aud any, expected string) bool {
 	}
 }
 
+// JWKS キャッシュの構造。
 type jwksCache struct {
 	client *http.Client
 	url    string
@@ -191,6 +215,7 @@ type jwksCache struct {
 	keys      map[string]*rsa.PublicKey
 }
 
+// JWKS キャッシュを生成する。
 func newJWKSCache(client *http.Client, url string, ttl time.Duration) *jwksCache {
 	return &jwksCache{
 		client: client,
@@ -200,10 +225,12 @@ func newJWKSCache(client *http.Client, url string, ttl time.Duration) *jwksCache
 	}
 }
 
+// JWKS レスポンスの構造。
 type jwksResponse struct {
 	Keys []jwk `json:"keys"`
 }
 
+// JWK の構造。
 type jwk struct {
 	Kty string `json:"kty"`
 	Kid string `json:"kid"`
@@ -213,6 +240,7 @@ type jwk struct {
 	E   string `json:"e"`
 }
 
+// JWK を取得する。
 func (c *jwksCache) getKey(ctx context.Context, kid string) (any, error) {
 	// まずキャッシュヒットを狙う
 	c.mu.RLock()
@@ -245,6 +273,7 @@ func (c *jwksCache) getKey(ctx context.Context, kid string) (any, error) {
 	return key, nil
 }
 
+// JWKS をリフレッシュする。
 func (c *jwksCache) refresh(ctx context.Context) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url, nil)
 	if err != nil {
@@ -289,6 +318,7 @@ func (c *jwksCache) refresh(ctx context.Context) error {
 	return nil
 }
 
+// JWK を RSA 公開鍵に変換する。
 func rsaPublicKeyFromJWK(nB64, eB64 string) (*rsa.PublicKey, error) {
 	nBytes, err := base64.RawURLEncoding.DecodeString(nB64)
 	if err != nil {

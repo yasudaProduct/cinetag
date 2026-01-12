@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// TagFollowerRepository は tag_followers テーブルの永続化処理を表します。
+// tag_followers テーブルの永続化処理を表すインターフェース。
 type TagFollowerRepository interface {
 	// Create はタグフォロー関係を作成します
 	Create(ctx context.Context, tagID, userID string) error
@@ -16,13 +16,13 @@ type TagFollowerRepository interface {
 	Delete(ctx context.Context, tagID, userID string) error
 	// DeleteAllByUserID は指定ユーザーに紐づくタグフォロー関係を全て削除します。
 	DeleteAllByUserID(ctx context.Context, userID string) error
-	// IsFollowing は userID が tagID をフォローしているかチェックします
+	// userID が tagID をフォローしているかチェックする。
 	IsFollowing(ctx context.Context, tagID, userID string) (bool, error)
-	// ListFollowers はタグをフォローしているユーザー一覧を返します
+	// タグをフォローしているユーザー一覧を取得する。
 	ListFollowers(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error)
-	// CountFollowers はタグのフォロワー数を返します
+	// タグのフォロワー数を取得する。
 	CountFollowers(ctx context.Context, tagID string) (int64, error)
-	// ListFollowingTags はユーザーがフォローしているタグ一覧を返します
+	// ユーザーがフォローしているタグ一覧を取得する。
 	ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]*model.Tag, int64, error)
 }
 
@@ -30,11 +30,12 @@ type tagFollowerRepository struct {
 	db *gorm.DB
 }
 
-// NewTagFollowerRepository は TagFollowerRepository の実装を生成します。
+// TagFollowerRepository を生成する。
 func NewTagFollowerRepository(db *gorm.DB) TagFollowerRepository {
 	return &tagFollowerRepository{db: db}
 }
 
+// タグフォロー関係を作成する。
 func (r *tagFollowerRepository) Create(ctx context.Context, tagID, userID string) error {
 	follow := &model.TagFollower{
 		TagID:  tagID,
@@ -43,18 +44,21 @@ func (r *tagFollowerRepository) Create(ctx context.Context, tagID, userID string
 	return r.db.WithContext(ctx).Create(follow).Error
 }
 
+// タグフォロー関係を削除する。
 func (r *tagFollowerRepository) Delete(ctx context.Context, tagID, userID string) error {
 	return r.db.WithContext(ctx).
 		Where("tag_id = ? AND user_id = ?", tagID, userID).
 		Delete(&model.TagFollower{}).Error
 }
 
+// 指定ユーザーに紐づくタグフォロー関係を全て削除する。
 func (r *tagFollowerRepository) DeleteAllByUserID(ctx context.Context, userID string) error {
 	return r.db.WithContext(ctx).
 		Where("user_id = ?", userID).
 		Delete(&model.TagFollower{}).Error
 }
 
+// userID が tagID をフォローしているかチェックする。
 func (r *tagFollowerRepository) IsFollowing(ctx context.Context, tagID, userID string) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
@@ -67,6 +71,7 @@ func (r *tagFollowerRepository) IsFollowing(ctx context.Context, tagID, userID s
 	return count > 0, nil
 }
 
+// タグをフォローしているユーザー一覧を取得する。
 func (r *tagFollowerRepository) ListFollowers(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error) {
 	var users []*model.User
 	var total int64
@@ -99,6 +104,7 @@ func (r *tagFollowerRepository) ListFollowers(ctx context.Context, tagID string,
 	return users, total, nil
 }
 
+// タグのフォロワー数を取得する。
 func (r *tagFollowerRepository) CountFollowers(ctx context.Context, tagID string) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
@@ -108,6 +114,7 @@ func (r *tagFollowerRepository) CountFollowers(ctx context.Context, tagID string
 	return count, err
 }
 
+// ユーザーがフォローしているタグ一覧を取得する。
 func (r *tagFollowerRepository) ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]*model.Tag, int64, error) {
 	var tags []*model.Tag
 	var total int64

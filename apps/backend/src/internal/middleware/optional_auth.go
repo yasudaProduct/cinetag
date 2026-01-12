@@ -12,19 +12,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// NewOptionalAuthMiddleware は Authorization ヘッダーが付いている場合のみ Clerk JWT を検証し、
-// users テーブルと同期した User をコンテキストに設定します。
-//
+// Authorization ヘッダーが付いている場合のみ Clerk JWT を検証し、
+// users テーブルと同期した User をコンテキストに設定する。
 // - Authorization が無い場合: そのまま通す（匿名アクセス）
 // - Authorization があるが不正: 401 を返す
-//
-// NOTE: 検証器の設定（CLERK_JWKS_URL 等）は AuthMiddleware と同様です。
+// - CLERK_JWKS_URL 等の検証器の設定は AuthMiddleware と同様。
 func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc {
 	fmt.Println("[NewOptionalAuthMiddleware] NewOptionalAuthMiddleware")
 	jwksURL := os.Getenv("CLERK_JWKS_URL")
 	issuer := os.Getenv("CLERK_ISSUER")
 	audience := os.Getenv("CLERK_AUDIENCE")
 
+	// Clerk JWT 検証器を生成する。
 	validator, err := NewClerkJWTValidator(jwksURL, issuer, audience)
 	if err != nil {
 		log.Printf("OptionalAuthMiddleware misconfigured: %v", err)
@@ -32,6 +31,8 @@ func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc 
 	}
 
 	return func(c *gin.Context) {
+
+		// Clerk JWT 検証器が生成できなかった場合は 500 を返す。
 		if validator == nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": "auth middleware misconfigured",
@@ -40,13 +41,15 @@ func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc 
 			return
 		}
 
-		// Authorization Bearer トークンが付いている場合のみ検証する
+		// Authorization ヘッダーを取得する。
 		authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
 		if authHeader == "" {
+			// Authorization ヘッダーが空の場合はそのまま通す。
 			c.Next()
 			return
 		}
 		if !strings.HasPrefix(authHeader, "Bearer ") {
+			// Authorization ヘッダーが Bearer 形式でない場合は 401 を返す。
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			c.Abort()
 			return

@@ -27,5 +27,3 @@ type MovieCache struct {
 func (MovieCache) TableName() string {
 	return "movie_cache"
 }
-
-

@@ -44,7 +44,7 @@ type movieService struct {
 	cfg        TMDBConfig
 }
 
-// MovieService の実装を生成する。
+// MovieService を生成する。
 func NewMovieService(db *gorm.DB) MovieService {
 	cfg := TMDBConfig{
 		APIKey:          os.Getenv("TMDB_API_KEY"),
@@ -68,7 +68,7 @@ func NewMovieService(db *gorm.DB) MovieService {
 	}
 }
 
-// NewMovieServiceWithConfig はテストや将来の拡張用に、設定と HTTP クライアントを外部から注入するためのコンストラクタです。
+// テストや将来の拡張用に、設定と HTTP クライアントを外部から注入するためのコンストラクタ。
 func NewMovieServiceWithConfig(db *gorm.DB, cfg TMDBConfig, client *http.Client) MovieService {
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "https://api.themoviedb.org/3"
@@ -87,7 +87,7 @@ func NewMovieServiceWithConfig(db *gorm.DB, cfg TMDBConfig, client *http.Client)
 	}
 }
 
-// tmdbMovieResponse は TMDB の /movie/{movie_id} レスポンスのうち、必要なフィールドのみを表します。
+// TMDB の /movie/{movie_id} レスポンスのうち、必要なフィールドのみを表す構造体。
 type tmdbMovieResponse struct {
 	ID            int      `json:"id"`
 	Title         string   `json:"title"`
@@ -104,7 +104,7 @@ type tmdbMovieResponse struct {
 	Runtime *int `json:"runtime"`
 }
 
-// tmdbSearchResponse は TMDB の /search/movie の必要最小限のレスポンスです。
+// TMDB の /search/movie の必要最小限のレスポンスを表す構造体。
 type tmdbSearchResponse struct {
 	Page         int `json:"page"`
 	TotalPages   int `json:"total_pages"`
@@ -119,7 +119,7 @@ type tmdbSearchResponse struct {
 	} `json:"results"`
 }
 
-// TMDBSearchResult はフロントに返す検索候補です。
+// フロントに返す検索候補を表す構造体。
 type TMDBSearchResult struct {
 	TmdbMovieID   int      `json:"tmdb_movie_id"`
 	Title         string   `json:"title"`

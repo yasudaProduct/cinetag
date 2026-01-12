@@ -25,6 +25,7 @@ func NewAuthMiddleware(userService service.UserService) gin.HandlerFunc {
 	issuer := os.Getenv("CLERK_ISSUER")
 	audience := os.Getenv("CLERK_AUDIENCE")
 
+	// Clerk JWT 検証器を生成する。
 	validator, err := NewClerkJWTValidator(jwksURL, issuer, audience)
 	if err != nil {
 		// ルーティング初期化時に気づけるようログに出し、リクエストは 500 を返す
@@ -33,6 +34,8 @@ func NewAuthMiddleware(userService service.UserService) gin.HandlerFunc {
 	}
 
 	return func(c *gin.Context) {
+
+		// Clerk JWT 検証器が生成できなかった場合は 500 を返す。
 		if validator == nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": "auth middleware misconfigured",
@@ -41,7 +44,9 @@ func NewAuthMiddleware(userService service.UserService) gin.HandlerFunc {
 			return
 		}
 
+		// Authorization ヘッダーを取得する。
 		authHeader := c.GetHeader("Authorization")
+		// Authorization ヘッダーが空か Bearer 形式でない場合は 401 を返す。
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "unauthorized",
@@ -50,6 +55,7 @@ func NewAuthMiddleware(userService service.UserService) gin.HandlerFunc {
 			return
 		}
 
+		// Bearer トークンを取得する。
 		rawToken := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
 		if rawToken == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -59,6 +65,7 @@ func NewAuthMiddleware(userService service.UserService) gin.HandlerFunc {
 			return
 		}
 
+		// Bearer トークンを検証する。
 		claims, err := validator.Verify(c.Request.Context(), rawToken)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -68,6 +75,7 @@ func NewAuthMiddleware(userService service.UserService) gin.HandlerFunc {
 			return
 		}
 
+		// ClerkUserInfo を作成する。
 		clerkUser, err := service.NewClerkUserInfoFromJWTClaims(claims)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -77,6 +85,7 @@ func NewAuthMiddleware(userService service.UserService) gin.HandlerFunc {
 			return
 		}
 
+		// users テーブルと同期する。
 		user, err := userService.EnsureUser(c.Request.Context(), clerkUser)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -86,9 +95,10 @@ func NewAuthMiddleware(userService service.UserService) gin.HandlerFunc {
 			return
 		}
 
-		// 後続のハンドラーから参照できるよう、コンテキストに格納する
+		// 後続のハンドラーから参照できるよう、コンテキストに格納。
 		c.Set("user", user)
 
+		// 次のハンドラーに処理を渡す。
 		c.Next()
 	}
 }

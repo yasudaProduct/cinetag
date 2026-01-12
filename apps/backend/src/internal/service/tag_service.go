@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// TagListItem は公開タグ一覧で返す1件分の情報です。
+// 公開タグ一覧で返す1件分の情報を表す構造体。
 type TagListItem struct {
 	ID              string    `json:"id"`
 	Title           string    `json:"title"`
@@ -29,49 +29,69 @@ type TagListItem struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
-// TagService はタグに関するユースケースを表します。
+// タグに関するユースケースを表すインターフェース。
 type TagService interface {
-	// ListPublicTags は公開タグを検索・ソート・ページングして返します。
+	// 公開タグを検索・ソート・ページングして返す。
 	ListPublicTags(ctx context.Context, q, sort string, page, pageSize int) ([]TagListItem, int64, error)
 
-	// ListTagsByUserID はユーザーIDに紐づくタグ一覧を返します。
-	// publicOnly が true の場合、公開タグのみを返します（他ユーザーのページ閲覧時）。
+	// ユーザーIDに紐づくタグ一覧を返す。
+	// publicOnly が true の場合、公開タグのみを返す（他ユーザーのページ閲覧時）。
 	ListTagsByUserID(ctx context.Context, userID string, publicOnly bool, page, pageSize int) ([]TagListItem, int64, error)
 
 	// 指定タグの詳細を返す。
-	// viewerUserID は任意で、非公開タグの参照権限判定に利用する。
+	// - viewerUserID は任意で、非公開タグの参照権限判定に利用する。
+	// - page はページ番号を指定する。
+	// - pageSize はページサイズを指定する。
 	GetTagDetail(ctx context.Context, tagID string, viewerUserID *string) (*TagDetail, error)
 
-	// ListTagMovies は指定タグに含まれる映画一覧を返します。
-	// viewerUserID は任意で、非公開タグの参照権限判定に利用します。
+	// 指定タグに含まれる映画一覧を返す。
+	// - viewerUserID は任意で、非公開タグの参照権限判定に利用する。
+	// - page はページ番号を指定する。
+	// - pageSize はページサイズを指定する。
 	ListTagMovies(ctx context.Context, tagID string, viewerUserID *string, page, pageSize int) ([]TagMovieItem, int64, error)
 
-	// CreateTag は新しいタグを作成して返します。
+	// 新しいタグを作成して返す。
+	// - in は作成するタグの情報を指定する。
 	CreateTag(ctx context.Context, in CreateTagInput) (*model.Tag, error)
 
-	// AddMovieToTag はタグに映画を追加して返します（作成者のみ）。
+	// タグに映画を追加して返す（作成者のみ）。
+	// - in は追加する映画の情報を指定する。
 	AddMovieToTag(ctx context.Context, in AddMovieToTagInput) (*model.TagMovie, error)
 
-	// UpdateTag はタグのメタ情報を更新して返します（作成者のみ）。
+	// タグのメタ情報を更新して返す（作成者のみ）。
+	// - patch は更新するフィールドとその新しい値を指定する。
 	UpdateTag(ctx context.Context, tagID string, userID string, patch UpdateTagPatch) (*TagDetail, error)
 
-	// RemoveMovieFromTag はタグから映画を削除します。
-	// タグ作成者は全ての映画を削除可能。他のユーザーは自分が追加した映画のみ削除可能。
+	// タグから映画を削除する。
+	// - タグ作成者は全ての映画を削除可能。
+	// - 他のユーザーは自分が追加した映画のみ削除可能。
 	RemoveMovieFromTag(ctx context.Context, tagMovieID string, userID string) error
 
-	// FollowTag はタグをフォローします。
+	// タグをフォローする。
+	// - tagID はフォローするタグのIDを指定する。
+	// - userID はフォローするユーザーのIDを指定する。
 	FollowTag(ctx context.Context, tagID, userID string) error
 
-	// UnfollowTag はタグのフォローを解除します。
+	// タグのフォローを解除する。
+	// - tagID はフォローを解除するタグのIDを指定する。
+	// - userID はフォローを解除するユーザーのIDを指定する。
 	UnfollowTag(ctx context.Context, tagID, userID string) error
 
-	// IsFollowingTag はユーザーがタグをフォローしているかチェックします。
+	// ユーザーがタグをフォローしているかチェックする。
+	// - tagID はチェックするタグのIDを指定する。
+	// - userID はチェックするユーザーのIDを指定する。
 	IsFollowingTag(ctx context.Context, tagID, userID string) (bool, error)
 
-	// ListTagFollowers はタグのフォロワー一覧を返します。
+	// タグのフォロワー一覧を返す。
+	// - tagID はフォロワーを取得するタグのIDを指定する。
+	// - page はページ番号を指定する。
+	// - pageSize はページサイズを指定する。
 	ListTagFollowers(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error)
 
-	// ListFollowingTags はユーザーがフォローしているタグ一覧を返します。
+	// ユーザーがフォローしているタグ一覧を返す。
+	// - userID はフォローしているタグを取得するユーザーのIDを指定する。
+	// - page はページ番号を指定する。
+	// - pageSize はページサイズを指定する。
 	ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]TagListItem, int64, error)
 }
 
@@ -83,7 +103,7 @@ type tagService struct {
 	imageBaseURL    string
 }
 
-// NewTagService は TagService の実装を生成します。
+// TagService を生成する。
 func NewTagService(
 	tagRepo repository.TagRepository,
 	tagMovieRepo repository.TagMovieRepository,
@@ -100,7 +120,7 @@ func NewTagService(
 	}
 }
 
-// CreateTagInput はタグ作成時の入力値を表します。
+// タグ作成時の入力値を表す構造体。
 type CreateTagInput struct {
 	UserID         string
 	Title          string
@@ -110,7 +130,7 @@ type CreateTagInput struct {
 	AddMoviePolicy *string
 }
 
-// AddMovieToTagInput はタグへ映画を追加する際の入力値です。
+// タグへ映画を追加する際の入力値を表す構造体。
 type AddMovieToTagInput struct {
 	TagID       string
 	UserID      string
@@ -119,8 +139,8 @@ type AddMovieToTagInput struct {
 	Position    int
 }
 
-// TagDetail はタグ詳細API向けのレスポンスモデルです。
-// フロントの zod schema が owner を許容しているため、owner を返す形に寄せます。
+// タグ詳細API向けのレスポンスモデルを表す構造体。
+// - フロントの zod schema が owner を許容しているため、owner を返す形に寄せる。
 type TagDetail struct {
 	ID             string    `json:"id"`
 	Title          string    `json:"title"`
@@ -136,12 +156,13 @@ type TagDetail struct {
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 
-	// UI都合（既存画面の参加者表示）: 現時点では follower_count を参加者数として扱い、
+	// UI都合（既存画面の参加者表示）: 現時点では follower_count を参加者数として扱う。
 	// 一覧は未実装のため空配列を返す。
 	ParticipantCount int              `json:"participant_count"`
 	Participants     []TagParticipant `json:"participants"`
 }
 
+// タグの所有者を表す構造体。
 type TagOwner struct {
 	ID          string  `json:"id"`
 	Username    string  `json:"username"`
@@ -150,13 +171,14 @@ type TagOwner struct {
 	AvatarURL   *string `json:"avatar_url,omitempty"`
 }
 
+// タグの参加者を表す構造体。
 type TagParticipant struct {
 	Name      string  `json:"name"`
 	DisplayID string  `json:"display_id,omitempty"`
 	AvatarURL *string `json:"avatar_url,omitempty"`
 }
 
-// TagMovieItem はタグ内映画一覧API向けのレスポンスモデルです。
+// タグ内映画一覧API向けのレスポンスモデルを表す構造体。
 type TagMovieItem struct {
 	ID            string    `json:"id"`
 	TagID         string    `json:"tag_id"`
@@ -169,6 +191,7 @@ type TagMovieItem struct {
 	Movie         *MovieRef `json:"movie,omitempty"`
 }
 
+// 映画を表す構造体。
 type MovieRef struct {
 	Title         string   `json:"title"`
 	OriginalTitle *string  `json:"original_title,omitempty"`
@@ -177,7 +200,7 @@ type MovieRef struct {
 	VoteAverage   *float64 `json:"vote_average,omitempty"`
 }
 
-// UpdateTagPatch はタグ更新の入力値です（部分更新）。
+// タグ更新の入力値を表す構造体（部分更新）。
 // nil のフィールドは更新しません。
 type UpdateTagPatch struct {
 	Title          *string
@@ -187,6 +210,7 @@ type UpdateTagPatch struct {
 	AddMoviePolicy *string
 }
 
+// エラー定数。
 var (
 	ErrTagNotFound           = errors.New("tag not found")            // タグが存在しない
 	ErrTagPermissionDenied   = errors.New("tag permission denied")    // タグの編集権限がない
@@ -196,9 +220,10 @@ var (
 	ErrNotFollowingTag       = errors.New("not following tag")        // タグをフォローしていない
 )
 
+// タグを更新する。
 func (s *tagService) UpdateTag(ctx context.Context, tagID string, userID string, patch UpdateTagPatch) (*TagDetail, error) {
 
-	// 必須バリデーション（tagID/userID）
+	// 必須バリデーション（tagID/userID）をチェックする。
 	if strings.TrimSpace(tagID) == "" {
 		return nil, fmt.Errorf("tag_id is required")
 	}
@@ -336,6 +361,7 @@ func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserI
 	}, nil
 }
 
+// 指定タグに含まれる映画一覧を返す。
 func (s *tagService) ListTagMovies(ctx context.Context, tagID string, viewerUserID *string, page, pageSize int) ([]TagMovieItem, int64, error) {
 	if strings.TrimSpace(tagID) == "" {
 		return nil, 0, fmt.Errorf("tag_id is required")
@@ -546,6 +572,7 @@ func (s *tagService) AddMovieToTag(ctx context.Context, in AddMovieToTagInput) (
 	return &tm, nil
 }
 
+// 公開タグ一覧を返す。
 func (s *tagService) ListPublicTags(ctx context.Context, q, sort string, page, pageSize int) ([]TagListItem, int64, error) {
 	if page < 1 {
 		page = 1
@@ -629,6 +656,7 @@ func (s *tagService) ListPublicTags(ctx context.Context, q, sort string, page, p
 	return items, total, nil
 }
 
+// ユーザーIDに紐づくタグ一覧を返す。
 func (s *tagService) ListTagsByUserID(ctx context.Context, userID string, publicOnly bool, page, pageSize int) ([]TagListItem, int64, error) {
 	if strings.TrimSpace(userID) == "" {
 		return nil, 0, fmt.Errorf("user_id is required")
@@ -708,9 +736,10 @@ func (s *tagService) ListTagsByUserID(ctx context.Context, userID string, public
 	return items, total, nil
 }
 
-// RemoveMovieFromTag はタグから映画を削除します。
-// タグ作成者は全ての映画を削除可能。タグがowner_onlyの場合は作成者のみ削除可能。
-// それ以外の場合は、自分が追加した映画のみ削除可能。
+// タグから映画を削除する。
+// - タグ作成者は全ての映画を削除可能。
+// - タグがowner_onlyの場合は作成者のみ削除可能。
+// - それ以外の場合は、自分が追加した映画のみ削除可能。
 func (s *tagService) RemoveMovieFromTag(ctx context.Context, tagMovieID string, userID string) error {
 	if strings.TrimSpace(tagMovieID) == "" {
 		return fmt.Errorf("tag_movie_id is required")
@@ -762,7 +791,7 @@ func (s *tagService) RemoveMovieFromTag(ctx context.Context, tagMovieID string, 
 	return nil
 }
 
-// FollowTag はタグをフォローします。
+// タグをフォローする。
 func (s *tagService) FollowTag(ctx context.Context, tagID, userID string) error {
 	if strings.TrimSpace(tagID) == "" {
 		return fmt.Errorf("tag_id is required")
@@ -841,7 +870,7 @@ func (s *tagService) IsFollowingTag(ctx context.Context, tagID, userID string) (
 	return s.tagFollowerRepo.IsFollowing(ctx, tagID, userID)
 }
 
-// ListTagFollowers はタグのフォロワー一覧を返します。
+// タグのフォロワー一覧を返す。
 func (s *tagService) ListTagFollowers(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error) {
 	if strings.TrimSpace(tagID) == "" {
 		return nil, 0, fmt.Errorf("tag_id is required")
@@ -868,7 +897,7 @@ func (s *tagService) ListTagFollowers(ctx context.Context, tagID string, page, p
 	return s.tagFollowerRepo.ListFollowers(ctx, tagID, page, pageSize)
 }
 
-// ListFollowingTags はユーザーがフォローしているタグ一覧を返します。
+// ユーザーがフォローしているタグ一覧を返す。
 func (s *tagService) ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]TagListItem, int64, error) {
 	if strings.TrimSpace(userID) == "" {
 		return nil, 0, fmt.Errorf("user_id is required")

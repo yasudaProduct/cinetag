@@ -8,24 +8,24 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserFollowerRepository は user_followers テーブルの永続化処理を表します。
+// user_followers テーブルの永続化処理を表すインターフェース。
 type UserFollowerRepository interface {
-	// Create はフォロー関係を作成します
+	// フォロー関係を作成する。
 	Create(ctx context.Context, followerID, followeeID string) error
-	// Delete はフォロー関係を削除します
+	// フォロー関係を削除する。
 	Delete(ctx context.Context, followerID, followeeID string) error
-	// DeleteAllByUserID は指定ユーザーが関与するフォロー関係を全て削除します。
+	// 指定ユーザーが関与するフォロー関係を全て削除する。
 	// （follower / followee の両方を対象とします）
 	DeleteAllByUserID(ctx context.Context, userID string) error
-	// IsFollowing は followerID が followeeID をフォローしているかチェックします
+	// followerID が followeeID をフォローしているかチェックする。
 	IsFollowing(ctx context.Context, followerID, followeeID string) (bool, error)
-	// ListFollowing は指定ユーザーがフォローしているユーザー一覧を返します
+	// 指定ユーザーがフォローしているユーザー一覧を取得する。
 	ListFollowing(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error)
-	// ListFollowers は指定ユーザーをフォローしているユーザー一覧を返します
+	// 指定ユーザーをフォローしているユーザー一覧を取得する。
 	ListFollowers(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error)
-	// CountFollowing は指定ユーザーがフォローしているユーザー数を返します
+	// 指定ユーザーがフォローしているユーザー数を取得する。
 	CountFollowing(ctx context.Context, userID string) (int64, error)
-	// CountFollowers は指定ユーザーのフォロワー数を返します
+	// 指定ユーザーのフォロワー数を取得する。
 	CountFollowers(ctx context.Context, userID string) (int64, error)
 }
 
@@ -33,11 +33,12 @@ type userFollowerRepository struct {
 	db *gorm.DB
 }
 
-// NewUserFollowerRepository は UserFollowerRepository の実装を生成します。
+// UserFollowerRepository の実装を生成する。
 func NewUserFollowerRepository(db *gorm.DB) UserFollowerRepository {
 	return &userFollowerRepository{db: db}
 }
 
+// フォロー関係を作成する。
 func (r *userFollowerRepository) Create(ctx context.Context, followerID, followeeID string) error {
 	follow := &model.UserFollower{
 		FollowerID: followerID,
@@ -46,18 +47,21 @@ func (r *userFollowerRepository) Create(ctx context.Context, followerID, followe
 	return r.db.WithContext(ctx).Create(follow).Error
 }
 
+// フォロー関係を削除する。
 func (r *userFollowerRepository) Delete(ctx context.Context, followerID, followeeID string) error {
 	return r.db.WithContext(ctx).
 		Where("follower_id = ? AND followee_id = ?", followerID, followeeID).
 		Delete(&model.UserFollower{}).Error
 }
 
+// 指定ユーザーが関与するフォロー関係を全て削除する。
 func (r *userFollowerRepository) DeleteAllByUserID(ctx context.Context, userID string) error {
 	return r.db.WithContext(ctx).
 		Where("follower_id = ? OR followee_id = ?", userID, userID).
 		Delete(&model.UserFollower{}).Error
 }
 
+// followerID が followeeID をフォローしているかチェックする。
 func (r *userFollowerRepository) IsFollowing(ctx context.Context, followerID, followeeID string) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
@@ -70,6 +74,7 @@ func (r *userFollowerRepository) IsFollowing(ctx context.Context, followerID, fo
 	return count > 0, nil
 }
 
+// 指定ユーザーがフォローしているユーザー一覧を取得する。
 func (r *userFollowerRepository) ListFollowing(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error) {
 	var users []*model.User
 	var total int64
@@ -102,6 +107,7 @@ func (r *userFollowerRepository) ListFollowing(ctx context.Context, userID strin
 	return users, total, nil
 }
 
+// 指定ユーザーをフォローしているユーザー一覧を取得する。
 func (r *userFollowerRepository) ListFollowers(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error) {
 	var users []*model.User
 	var total int64
@@ -134,6 +140,7 @@ func (r *userFollowerRepository) ListFollowers(ctx context.Context, userID strin
 	return users, total, nil
 }
 
+// 指定ユーザーがフォローしているユーザー数を取得する。
 func (r *userFollowerRepository) CountFollowing(ctx context.Context, userID string) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
@@ -143,6 +150,7 @@ func (r *userFollowerRepository) CountFollowing(ctx context.Context, userID stri
 	return count, err
 }
 
+// 指定ユーザーのフォロワー数を取得する。
 func (r *userFollowerRepository) CountFollowers(ctx context.Context, userID string) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).

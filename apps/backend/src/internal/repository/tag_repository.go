@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// TagListFilter は公開タグ一覧取得時のフィルタ条件を表します。
+// 公開タグ一覧取得時のフィルタ条件を表す。
 type TagListFilter struct {
 	Query  string
 	Sort   string
@@ -18,7 +18,7 @@ type TagListFilter struct {
 	Limit  int
 }
 
-// TagSummary は公開タグ一覧取得時に返す1件分の情報（DB由来部分）です。
+// 公開タグ一覧取得時に返す1件分の情報（DB由来部分）を表す。
 type TagSummary struct {
 	ID              string    `gorm:"column:id"`
 	Title           string    `gorm:"column:title"`
@@ -32,7 +32,7 @@ type TagSummary struct {
 	AuthorDisplayID string    `gorm:"column:author_display_id"`
 }
 
-// TagDetailRow はタグ詳細取得時に返すDB由来の情報です。
+// タグ詳細取得時に返すDB由来の情報を表す。
 // owner 情報を users と JOIN して取得します。
 type TagDetailRow struct {
 	ID             string    `gorm:"column:id"`
@@ -53,7 +53,7 @@ type TagDetailRow struct {
 	OwnerAvatarURL   *string `gorm:"column:owner_avatar_url"`
 }
 
-// UserTagListFilter はユーザーのタグ一覧取得時のフィルタ条件を表します。
+// ユーザーのタグ一覧取得時のフィルタ条件を表す。
 type UserTagListFilter struct {
 	UserID        string
 	IncludePublic bool // trueなら公開タグのみ、falseなら全て（自分のページ用）
@@ -61,7 +61,7 @@ type UserTagListFilter struct {
 	Limit         int
 }
 
-// TagRepository はタグに関する永続化処理を表します。
+// タグに関する永続化処理を表すインターフェース。
 type TagRepository interface {
 	Create(ctx context.Context, tag *model.Tag) error
 	FindByID(ctx context.Context, id string) (*model.Tag, error)
@@ -76,7 +76,7 @@ type tagRepository struct {
 	db *gorm.DB
 }
 
-// TagUpdatePatch は tags テーブルの部分更新に利用します。
+// tags テーブルの部分更新に利用する。
 // nil のフィールドは更新しません。
 type TagUpdatePatch struct {
 	Title          *string
@@ -86,15 +86,17 @@ type TagUpdatePatch struct {
 	AddMoviePolicy *string
 }
 
-// NewTagRepository は TagRepository の実装を生成します。
+// TagRepository の実装を生成する。
 func NewTagRepository(db *gorm.DB) TagRepository {
 	return &tagRepository{db: db}
 }
 
+// タグを作成する。
 func (r *tagRepository) Create(ctx context.Context, tag *model.Tag) error {
 	return r.db.WithContext(ctx).Create(tag).Error
 }
 
+// 指定IDのタグを取得する。
 func (r *tagRepository) FindByID(ctx context.Context, id string) (*model.Tag, error) {
 	var tag model.Tag
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&tag).Error
@@ -107,6 +109,7 @@ func (r *tagRepository) FindByID(ctx context.Context, id string) (*model.Tag, er
 	return &tag, nil
 }
 
+// 指定IDのタグの詳細を取得する。
 func (r *tagRepository) FindDetailByID(ctx context.Context, id string) (*TagDetailRow, error) {
 	var row TagDetailRow
 	err := r.db.WithContext(ctx).
@@ -128,6 +131,7 @@ func (r *tagRepository) FindDetailByID(ctx context.Context, id string) (*TagDeta
 	return &row, nil
 }
 
+// 指定IDのタグを更新する。
 func (r *tagRepository) UpdateByID(ctx context.Context, id string, patch TagUpdatePatch) error {
 	updates := map[string]any{}
 	if patch.Title != nil {
@@ -157,6 +161,7 @@ func (r *tagRepository) UpdateByID(ctx context.Context, id string, patch TagUpda
 		Error
 }
 
+// 指定IDのタグの映画数を増やす。
 func (r *tagRepository) IncrementMovieCount(ctx context.Context, id string, delta int) error {
 	if delta == 0 {
 		return nil
@@ -168,6 +173,7 @@ func (r *tagRepository) IncrementMovieCount(ctx context.Context, id string, delt
 		Error
 }
 
+// 公開タグ一覧を取得する。
 func (r *tagRepository) ListPublicTags(ctx context.Context, filter TagListFilter) ([]TagSummary, int64, error) {
 	if filter.Limit <= 0 {
 		return []TagSummary{}, 0, nil
@@ -212,6 +218,7 @@ func (r *tagRepository) ListPublicTags(ctx context.Context, filter TagListFilter
 	return rows, total, nil
 }
 
+// 指定ユーザーのタグ一覧を取得する。
 func (r *tagRepository) ListTagsByUserID(ctx context.Context, filter UserTagListFilter) ([]TagSummary, int64, error) {
 	if filter.Limit <= 0 {
 		return []TagSummary{}, 0, nil

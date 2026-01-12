@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserRepository は users テーブルの永続化処理を表します。
+// users テーブルの永続化処理を表すインターフェース。
 type UserRepository interface {
 	FindByID(ctx context.Context, userID string) (*model.User, error)
 	FindByClerkUserID(ctx context.Context, clerkUserID string) (*model.User, error)
@@ -23,11 +23,12 @@ type userRepository struct {
 	db *gorm.DB
 }
 
-// NewUserRepository は UserRepository の実装を生成します。
+// UserRepository の実装を生成する。
 func NewUserRepository(db *gorm.DB) UserRepository {
 	return &userRepository{db: db}
 }
 
+// userID からユーザー情報を取得する。
 func (r *userRepository) FindByID(ctx context.Context, userID string) (*model.User, error) {
 	var user model.User
 	if err := r.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
@@ -36,6 +37,7 @@ func (r *userRepository) FindByID(ctx context.Context, userID string) (*model.Us
 	return &user, nil
 }
 
+// clerk_user_id からユーザー情報を取得する。
 func (r *userRepository) FindByClerkUserID(ctx context.Context, clerkUserID string) (*model.User, error) {
 	var user model.User
 	if err := r.db.WithContext(ctx).Where("clerk_user_id = ?", clerkUserID).First(&user).Error; err != nil {
@@ -44,6 +46,7 @@ func (r *userRepository) FindByClerkUserID(ctx context.Context, clerkUserID stri
 	return &user, nil
 }
 
+// display_id からユーザー情報を取得する。
 func (r *userRepository) FindByDisplayID(ctx context.Context, displayID string) (*model.User, error) {
 	fmt.Println("[user_repository] FindByDisplayID", displayID)
 	var user model.User
@@ -53,10 +56,12 @@ func (r *userRepository) FindByDisplayID(ctx context.Context, displayID string) 
 	return &user, nil
 }
 
+// ユーザーを作成する。
 func (r *userRepository) Create(ctx context.Context, user *model.User) error {
 	return r.db.WithContext(ctx).Create(user).Error
 }
 
+// ユーザーを論理削除＋匿名化する。
 func (r *userRepository) UpdateForUserDeactivated(ctx context.Context, userID string, now time.Time, anonymizedEmail string) error {
 	updates := map[string]any{
 		"deleted_at":   now,

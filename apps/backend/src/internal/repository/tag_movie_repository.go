@@ -13,26 +13,26 @@ import (
 
 var ErrTagMovieAlreadyExists = errors.New("tag movie already exists")
 
-// TagMovieRepository はタグに紐づく映画(TagMovie)に関する永続化処理を表します。
+// タグに紐づく映画(TagMovie)に関する永続化処理を表すインターフェース。
 type TagMovieRepository interface {
-	// ListRecentByTag は指定したタグに紐づく映画を、追加順(新しい順)で最大 limit 件まで取得します。
+	// 指定したタグに紐づく映画を、追加順(新しい順)で最大 limit 件まで取得する。
 	ListRecentByTag(ctx context.Context, tagID string, limit int) ([]model.TagMovie, error)
-	// ListByTag は指定したタグに紐づく映画を取得します（ページング対応）。
-	// movie_cache を LEFT JOIN し、可能なら映画情報も一緒に返します。
+	// 指定したタグに紐づく映画を取得する（ページング対応）。
+	// movie_cache を LEFT JOIN し、可能なら映画情報も一緒に返す。
 	ListByTag(ctx context.Context, tagID string, offset, limit int) ([]TagMovieWithCache, int64, error)
-	// Create はタグに映画を追加します。
-	// ユニーク制約違反（tag_movies_unique）の場合は ErrTagMovieAlreadyExists を返します。
+	// タグに映画を追加する。
+	// ユニーク制約違反（tag_movies_unique）の場合は ErrTagMovieAlreadyExists を返す。
 	Create(ctx context.Context, tagMovie *model.TagMovie) error
-	// FindByID は指定したIDのタグ映画を取得します。
+	// 指定したIDのタグ映画を取得する。
 	FindByID(ctx context.Context, tagMovieID string) (*model.TagMovie, error)
-	// Delete は指定したIDのタグ映画を削除します。
+	// 指定したIDのタグ映画を削除する。
 	Delete(ctx context.Context, tagMovieID string) error
-	// ListContributorsByTag は指定したタグに映画を追加したユーザー（参加者）を取得します。
-	// タグ作成者(ownerID)は除外されます。
+	// 指定したタグに映画を追加したユーザー（参加者）を取得する。
+	// タグ作成者(ownerID)は除外される。
 	ListContributorsByTag(ctx context.Context, tagID string, ownerID string, limit int) ([]TagContributor, int64, error)
 }
 
-// TagContributor はタグに映画を追加したユーザー情報です。
+// タグに映画を追加したユーザー情報です。
 type TagContributor struct {
 	UserID      string  `gorm:"column:user_id"`
 	DisplayID   string  `gorm:"column:display_id"`
@@ -40,8 +40,8 @@ type TagContributor struct {
 	AvatarURL   *string `gorm:"column:avatar_url"`
 }
 
-// TagMovieWithCache は tag_movies と movie_cache の結合結果です。
-// cache 側は存在しない可能性があるため nullable を許容します。
+// tag_movies と movie_cache の結合結果を表す。
+// cache 側は存在しない可能性があるため nullable を許容する。
 type TagMovieWithCache struct {
 	ID          string    `gorm:"column:id"`
 	TagID       string    `gorm:"column:tag_id"`
@@ -58,15 +58,17 @@ type TagMovieWithCache struct {
 	MovieVoteAverage   *float64   `gorm:"column:movie_vote_average"`
 }
 
+// タグ映画に関する永続化処理を表すインターフェース。
 type tagMovieRepository struct {
 	db *gorm.DB
 }
 
-// NewTagMovieRepository は TagMovieRepository の実装を生成します。
+// TagMovieRepository の実装を生成する。
 func NewTagMovieRepository(db *gorm.DB) TagMovieRepository {
 	return &tagMovieRepository{db: db}
 }
 
+// 指定したタグに紐づく映画を、追加順(新しい順)で最大 limit 件まで取得する。
 func (r *tagMovieRepository) ListRecentByTag(ctx context.Context, tagID string, limit int) ([]model.TagMovie, error) {
 	if limit <= 0 {
 		return []model.TagMovie{}, nil
@@ -84,6 +86,8 @@ func (r *tagMovieRepository) ListRecentByTag(ctx context.Context, tagID string, 
 	return tagMovies, nil
 }
 
+// 指定したタグに紐づく映画を取得する（ページング対応）。
+// movie_cache を LEFT JOIN し、可能なら映画情報も一緒に返す。
 func (r *tagMovieRepository) ListByTag(ctx context.Context, tagID string, offset, limit int) ([]TagMovieWithCache, int64, error) {
 	if limit <= 0 {
 		return []TagMovieWithCache{}, 0, nil
@@ -123,6 +127,7 @@ func (r *tagMovieRepository) ListByTag(ctx context.Context, tagID string, offset
 	return rows, total, nil
 }
 
+// タグに映画を追加する。
 func (r *tagMovieRepository) Create(ctx context.Context, tagMovie *model.TagMovie) error {
 	// ユニーク制約(tag_movies_unique)は (tag_id, tmdb_movie_id)。
 	// 追加済みの場合はエラーにせず DoNothing にして RowsAffected で判定する。
@@ -140,6 +145,7 @@ func (r *tagMovieRepository) Create(ctx context.Context, tagMovie *model.TagMovi
 	return nil
 }
 
+// 指定したIDのタグ映画を取得する。
 func (r *tagMovieRepository) FindByID(ctx context.Context, tagMovieID string) (*model.TagMovie, error) {
 	var tagMovie model.TagMovie
 	if err := r.db.WithContext(ctx).Where("id = ?", tagMovieID).First(&tagMovie).Error; err != nil {
@@ -148,10 +154,13 @@ func (r *tagMovieRepository) FindByID(ctx context.Context, tagMovieID string) (*
 	return &tagMovie, nil
 }
 
+// 指定したIDのタグ映画を削除する。
 func (r *tagMovieRepository) Delete(ctx context.Context, tagMovieID string) error {
 	return r.db.WithContext(ctx).Where("id = ?", tagMovieID).Delete(&model.TagMovie{}).Error
 }
 
+// 指定したタグに映画を追加したユーザー（参加者）を取得する。
+// タグ作成者(ownerID)は除外される。
 func (r *tagMovieRepository) ListContributorsByTag(ctx context.Context, tagID string, ownerID string, limit int) ([]TagContributor, int64, error) {
 	if limit <= 0 {
 		limit = 10

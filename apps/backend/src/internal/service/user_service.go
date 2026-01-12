@@ -13,8 +13,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// ClerkUserInfo は、Clerk 側のユーザー情報のうち、
-// バックエンドが users テーブル同期に利用する最小限の情報を表します。
+// Clerk 側のユーザー情報のうち、
+// - バックエンドが users テーブル同期に利用する最小限の情報を表す構造体。
 type ClerkUserInfo struct {
 	ID        string  // Clerk の user ID
 	Email     string  // メールアドレス
@@ -23,51 +23,51 @@ type ClerkUserInfo struct {
 	AvatarURL *string // アイコンURL（任意）
 }
 
-// ErrUserNotFound はユーザーが見つからなかった場合のエラーです。
+// ユーザーが見つからなかった場合のエラー。
 var ErrUserNotFound = errors.New("user not found")
 
-// ErrCannotFollowSelf は自分自身をフォローしようとした場合のエラーです。
+// 自分自身をフォローしようとした場合のエラー。
 var ErrCannotFollowSelf = errors.New("cannot follow yourself")
 
-// ErrAlreadyFollowing は既にフォロー済みの場合のエラーです。
+// 既にフォロー済みの場合のエラー。
 var ErrAlreadyFollowing = errors.New("already following")
 
-// ErrNotFollowing はフォローしていないユーザーをアンフォローしようとした場合のエラーです。
+// フォローしていないユーザーをアンフォローしようとした場合のエラー。
 var ErrNotFollowing = errors.New("not following")
 
-// UserService は users テーブルに関するユースケースを表します。
+// users テーブルに関するユースケースを表すインターフェース。
 type UserService interface {
-	// EnsureUser は Clerk のユーザー情報をもとに、
-	// users テーブル上に対応するレコードが存在することを保証します。
-	// 既に存在すればそれを返し、存在しなければ新規作成して返します。
+	// Clerk ユーザー情報をもとに、
+	// users テーブル上に対応するレコードが存在することを保証する。
+	// - 既に存在すればそれを返し、存在しなければ新規作成して返す。
 	EnsureUser(ctx context.Context, clerkUser ClerkUserInfo) (*model.User, error)
 
-	// FindUserByClerkUserID は clerk_user_id からユーザー情報を取得します。
-	// 削除済みユーザーも取得対象とします（必要に応じて呼び出し側で扱いを決める）。
+	// clerk_user_id からユーザー情報を取得する。
+	// - 削除済みユーザーも取得対象とする（必要に応じて呼び出し側で扱いを決める）。
 	FindUserByClerkUserID(ctx context.Context, clerkUserID string) (*model.User, error)
 
-	// GetUserByDisplayID は display_id からユーザー情報を取得します。
+	// display_id からユーザー情報を取得する。
 	GetUserByDisplayID(ctx context.Context, displayID string) (*model.User, error)
 
-	// FollowUser は指定ユーザーをフォローします。
+	// 指定ユーザーをフォローする。
 	FollowUser(ctx context.Context, followerID, followeeID string) error
 
-	// UnfollowUser は指定ユーザーをアンフォローします。
+	// 指定ユーザーをアンフォローする。
 	UnfollowUser(ctx context.Context, followerID, followeeID string) error
 
-	// IsFollowing は followerID が followeeID をフォローしているかチェックします。
+	// followerID が followeeID をフォローしているかチェックする。
 	IsFollowing(ctx context.Context, followerID, followeeID string) (bool, error)
 
-	// ListFollowing は指定ユーザーがフォローしているユーザー一覧を取得します。
+	// 指定ユーザーがフォローしているユーザー一覧を取得する。
 	ListFollowing(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error)
 
-	// ListFollowers は指定ユーザーをフォローしているユーザー一覧を取得します。
+	// 指定ユーザーをフォローしているユーザー一覧を取得する。
 	ListFollowers(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error)
 
-	// GetFollowStats はフォロー数とフォロワー数を取得します。
+	// フォロー数とフォロワー数を取得する。
 	GetFollowStats(ctx context.Context, userID string) (following int64, followers int64, err error)
 
-	// DeactivateUser はユーザーを論理削除＋匿名化し、関連データをクリーンアップします。
+	// ユーザーを論理削除＋匿名化し、関連データをクリーンアップする。
 	DeactivateUser(ctx context.Context, userID string) error
 }
 
@@ -78,7 +78,7 @@ type userService struct {
 	tagFollowerRepo  repository.TagFollowerRepository
 }
 
-// NewUserService は UserService の実装を生成します。
+// UserService の実装を生成する。
 func NewUserService(db *gorm.DB, userRepo repository.UserRepository, userFollowerRepo repository.UserFollowerRepository, tagFollowerRepo repository.TagFollowerRepository) UserService {
 	return &userService{
 		db:               db,
@@ -88,7 +88,7 @@ func NewUserService(db *gorm.DB, userRepo repository.UserRepository, userFollowe
 	}
 }
 
-// EnsureUser は Clerk ユーザーに対応する users レコードの存在を保証します。
+// Clerk ユーザーに対応する users レコードの存在を保証する。
 func (s *userService) EnsureUser(ctx context.Context, clerkInfo ClerkUserInfo) (*model.User, error) {
 	fmt.Println("[user_service] EnsureUser", clerkInfo.ID)
 	if clerkInfo.ID == "" {
@@ -130,7 +130,7 @@ func (s *userService) EnsureUser(ctx context.Context, clerkInfo ClerkUserInfo) (
 	return user, nil
 }
 
-// FindUserByClerkUserID は clerk_user_id からユーザー情報を取得します。
+// clerk_user_id からユーザー情報を取得する。
 func (s *userService) FindUserByClerkUserID(ctx context.Context, clerkUserID string) (*model.User, error) {
 	clerkUserID = strings.TrimSpace(clerkUserID)
 	if clerkUserID == "" {
@@ -147,6 +147,11 @@ func (s *userService) FindUserByClerkUserID(ctx context.Context, clerkUserID str
 	return u, nil
 }
 
+// ユーザー名を解決する。
+// - FirstName と LastName が両方存在する場合は FirstName + LastName を返す。
+// - FirstName が存在する場合は FirstName を返す。
+// - LastName が存在する場合は LastName を返す。
+// - どちらも存在しない場合は "名無し" を返す。
 func resolveDisplayName(clerkInfo ClerkUserInfo) string {
 	first := strings.TrimSpace(clerkInfo.FirstName)
 	last := strings.TrimSpace(clerkInfo.LastName)
@@ -162,7 +167,7 @@ func resolveDisplayName(clerkInfo ClerkUserInfo) string {
 	return "名無し"
 }
 
-// GetUserByDisplayID は display_id からユーザー情報を取得します。
+// display_id からユーザー情報を取得する。
 func (s *userService) GetUserByDisplayID(ctx context.Context, displayID string) (*model.User, error) {
 	fmt.Println("[user_service] GetUserByDisplayID", displayID)
 	if displayID == "" {
@@ -183,7 +188,7 @@ func (s *userService) GetUserByDisplayID(ctx context.Context, displayID string) 
 	return user, nil
 }
 
-// FollowUser は指定ユーザーをフォローします。
+// 指定ユーザーをフォローする。
 func (s *userService) FollowUser(ctx context.Context, followerID, followeeID string) error {
 	fmt.Println("[user_service] FollowUser", followerID, followeeID)
 	if followerID == "" || followeeID == "" {
@@ -218,7 +223,7 @@ func (s *userService) FollowUser(ctx context.Context, followerID, followeeID str
 	return s.userFollowerRepo.Create(ctx, followerID, followeeID)
 }
 
-// UnfollowUser は指定ユーザーをアンフォローします。
+// 指定ユーザーをアンフォローする。
 func (s *userService) UnfollowUser(ctx context.Context, followerID, followeeID string) error {
 	if followerID == "" || followeeID == "" {
 		return errors.New("follower_id and followee_id are required")
@@ -236,7 +241,7 @@ func (s *userService) UnfollowUser(ctx context.Context, followerID, followeeID s
 	return s.userFollowerRepo.Delete(ctx, followerID, followeeID)
 }
 
-// IsFollowing は followerID が followeeID をフォローしているかチェックします。
+// followerID が followeeID をフォローしているかチェックする。
 func (s *userService) IsFollowing(ctx context.Context, followerID, followeeID string) (bool, error) {
 	if followerID == "" || followeeID == "" {
 		return false, nil
@@ -244,7 +249,7 @@ func (s *userService) IsFollowing(ctx context.Context, followerID, followeeID st
 	return s.userFollowerRepo.IsFollowing(ctx, followerID, followeeID)
 }
 
-// ListFollowing は指定ユーザーがフォローしているユーザー一覧を取得します。
+// 指定ユーザーがフォローしているユーザー一覧を取得する。
 func (s *userService) ListFollowing(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error) {
 	if userID == "" {
 		return nil, 0, errors.New("user_id is required")
@@ -258,7 +263,7 @@ func (s *userService) ListFollowing(ctx context.Context, userID string, page, pa
 	return s.userFollowerRepo.ListFollowing(ctx, userID, page, pageSize)
 }
 
-// ListFollowers は指定ユーザーをフォローしているユーザー一覧を取得します。
+// 指定ユーザーをフォローしているユーザー一覧を取得する。
 func (s *userService) ListFollowers(ctx context.Context, userID string, page, pageSize int) ([]*model.User, int64, error) {
 	if userID == "" {
 		return nil, 0, errors.New("user_id is required")
@@ -272,7 +277,7 @@ func (s *userService) ListFollowers(ctx context.Context, userID string, page, pa
 	return s.userFollowerRepo.ListFollowers(ctx, userID, page, pageSize)
 }
 
-// GetFollowStats はフォロー数とフォロワー数を取得します。
+// フォロー数とフォロワー数を取得する。
 func (s *userService) GetFollowStats(ctx context.Context, userID string) (following int64, followers int64, err error) {
 	if userID == "" {
 		return 0, 0, errors.New("user_id is required")
@@ -291,7 +296,7 @@ func (s *userService) GetFollowStats(ctx context.Context, userID string) (follow
 	return following, followers, nil
 }
 
-// DeactivateUser はユーザーを、DB側で論理削除＋匿名化し、関連データをクリーンアップします。
+// ユーザーを、DB側で論理削除＋匿名化し、関連データをクリーンアップする。
 func (s *userService) DeactivateUser(ctx context.Context, userID string) error {
 	userID = strings.TrimSpace(userID)
 	if userID == "" {

@@ -19,9 +19,9 @@ func isDevelop() bool {
 	return strings.TrimSpace(strings.ToLower(os.Getenv("ENV"))) == "develop"
 }
 
-// SeedDevelop は開発環境（ENV=develop）のときだけ、開発用のseedデータを投入します。
+// 開発環境（ENV=develop）のときだけ、開発用のseedデータを投入する。
 //
-// 何度実行しても整合性が壊れないよう、ユニーク制約を利用した upsert / do-nothing で冪等化します。
+// 何度実行しても整合性が壊れないよう、ユニーク制約を利用した upsert / do-nothing で冪等化する。
 func SeedDevelop(db *gorm.DB) error {
 	if !isDevelop() {
 		return nil
