@@ -214,3 +214,73 @@ export const TagMoviesResponseSchema = z
     }));
 
 export type TagMoviesResponse = z.infer<typeof TagMoviesResponseSchema>;
+
+/**
+ * タグフォロー関連のスキーマ
+ */
+
+// GET /api/v1/tags/:tagId/follow-status のレスポンス
+export const TagFollowStatusResponseSchema = z
+    .object({
+        is_following: z.boolean(),
+    })
+    .passthrough()
+    .transform((data) => ({
+        isFollowing: data.is_following,
+    }));
+
+export type TagFollowStatusResponse = z.infer<typeof TagFollowStatusResponseSchema>;
+
+// POST /api/v1/tags/:tagId/follow のレスポンス
+export const TagFollowResponseSchema = z
+    .object({
+        message: z.string().optional(),
+    })
+    .passthrough();
+
+export type TagFollowResponse = z.infer<typeof TagFollowResponseSchema>;
+
+// DELETE /api/v1/tags/:tagId/follow のレスポンス
+export const TagUnfollowResponseSchema = z
+    .object({
+        message: z.string().optional(),
+    })
+    .passthrough();
+
+export type TagUnfollowResponse = z.infer<typeof TagUnfollowResponseSchema>;
+
+// フォロワーユーザー
+const TagFollowerSchema = z
+    .object({
+        id: z.string(),
+        display_id: z.string(),
+        display_name: z.string(),
+        avatar_url: z.string().nullable().optional(),
+    })
+    .passthrough()
+    .transform((data) => ({
+        id: data.id,
+        displayId: data.display_id,
+        displayName: data.display_name,
+        avatarUrl: data.avatar_url ?? undefined,
+    }));
+
+export type TagFollower = z.infer<typeof TagFollowerSchema>;
+
+// GET /api/v1/tags/:tagId/followers のレスポンス
+export const TagFollowersListResponseSchema = z
+    .object({
+        items: z.array(TagFollowerSchema),
+        page: z.number().int().positive().optional(),
+        page_size: z.number().int().positive().optional(),
+        total_count: z.number().int().nonnegative().optional(),
+    })
+    .passthrough()
+    .transform((data) => ({
+        items: data.items,
+        page: data.page ?? 1,
+        pageSize: data.page_size ?? 20,
+        totalCount: data.total_count ?? 0,
+    }));
+
+export type TagFollowersListResponse = z.infer<typeof TagFollowersListResponseSchema>;

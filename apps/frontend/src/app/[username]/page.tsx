@@ -15,11 +15,12 @@ import { followUser } from "@/lib/api/users/followUser";
 import { unfollowUser } from "@/lib/api/users/unfollowUser";
 import { listFollowing } from "@/lib/api/users/listFollowing";
 import { listFollowers } from "@/lib/api/users/listFollowers";
+import { listFollowingTags } from "@/lib/api/me/listFollowingTags";
 import { useParams } from "next/navigation";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
-type TabType = "created" | "registered" | "favorite" | "following" | "followers";
+type TabType = "created" | "registered" | "favorite" | "following" | "followers" | "followingTags";
 
 export default function UserPage() {
   const params = useParams();
@@ -92,6 +93,17 @@ export default function UserPage() {
     queryKey: ["followers", username],
     queryFn: () => listFollowers(username),
     enabled: !!username && !!profileUser && activeTab === "followers",
+  });
+
+  // フォロー中のタグ一覧を取得（自分のページのみ）
+  const { data: followingTagsData, isLoading: isFollowingTagsLoading } = useQuery({
+    queryKey: ["followingTags", username],
+    queryFn: async () => {
+      const token = await getToken({ template: "cinetag-backend" });
+      if (!token) throw new Error("認証情報の取得に失敗しました");
+      return listFollowingTags(token);
+    },
+    enabled: !!username && !!profileUser && isOwnPage && activeTab === "followingTags",
   });
 
   const queryClient = useQueryClient();
@@ -368,12 +380,28 @@ export default function UserPage() {
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-600" />
                 )}
               </button>
+              {isOwnPage && (
+                <button
+                  onClick={() => setActiveTab("followingTags")}
+                  className={`px-6 py-3 font-medium transition-colors relative whitespace-nowrap ${
+                    activeTab === "followingTags"
+                      ? "text-pink-600"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  フォロー中のタグ
+                  {activeTab === "followingTags" && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-600" />
+                  )}
+                </button>
+              )}
             </div>
 
             {/* Search Bar - カテゴリタブのみ表示 */}
             {(activeTab === "created" ||
               activeTab === "registered" ||
-              activeTab === "favorite") && (
+              activeTab === "favorite" ||
+              activeTab === "followingTags") && (
               <div className="relative mb-8">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Search className="h-5 w-5 text-gray-400" />
@@ -492,6 +520,35 @@ export default function UserPage() {
                         )}
                       </div>
                     </Link>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* フォロー中のタグ一覧（自分のページのみ） */}
+            {activeTab === "followingTags" && isOwnPage && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {isFollowingTagsLoading ? (
+                  <p className="text-gray-600 col-span-full text-center py-8">
+                    読み込み中...
+                  </p>
+                ) : (followingTagsData?.items ?? []).length === 0 ? (
+                  <p className="text-gray-600 col-span-full text-center py-8">
+                    フォローしているタグはありません
+                  </p>
+                ) : (
+                  (followingTagsData?.items ?? []).map((tag) => (
+                    <CategoryCard
+                      key={tag.id}
+                      title={tag.title}
+                      description={tag.description ?? ""}
+                      author={tag.author}
+                      authorDisplayId={tag.authorDisplayId}
+                      movieCount={tag.movieCount}
+                      likes={tag.followerCount}
+                      images={tag.images}
+                      href={`/tags/${tag.id}`}
+                    />
                   ))
                 )}
               </div>

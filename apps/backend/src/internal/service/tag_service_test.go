@@ -15,25 +15,27 @@ import (
 )
 
 type deps struct {
-	tagRepo      *testutil.FakeTagRepository
-	tagMovieRepo *testutil.FakeTagMovieRepository
-	movieService MovieService
-	imageBaseURL string
+	tagRepo         *testutil.FakeTagRepository
+	tagMovieRepo    *testutil.FakeTagMovieRepository
+	tagFollowerRepo *testutil.FakeTagFollowerRepository
+	movieService    MovieService
+	imageBaseURL    string
 }
 
 func newTagService(t *testing.T, opt func(*deps)) TagService {
 	t.Helper()
 
 	d := &deps{
-		tagRepo:      &testutil.FakeTagRepository{},
-		tagMovieRepo: &testutil.FakeTagMovieRepository{},
-		movieService: nil,
-		imageBaseURL: "",
+		tagRepo:         &testutil.FakeTagRepository{},
+		tagMovieRepo:    &testutil.FakeTagMovieRepository{},
+		tagFollowerRepo: &testutil.FakeTagFollowerRepository{},
+		movieService:    nil,
+		imageBaseURL:    "",
 	}
 	if opt != nil {
 		opt(d)
 	}
-	return NewTagService(d.tagRepo, d.tagMovieRepo, d.movieService, d.imageBaseURL)
+	return NewTagService(d.tagRepo, d.tagMovieRepo, d.tagFollowerRepo, d.movieService, d.imageBaseURL)
 }
 
 func TestTagService_AddMovieToTag(t *testing.T) {
@@ -241,7 +243,7 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 			},
 		}
 
-		svc := NewTagService(tagRepo, tagMovieRepo, nil, "")
+		svc := NewTagService(tagRepo, tagMovieRepo, &testutil.FakeTagFollowerRepository{}, nil, "")
 
 		// Act
 		note := "hello"

@@ -356,11 +356,14 @@ Host: localhost:8080
 }
 ```
 
-#### 4.10 GET `/api/v1/me/following-tags` **[未実装]**
+#### 4.10 GET `/api/v1/me/following-tags`
 
 - **概要**: ログインユーザーがフォローしているタグ一覧を取得する。
 - **認証**: 必須
-- **クエリ / レスポンス形式**: `/api/v1/me/tags` と同様（`items` の中身が「フォロー中タグ」となる）。
+- **クエリパラメータ**:
+  - `page` (任意): ページ番号（デフォルト: 1）
+  - `page_size` (任意): 1ページあたりの件数（デフォルト: 20、最大: 100）
+- **レスポンス形式**: `/api/v1/tags` と同様（`items` の中身が「フォロー中タグ」となる）。
 
 #### 4.11 POST `/api/v1/clerk/webhook`
 
@@ -697,36 +700,92 @@ Host: localhost:8080
 
 ### 7. フォロー（Tag Followers）エンドポイント
 
-#### 7.1 POST `/api/v1/tags/:tagId/follow` **[未実装]**
+#### 7.1 POST `/api/v1/tags/:tagId/follow`
 
 - **概要**: 指定タグをフォローする。
 - **認証**: 必須
 - **挙動**
-  - `tag_followers` に `(tag_id, user_id)` レコードを作成（既に存在する場合は何もしない idempotent な処理）。
+  - `tag_followers` に `(tag_id, user_id)` レコードを作成。
+  - 既にフォロー済みの場合は 409 Conflict を返す。
 
-- **レスポンス例（200 or 201）**
+- **レスポンス例（200）**
 
 ```json
 {
-  "tag_id": "tag-uuid-1",
-  "user_id": "user-uuid-1",
-  "created_at": "2025-01-01T12:00:00Z"
+  "message": "successfully followed"
 }
 ```
 
-#### 7.2 DELETE `/api/v1/tags/:tagId/follow` **[未実装]**
+- **レスポンス例（409）**
+
+```json
+{
+  "error": "already following"
+}
+```
+
+#### 7.2 DELETE `/api/v1/tags/:tagId/follow`
 
 - **概要**: 指定タグのフォローを解除する。
 - **認証**: 必須
-- **レスポンス**: `204 No Content`
 
-#### 7.3 GET `/api/v1/tags/:tagId/followers` **[未実装]**
+- **レスポンス例（200）**
 
-- **概要**: タグのフォロワー一覧、またはフォロワー数を取得する。
-- **認証**: 任意（一覧を隠したい場合は必須にする）
-- **クエリ例**
-  - `?page=1&page_size=20`（一覧）
-  - `?summary=1`（件数だけ返すなど、将来拡張用）
+```json
+{
+  "message": "successfully unfollowed"
+}
+```
+
+- **レスポンス例（409）**
+
+```json
+{
+  "error": "not following"
+}
+```
+
+#### 7.3 GET `/api/v1/tags/:tagId/followers`
+
+- **概要**: タグのフォロワー一覧を取得する。
+- **認証**: 不要
+- **クエリパラメータ**
+
+| 名前        | 型  | 必須 | 説明                                             |
+|-------------|-----|------|--------------------------------------------------|
+| `page`      | int | 任意 | ページ番号（デフォルト: 1）                     |
+| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限: 100） |
+
+- **レスポンス例（200）**
+
+```json
+{
+  "items": [
+    {
+      "id": "user-uuid-1",
+      "display_id": "cinephile_jane",
+      "display_name": "cinephile_jane",
+      "avatar_url": "https://images.example.com/avatar.jpg"
+    }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total_count": 1
+}
+```
+
+#### 7.4 GET `/api/v1/tags/:tagId/follow-status`
+
+- **概要**: 認証ユーザーがタグをフォローしているかチェックする。
+- **認証**: 必須
+
+- **レスポンス例（200）**
+
+```json
+{
+  "is_following": true
+}
+```
 
 ---
 
