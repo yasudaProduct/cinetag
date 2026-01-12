@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -19,6 +20,7 @@ import (
 //   - JWKS の取得先は環境変数 `CLERK_JWKS_URL` に設定してください。
 //   - 必要なら `CLERK_ISSUER` / `CLERK_AUDIENCE` も指定し、iss/aud の検証を有効化できます。
 func NewAuthMiddleware(userService service.UserService) gin.HandlerFunc {
+	fmt.Println("[NewAuthMiddleware] NewAuthMiddleware")
 	jwksURL := os.Getenv("CLERK_JWKS_URL")
 	issuer := os.Getenv("CLERK_ISSUER")
 	audience := os.Getenv("CLERK_AUDIENCE")

@@ -7,6 +7,8 @@ erDiagram
     users ||--o{ tags : "creates"
     users ||--o{ tag_movies : "adds"
     users ||--o{ tag_followers : "follows"
+    users ||--o{ user_followers : "follows"
+    users ||--o{ user_followers : "followed_by"
     tags ||--o{ tag_movies : "contains"
     tags ||--o{ tag_followers : "has"
 
@@ -21,6 +23,7 @@ erDiagram
         text bio "自己紹介"
         timestamptz created_at
         timestamptz updated_at
+        timestamptz deleted_at "退会日時（論理削除）"
     }
 
     tags {
@@ -53,6 +56,12 @@ erDiagram
         timestamptz created_at
     }
 
+    user_followers {
+        uuid follower_id PK_FK "フォローする側"
+        uuid followee_id PK_FK "フォローされる側"
+        timestamptz created_at
+    }
+
     movie_cache {
         integer tmdb_movie_id PK
         text title
@@ -79,6 +88,7 @@ erDiagram
 | `tags` | 映画タグ（プレイリスト） | `id` (UUID) |
 | `tag_movies` | タグと映画の関連 | `id` (UUID) |
 | `tag_followers` | タグのフォロー関係 | `(tag_id, user_id)` |
+| `user_followers` | ユーザーのフォロー関係 | `(follower_id, followee_id)` |
 | `movie_cache` | TMDb映画情報キャッシュ | `tmdb_movie_id` (INTEGER) |
 
 ---
@@ -99,6 +109,7 @@ erDiagram
 | `bio` | TEXT | YES | - | 自己紹介文 |
 | `created_at` | TIMESTAMPTZ | NO | `CURRENT_TIMESTAMP` | 作成日時 |
 | `updated_at` | TIMESTAMPTZ | NO | `CURRENT_TIMESTAMP` | 更新日時 |
+| `deleted_at` | TIMESTAMPTZ | YES | - | 退会日時（論理削除） |
 
 ### tags（タグ）
 
@@ -133,6 +144,14 @@ erDiagram
 |---------|-----|------|-----------|------|
 | `tag_id` | UUID | NO | - | タグID（複合PK） |
 | `user_id` | UUID | NO | - | ユーザーID（複合PK） |
+| `created_at` | TIMESTAMPTZ | NO | `CURRENT_TIMESTAMP` | フォロー日時 |
+
+### user_followers（ユーザーフォロー）
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|-----|------|-----------|------|
+| `follower_id` | UUID | NO | - | フォローする側ユーザーID（複合PK） |
+| `followee_id` | UUID | NO | - | フォローされる側ユーザーID（複合PK） |
 | `created_at` | TIMESTAMPTZ | NO | `CURRENT_TIMESTAMP` | フォロー日時 |
 
 ### movie_cache（映画キャッシュ）

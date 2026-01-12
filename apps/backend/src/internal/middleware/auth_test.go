@@ -57,6 +57,10 @@ func (f *fakeUserService) GetFollowStats(ctx context.Context, userID string) (fo
 	return 0, 0, nil
 }
 
+func (f *fakeUserService) HandleClerkUserDeleted(ctx context.Context, clerkUserID string) error {
+	return nil
+}
+
 func newAuthTestRouter(t *testing.T, mw gin.HandlerFunc) *gin.Engine {
 	t.Helper()
 
