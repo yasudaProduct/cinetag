@@ -30,7 +30,7 @@ func NewRouter() *gin.Engine {
 	tagService := service.NewTagService(tagRepo, tagMovieRepo, tagFollowerRepo, movieService, imageBaseURL)
 	userRepo := repository.NewUserRepository(database)
 	userFollowerRepo := repository.NewUserFollowerRepository(database)
-	userService := service.NewUserService(userRepo, userFollowerRepo)
+	userService := service.NewUserService(database, userRepo, userFollowerRepo, tagFollowerRepo)
 	tagHandler := handler.NewTagHandler(tagService)
 	movieHandler := handler.NewMovieHandler(movieService)
 	userHandler := handler.NewUserHandler(userService, tagService)

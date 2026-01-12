@@ -124,6 +124,7 @@ func (f *FakeTagMovieRepository) Delete(ctx context.Context, tagMovieID string) 
 type FakeTagFollowerRepository struct {
 	CreateFn            func(ctx context.Context, tagID, userID string) error
 	DeleteFn            func(ctx context.Context, tagID, userID string) error
+	DeleteAllByUserIDFn func(ctx context.Context, userID string) error
 	IsFollowingFn       func(ctx context.Context, tagID, userID string) (bool, error)
 	ListFollowersFn     func(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error)
 	CountFollowersFn    func(ctx context.Context, tagID string) (int64, error)
@@ -142,6 +143,13 @@ func (f *FakeTagFollowerRepository) Delete(ctx context.Context, tagID, userID st
 		return nil
 	}
 	return f.DeleteFn(ctx, tagID, userID)
+}
+
+func (f *FakeTagFollowerRepository) DeleteAllByUserID(ctx context.Context, userID string) error {
+	if f.DeleteAllByUserIDFn == nil {
+		return nil
+	}
+	return f.DeleteAllByUserIDFn(ctx, userID)
 }
 
 func (f *FakeTagFollowerRepository) IsFollowing(ctx context.Context, tagID, userID string) (bool, error) {

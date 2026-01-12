@@ -14,6 +14,9 @@ type UserFollowerRepository interface {
 	Create(ctx context.Context, followerID, followeeID string) error
 	// Delete はフォロー関係を削除します
 	Delete(ctx context.Context, followerID, followeeID string) error
+	// DeleteAllByUserID は指定ユーザーが関与するフォロー関係を全て削除します。
+	// （follower / followee の両方を対象とします）
+	DeleteAllByUserID(ctx context.Context, userID string) error
 	// IsFollowing は followerID が followeeID をフォローしているかチェックします
 	IsFollowing(ctx context.Context, followerID, followeeID string) (bool, error)
 	// ListFollowing は指定ユーザーがフォローしているユーザー一覧を返します
@@ -46,6 +49,12 @@ func (r *userFollowerRepository) Create(ctx context.Context, followerID, followe
 func (r *userFollowerRepository) Delete(ctx context.Context, followerID, followeeID string) error {
 	return r.db.WithContext(ctx).
 		Where("follower_id = ? AND followee_id = ?", followerID, followeeID).
+		Delete(&model.UserFollower{}).Error
+}
+
+func (r *userFollowerRepository) DeleteAllByUserID(ctx context.Context, userID string) error {
+	return r.db.WithContext(ctx).
+		Where("follower_id = ? OR followee_id = ?", userID, userID).
 		Delete(&model.UserFollower{}).Error
 }
 

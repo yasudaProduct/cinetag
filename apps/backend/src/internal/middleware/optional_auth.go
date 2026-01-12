@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -19,6 +20,7 @@ import (
 //
 // NOTE: 検証器の設定（CLERK_JWKS_URL 等）は AuthMiddleware と同様です。
 func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc {
+	fmt.Println("[NewOptionalAuthMiddleware] NewOptionalAuthMiddleware")
 	jwksURL := os.Getenv("CLERK_JWKS_URL")
 	issuer := os.Getenv("CLERK_ISSUER")
 	audience := os.Getenv("CLERK_AUDIENCE")
