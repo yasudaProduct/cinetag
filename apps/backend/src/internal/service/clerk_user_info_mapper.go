@@ -9,7 +9,7 @@ var (
 	ErrClerkUserInfoInvalid = errors.New("invalid clerk user info")
 )
 
-// NewClerkUserInfoFromWebhook は Webhook の生フィールドから ClerkUserInfo を構築します。
+// Webhook の生フィールドから ClerkUserInfo を構築します。
 // Email は必須です（空の場合は error を返します）。
 func NewClerkUserInfoFromWebhook(id, email, firstName, lastName string, imageURL *string) (ClerkUserInfo, error) {
 	id = strings.TrimSpace(id)

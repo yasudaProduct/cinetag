@@ -10,14 +10,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// clerkWebhookEvent は Clerk Webhook の共通ペイロードを表します。
+// Clerk Webhook の共通ペイロードを表します。
 // data の中身はイベントタイプにより異なるため RawMessage で受け取ります。
+// https://clerk.com/docs/guides/development/webhooks/overview#payload-structure
 type clerkWebhookEvent struct {
 	Type string          `json:"type"`
 	Data json.RawMessage `json:"data"`
 }
 
-// clerkUserCreatedData は Clerk の user.created Webhook の data 部分を表します。
+// Clerk の user.created Webhook の data 部分を表します。
 type clerkUserCreatedData struct {
 	ID             string `json:"id"`
 	Username       string `json:"username"`
@@ -29,25 +30,24 @@ type clerkUserCreatedData struct {
 	} `json:"email_addresses"`
 }
 
-// clerkUserDeletedData は Clerk の user.deleted Webhook の data 部分を表します。
+// Clerk の user.deleted Webhook の data 部分を表します。
 type clerkUserDeletedData struct {
 	ID string `json:"id"`
 }
 
-// ClerkWebhookHandler は Clerk Webhook を処理するハンドラーです。
+// Clerk Webhook を処理するハンドラーです。
 type ClerkWebhookHandler struct {
 	userService service.UserService
 }
 
-// NewClerkWebhookHandler は ClerkWebhookHandler を初期化して返します。
+// ClerkWebhookHandler を初期化して返します。
 func NewClerkWebhookHandler(userService service.UserService) *ClerkWebhookHandler {
 	return &ClerkWebhookHandler{
 		userService: userService,
 	}
 }
 
-// HandleWebhook は POST /api/v1/clerk/webhook を処理します。
-//
+// POST /api/v1/clerk/webhook を処理します。
 // 現時点では svix 署名検証ロジックは未実装です。
 // TODO: svix の署名検証を追加し、Clerk からの正当なリクエストのみを受け付ける。
 func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
@@ -80,9 +80,14 @@ func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 
 		email := ""
 		if len(data.EmailAddresses) > 0 {
+			// TODO: 複数のメールアドレスを無効化できる？
 			email = data.EmailAddresses[0].EmailAddress
 		}
 
+		// ImageURL をオプショナルな *string 型に変換する。
+		// 空文字列の場合は nil を設定し、値がある場合はローカル変数にコピーしてから
+		// そのアドレスを取得する。これにより、構造体フィールドへの直接ポインタ取得を
+		// 避け、エスケープ解析の最適化と独立性を確保する。
 		var avatarURL *string
 		if data.ImageURL != "" {
 			url := data.ImageURL
