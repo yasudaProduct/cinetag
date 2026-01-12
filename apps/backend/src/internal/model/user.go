@@ -3,7 +3,7 @@ package model
 import "time"
 
 // User はサービスのユーザーを表すドメインモデルです。
-// docs/database-schema.md の users テーブル定義に対応します。
+// docs/data/database-schema.md の users テーブル定義に対応します。
 type User struct {
 	ID          string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	ClerkUserID string    `gorm:"type:text;not null;uniqueIndex:users_clerk_user_id_key;column:clerk_user_id" json:"clerk_user_id"`

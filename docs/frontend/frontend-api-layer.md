@@ -10,9 +10,9 @@
 
 関連ドキュメント：
 
-- `docs/api-spec.md`（バックエンドAPI仕様）
-- `docs/auth-architecture.md`（Clerk認証設計）
-- `docs/frontend-validation.md`（zodによる入力/レスポンス検証ルール）
+- `docs/api/api-spec.md`（バックエンドAPI仕様）
+- `docs/architecture/auth-architecture.md`（Clerk認証設計）
+- `docs/frontend/frontend-validation.md`（zodによる入力/レスポンス検証ルール）
 
 ---
 
@@ -25,7 +25,7 @@
 - **HTTP詳細のカプセル化**
   - URL組み立て、`fetch` オプション、ヘッダ、body、`encodeURIComponent` 等
 - **レスポンスの runtime validation（zod `safeParse`）**
-  - `fetch().json()` は `unknown` として扱い、Schemaで検証する（`docs/frontend-validation.md`）
+  - `fetch().json()` は `unknown` として扱い、Schemaで検証する（`docs/frontend/frontend-validation.md`）
 - **APIエラーの解釈・例外化**
   - 例：`{"error":"..."}` 形式ならその文言を優先し、なければ `...（status）` の一般メッセージ
 - **フロント向けの正規化（必要な範囲）**
@@ -100,7 +100,7 @@ Next.js（App Router）では、**呼び出し元が Client Component か Server
   - トークン取得（Clerk）は呼び出し側で行う（Client: `useAuth().getToken()` など）
 - **レスポンス検証は zod `safeParse` を標準**
   - `fetch().json()` → `unknown` → schemaで検証 → 失敗時は `console.warn` + 例外
-  - 詳細は `docs/frontend-validation.md` に従う
+  - 詳細は `docs/frontend/frontend-validation.md` に従う
 - **APIエラーは共通形式を優先して解釈**
   - `{"error":"..."}` が取れるならその文言を使う（取れないなら status を含む一般メッセージ）
 
@@ -146,12 +146,13 @@ Next.js（App Router）では、**呼び出し元が Client Component か Server
   - `safeJson`
   - `getBaseOrThrow`（NEXT_PUBLIC 前提）
   - `parseApiError`（`ApiErrorSchema`）
+  - `parseApiError`（`ApiErrorSchema`）
 
 ※ `_shared` のような「リソース非依存の共通部」は、`lib/api` 直下にまとめる。
 
 ### 2) 型/スキーマの置き場所
 
-- Schema：`apps/frontend/src/lib/validation/*` に集約（`docs/frontend-validation.md`）
+- Schema：`apps/frontend/src/lib/validation/*` に集約（`docs/frontend/frontend-validation.md`）
 - API関数の入出力型：スキーマから `z.infer` で導出するか、最小限の型のみ `lib/api` 内に置く
 
 ---

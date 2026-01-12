@@ -42,7 +42,8 @@
 
 - バックエンドの詳細: [apps/backend/README.md](apps/backend/README.md)
 - フロントエンドの詳細: [apps/frontend/README.md](apps/frontend/README.md)
-- API 仕様: [docs/api-spec.md](docs/api-spec.md)
-- アーキテクチャ: [docs/backend-architecture.md](docs/backend-architecture.md)
-- CI/CD: [docs/cicd.md](docs/cicd.md)
+- ドキュメント一覧: [docs/README.md](docs/README.md)
+- API 仕様: [docs/api/api-spec.md](docs/api/api-spec.md)
+- アーキテクチャ（バックエンド）: [docs/architecture/backend-architecture.md](docs/architecture/backend-architecture.md)
+- CI/CD: [docs/operations/cicd.md](docs/operations/cicd.md)
 

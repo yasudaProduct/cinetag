@@ -44,7 +44,7 @@
 
 ### 3.1 `movie_cache` テーブル
 
-`docs/database-schema.md` で定義済みの `movie_cache` テーブルを、TMDB レスポンスのキャッシュとして利用する。
+`docs/data/database-schema.md` で定義済みの `movie_cache` テーブルを、TMDB レスポンスのキャッシュとして利用する。
 
 - **テーブル構造（抜粋）**
 
@@ -123,7 +123,7 @@
 
 ## 5. 既存 API への組み込み
 
-`docs/api-spec.md` に定義済みのエンドポイントに、TMDB 映画情報をどのように組み込むかを定義する。
+`docs/api/api-spec.md` に定義済みのエンドポイントに、TMDB 映画情報をどのように組み込むかを定義する。
 
 ### 5.1 `GET /api/v1/tags/:tagId/movies`
 
@@ -236,7 +236,7 @@
   - `TMDB_DEFAULT_LANGUAGE`: 既定言語（デフォルト: `ja-JP`）
 
 - **読み込み場所**
-  - 将来的に `internal/config` パッケージで一元管理する方針（`backend-architecture.md` の想定に準拠）。
+  - 将来的に `internal/config` パッケージで一元管理する方針（`docs/architecture/backend-architecture.md` の想定に準拠）。
 
 ---
 

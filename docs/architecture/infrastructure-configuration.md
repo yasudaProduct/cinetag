@@ -303,7 +303,7 @@ gcloud run deploy <service-name> \
 | ステージング | staging | `staging.<project>.pages.dev` |
 | 本番 | main | `<custom-domain>` |
 
-> CI/CD の詳細（品質ゲート、secrets、マイグレーション運用、ロールバック）は `docs/cicd.md` を参照してください。
+> CI/CD の詳細（品質ゲート、secrets、マイグレーション運用、ロールバック）は `docs/operations/cicd.md` を参照してください。
 
 ---
 

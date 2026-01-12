@@ -11,7 +11,7 @@
 - **ORM**: GORM (`gorm.io/gorm`, `gorm.io/driver/postgres`)
 - **DB**: PostgreSQL（開発環境では Docker を想定）
 
-詳細なアーキテクチャやレイヤー構成は `docs/backend-architecture.md` を参照してください。
+詳細なアーキテクチャやレイヤー構成は `docs/architecture/backend-architecture.md` を参照してください。
 
 ---
 
@@ -36,7 +36,7 @@ apps/backend/
 └── go.sum
 ```
 
-より詳細な責務分担についても `docs/backend-architecture.md` を参照してください。
+より詳細な責務分担についても `docs/architecture/backend-architecture.md` を参照してください。
 
 ---
 
@@ -259,7 +259,7 @@ GitHub Actions を導入する場合、`develop` ブランチへの push をト�
    - `develop` ブランチへの push 時に自動実行
    - 他のCIジョブ（テストなど）と並列実行
 
-> 補足: 既存のワークフローは `/.github/workflows/ci-develop.yml` を参照してください。CI/CD全体の方針は `docs/cicd.md` にまとめています。
+> 補足: 既存のワークフローは `/.github/workflows/ci-develop.yml` を参照してください。CI/CD全体の方針は `docs/operations/cicd.md` にまとめています。
 
 #### 手動でのマイグレーション実行
 
@@ -312,7 +312,7 @@ ngrok 経由の URL はセッションごとに変わるため、**ngrok を再�
 
 ## API 仕様
 
-提供しているエンドポイントやレスポンス形式などの詳細は、`docs/api-spec.md` を参照してください。
+提供しているエンドポイントやレスポンス形式などの詳細は、`docs/api/api-spec.md` を参照してください。
 
 ---
 

@@ -7,7 +7,7 @@ import (
 )
 
 // MovieCache は TMDb から取得した映画情報のキャッシュを表します。
-// docs/database-schema.md の movie_cache テーブル定義に対応します。
+// docs/data/database-schema.md の movie_cache テーブル定義に対応します。
 type MovieCache struct {
 	TmdbMovieID   int            `gorm:"type:integer;primaryKey;column:tmdb_movie_id" json:"tmdb_movie_id"`
 	Title         string         `gorm:"type:text;not null" json:"title"`

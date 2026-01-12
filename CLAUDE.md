@@ -82,7 +82,7 @@ ENV=develop go run ./src/cmd/migrate
 - **マイグレーション戦略**: 全テーブル削除 + AutoMigrate（差分マイグレーションではない）
 - `go run ./src/cmd/migrate` でスキーマをリセット・再作成
 - `ENV=develop` の場合、開発用seedデータを自動投入
-- 完全なスキーマは `docs/database-schema.md` を参照
+- 完全なスキーマは `docs/data/database-schema.md` を参照
 
 ### 主要な設計パターン
 
@@ -96,7 +96,7 @@ ENV=develop go run ./src/cmd/migrate
 - 映画メタデータを `movie_cache` テーブルにキャッシュ（7日間のTTL）
 - キャッシュファースト戦略: DB確認 → 期限切れ/存在しない場合はTMDB取得 → キャッシュをupsert
 - 必須環境変数: `TMDB_API_KEY`
-- 詳細は `docs/movie-data-integration.md` を参照
+- 詳細は `docs/backend/movie-data-integration.md` を参照
 
 ## フロントエンド (Next.js + React)
 
@@ -258,7 +258,7 @@ npm run dev
 3. `internal/service/` でサービスインターフェースと実装を作成
 4. `internal/handler/` でハンドラーを作成
 5. `router/router.go` でルートを登録
-6. `docs/api-spec.md` を更新
+6. `docs/api/api-spec.md` を更新
 
 ### フロントエンドAPI統合の追加
 
@@ -270,12 +270,12 @@ npm run dev
 ## ドキュメント
 
 `docs/` 内の主要なドキュメント:
-- `api-spec.md` - 完全なAPIエンドポイント仕様
-- `auth-architecture.md` - Clerk連携の詳細
-- `backend-architecture.md` - バックエンドの設計判断
-- `database-schema.md` - ER図付き完全なDBスキーマ
-- `frontend-api-layer.md` - フロントエンドAPI統合パターン
-- `movie-data-integration.md` - TMDBキャッシュ戦略
+- `api/api-spec.md` - 完全なAPIエンドポイント仕様
+- `architecture/auth-architecture.md` - Clerk連携の詳細
+- `architecture/backend-architecture.md` - バックエンドの設計判断
+- `data/database-schema.md` - ER図付き完全なDBスキーマ
+- `frontend/frontend-api-layer.md` - フロントエンドAPI統合パターン
+- `backend/movie-data-integration.md` - TMDBキャッシュ戦略
 
 ## Webhookのためのngrok
 

@@ -17,7 +17,7 @@
 - **アイコン**: Lucide React
 - **デプロイ**: Cloudflare Pages（@opennextjs/cloudflare）
 
-詳細なアーキテクチャやAPIレイヤーの設計は `docs/frontend-api-layer.md` を参照してください。
+詳細なアーキテクチャやAPIレイヤーの設計は `docs/frontend/frontend-api-layer.md` を参照してください。
 
 ---
 
@@ -47,7 +47,7 @@ apps/frontend/src/
     └── mock/                 # 開発用モックデータ
 ```
 
-より詳細な責務分担についても `docs/frontend-api-layer.md` を参照してください。
+より詳細な責務分担についても `docs/frontend/frontend-api-layer.md` を参照してください。
 
 ---
 
@@ -138,7 +138,7 @@ export async function listTags(): Promise<TagsList> {
 }
 ```
 
-詳細は `docs/frontend-api-layer.md` を参照してください。
+詳細は `docs/frontend/frontend-api-layer.md` を参照してください。
 
 ---
 
@@ -149,7 +149,7 @@ export async function listTags(): Promise<TagsList> {
 - トークン注入: 認証が必要なAPI呼び出しには `getBackendTokenOrThrow()` を使用
 - Clerkテンプレート名: "cinetag-backend"
 
-詳細は `docs/auth-architecture.md` を参照してください。
+詳細は `docs/architecture/auth-architecture.md` を参照してください。
 
 ---
 
@@ -225,22 +225,22 @@ GitHub Actions を導入する場合、`develop` ブランチへの push をト�
    - `develop` ブランチへの push 時に自動実行
    - 他のCIジョブ（テスト、マイグレーションなど）と並列実行
 
-詳細は `docs/infrastructure-configuration.md` を参照してください。
+詳細は `docs/architecture/infrastructure-configuration.md` を参照してください。
 
-> 補足: 既存のワークフローは `/.github/workflows/ci-develop.yml` を参照してください。CI/CD全体の方針は `docs/cicd.md` にまとめています。
+> 補足: 既存のワークフローは `/.github/workflows/ci-develop.yml` を参照してください。CI/CD全体の方針は `docs/operations/cicd.md` にまとめています。
 
 ---
 
 ## API 仕様
 
-バックエンドAPIの詳細は `docs/api-spec.md` を参照してください。
+バックエンドAPIの詳細は `docs/api/api-spec.md` を参照してください。
 
 ---
 
 ## 関連ドキュメント
 
 - バックエンドの詳細: [apps/backend/README.md](../backend/README.md)
-- API仕様: [docs/api-spec.md](../../docs/api-spec.md)
-- フロントエンドAPIレイヤー設計: [docs/frontend-api-layer.md](../../docs/frontend-api-layer.md)
-- 認証アーキテクチャ: [docs/auth-architecture.md](../../docs/auth-architecture.md)
-- バリデーション: [docs/frontend-validation.md](../../docs/frontend-validation.md)
+- API仕様: [docs/api/api-spec.md](../../docs/api/api-spec.md)
+- フロントエンドAPIレイヤー設計: [docs/frontend/frontend-api-layer.md](../../docs/frontend/frontend-api-layer.md)
+- 認証アーキテクチャ: [docs/architecture/auth-architecture.md](../../docs/architecture/auth-architecture.md)
+- バリデーション: [docs/frontend/frontend-validation.md](../../docs/frontend/frontend-validation.md)
