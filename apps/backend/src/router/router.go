@@ -16,12 +16,23 @@ func NewRouter() *gin.Engine {
 	// 依存関係の組み立て
 	deps := NewDependencies()
 
+	// ミドルウェア設定
+	setupMiddleware(r)
+
+	// ルート設定
+	setupRoutes(r, deps)
+
+	return r
+}
+
+// setupMiddleware はミドルウェアを設定します。
+func setupMiddleware(r *gin.Engine) {
 	r.Use(cors.New(cors.Config{
 		// 許可するオリジン（開発環境と本番環境のフロントエンドURL）
 		AllowOrigins: []string{
 			"http://localhost:3000",                                // ローカル開発環境
 			"http://localhost:8787",                                // ローカル開発環境（Cloudflare Pages プレビュー）
-			"https://cinetag-frontend.yuta-develop-ct.workers.dev", // 本番環境（Cloudflare Workers）
+			"https://cinetag-frontend.yuta-develop-ct.workers.dev", // 開発環境（Cloudflare Workers）
 		},
 		// 許可するHTTPメソッド
 		AllowMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
@@ -34,13 +45,12 @@ func NewRouter() *gin.Engine {
 		// プリフライトリクエスト（OPTIONS）結果のキャッシュ期間（12時間）
 		MaxAge: 12 * time.Hour,
 	}))
+}
 
+// setupRoutes はすべてのルートを設定します。
+func setupRoutes(r *gin.Engine, deps *Dependencies) {
 	// ヘルスチェック用エンドポイント
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status": "ok",
-		})
-	})
+	r.GET("/health", healthCheckHandler)
 
 	// Swagger
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
@@ -48,49 +58,80 @@ func NewRouter() *gin.Engine {
 	// API グループ
 	api := r.Group("/api/v1")
 	{
-
 		// Clerk Webhook
 		api.POST("/clerk/webhook", deps.ClerkWebhookHandler.HandleWebhook)
 
-		api.GET("/tags", deps.TagHandler.ListPublicTags)
-		api.GET("/tags/:tagId", deps.OptionalAuthMiddleware, deps.TagHandler.GetTagDetail)
-		api.GET("/tags/:tagId/movies", deps.OptionalAuthMiddleware, deps.TagHandler.ListTagMovies)
-		api.GET("/tags/:tagId/followers", deps.TagHandler.ListTagFollowers)
+		// 公開ルート（認証不要）
+		setupPublicRoutes(api, deps)
 
-		// ユーザー情報取得（認証不要）
-		api.GET("/users/:displayId", deps.UserHandler.GetUserByDisplayID)
-		api.GET("/users/:displayId/tags", deps.OptionalAuthMiddleware, deps.UserHandler.ListUserTags)
-		api.GET("/users/:displayId/following", deps.UserHandler.ListFollowing)
-		api.GET("/users/:displayId/followers", deps.UserHandler.ListFollowers)
-		api.GET("/users/:displayId/follow-stats", deps.OptionalAuthMiddleware, deps.UserHandler.GetUserFollowStats)
-
-		// TMDB 検索（認証不要）
-		api.GET("/movies/search", deps.MovieHandler.SearchMovies)
-
-		// 認証必須グループ
-		authGroup := api.Group("/")
-		authGroup.Use(deps.AuthMiddleware)
-		{
-			// ユーザー
-			authGroup.GET("/users/me", deps.UserHandler.GetMe)
-			authGroup.POST("/users/:displayId/follow", deps.UserHandler.FollowUser)
-			authGroup.DELETE("/users/:displayId/follow", deps.UserHandler.UnfollowUser)
-
-			// タグ
-			authGroup.POST("/tags", deps.TagHandler.CreateTag)
-			authGroup.PATCH("/tags/:tagId", deps.TagHandler.UpdateTag)
-			authGroup.POST("/tags/:tagId/movies", deps.TagHandler.AddMovieToTag)
-			authGroup.DELETE("/tags/:tagId/movies/:tagMovieId", deps.TagHandler.RemoveMovieFromTag)
-
-			// タグフォロー
-			authGroup.POST("/tags/:tagId/follow", deps.TagHandler.FollowTag)
-			authGroup.DELETE("/tags/:tagId/follow", deps.TagHandler.UnfollowTag)
-			authGroup.GET("/tags/:tagId/follow-status", deps.TagHandler.GetTagFollowStatus)
-
-			// 自分のフォロー中タグ一覧
-			authGroup.GET("/me/following-tags", deps.TagHandler.ListFollowingTags)
-		}
+		// 認証必須ルート
+		setupAuthRoutes(api, deps)
 	}
+}
 
-	return r
+// setupPublicRoutes は認証不要の公開ルートを設定します。
+func setupPublicRoutes(api *gin.RouterGroup, deps *Dependencies) {
+	// タグ（公開）
+	api.GET("/tags", deps.TagHandler.ListPublicTags)
+	api.GET("/tags/:tagId", deps.OptionalAuthMiddleware, deps.TagHandler.GetTagDetail)
+	api.GET("/tags/:tagId/movies", deps.OptionalAuthMiddleware, deps.TagHandler.ListTagMovies)
+	api.GET("/tags/:tagId/followers", deps.TagHandler.ListTagFollowers)
+
+	// ユーザー（公開）
+	api.GET("/users/:displayId", deps.UserHandler.GetUserByDisplayID)
+	api.GET("/users/:displayId/tags", deps.OptionalAuthMiddleware, deps.UserHandler.ListUserTags)
+	api.GET("/users/:displayId/following", deps.UserHandler.ListFollowing)
+	api.GET("/users/:displayId/followers", deps.UserHandler.ListFollowers)
+	api.GET("/users/:displayId/follow-stats", deps.OptionalAuthMiddleware, deps.UserHandler.GetUserFollowStats)
+
+	// 映画検索（公開）
+	api.GET("/movies/search", deps.MovieHandler.SearchMovies)
+}
+
+// setupAuthRoutes は認証必須のルートを設定します。
+func setupAuthRoutes(api *gin.RouterGroup, deps *Dependencies) {
+	authGroup := api.Group("/")
+	authGroup.Use(deps.AuthMiddleware)
+	{
+		// ユーザー
+		setupUserRoutes(authGroup, deps)
+
+		// タグ
+		setupTagRoutes(authGroup, deps)
+
+		// タグフォロー
+		setupTagFollowRoutes(authGroup, deps)
+
+		// 自分のフォロー中タグ一覧
+		authGroup.GET("/me/following-tags", deps.TagHandler.ListFollowingTags)
+	}
+}
+
+// setupUserRoutes はユーザー関連の認証必須ルートを設定します。
+func setupUserRoutes(authGroup *gin.RouterGroup, deps *Dependencies) {
+	authGroup.GET("/users/me", deps.UserHandler.GetMe)
+	authGroup.POST("/users/:displayId/follow", deps.UserHandler.FollowUser)
+	authGroup.DELETE("/users/:displayId/follow", deps.UserHandler.UnfollowUser)
+}
+
+// setupTagRoutes はタグ関連の認証必須ルートを設定します。
+func setupTagRoutes(authGroup *gin.RouterGroup, deps *Dependencies) {
+	authGroup.POST("/tags", deps.TagHandler.CreateTag)
+	authGroup.PATCH("/tags/:tagId", deps.TagHandler.UpdateTag)
+	authGroup.POST("/tags/:tagId/movies", deps.TagHandler.AddMovieToTag)
+	authGroup.DELETE("/tags/:tagId/movies/:tagMovieId", deps.TagHandler.RemoveMovieFromTag)
+}
+
+// setupTagFollowRoutes はタグフォロー関連の認証必須ルートを設定します。
+func setupTagFollowRoutes(authGroup *gin.RouterGroup, deps *Dependencies) {
+	authGroup.POST("/tags/:tagId/follow", deps.TagHandler.FollowTag)
+	authGroup.DELETE("/tags/:tagId/follow", deps.TagHandler.UnfollowTag)
+	authGroup.GET("/tags/:tagId/follow-status", deps.TagHandler.GetTagFollowStatus)
+}
+
+// healthCheckHandler はヘルスチェック用のハンドラーです。
+func healthCheckHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"status": "ok",
+	})
 }
