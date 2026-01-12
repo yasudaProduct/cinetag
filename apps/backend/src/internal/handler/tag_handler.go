@@ -12,21 +12,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// TagHandler はタグ関連の HTTP ハンドラーを提供します。
+// タグ関連の HTTP ハンドラー。
 type TagHandler struct {
 	tagService service.TagService
 }
 
-// NewTagHandler は TagHandler を初期化して返します。
+// TagHandler を初期化して返す。
 func NewTagHandler(tagService service.TagService) *TagHandler {
 	return &TagHandler{
 		tagService: tagService,
 	}
 }
 
-// createTagRequest はタグ作成リクエストボディの構造を表します。
-// user_id はクライアントからは受け取らず、AuthMiddleware によりコンテキストに設定された
-// 認証済みユーザー情報から取得します。
+// タグ作成リクエストボディの構造。
+// user_id はクライアントからは受け取らず、AuthMiddleware によりコンテキストに設定された認証済みユーザー情報から取得する。
 type createTagRequest struct {
 	Title          string  `json:"title" binding:"required"`
 	Description    *string `json:"description"`
@@ -35,12 +34,14 @@ type createTagRequest struct {
 	AddMoviePolicy *string `json:"add_movie_policy"`
 }
 
+// タグに映画を追加するリクエストボディの構造。
 type addTagMovieRequest struct {
 	TmdbMovieID int     `json:"tmdb_movie_id" binding:"required"`
 	Note        *string `json:"note"`
 	Position    int     `json:"position"`
 }
 
+// タグのメタ情報を更新するリクエストボディの構造。
 type updateTagRequest struct {
 	Title          *string  `json:"title"`
 	Description    **string `json:"description"`
@@ -49,7 +50,8 @@ type updateTagRequest struct {
 	AddMoviePolicy *string  `json:"add_movie_policy"`
 }
 
-// GetTagDetail はタグ詳細を取得します。
+// タグ詳細を取得する。
+// GET /api/v1/tags/:tagId
 func (h *TagHandler) GetTagDetail(c *gin.Context) {
 	tagID := c.Param("tagId")
 
@@ -61,6 +63,7 @@ func (h *TagHandler) GetTagDetail(c *gin.Context) {
 		}
 	}
 
+	// タグ詳細を取得する。
 	out, err := h.tagService.GetTagDetail(c.Request.Context(), tagID, viewerUserID)
 	if err != nil {
 		switch {
@@ -77,7 +80,7 @@ func (h *TagHandler) GetTagDetail(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
-// ListTagMovies はタグ内の映画一覧を取得します。
+// タグ内の映画一覧を取得する。
 func (h *TagHandler) ListTagMovies(c *gin.Context) {
 	tagID := c.Param("tagId")
 

@@ -20,34 +20,31 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// MovieService は TMDB API と movie_cache テーブルを利用して
-// 映画情報の取得・キャッシュ更新を行うユースケースを表します。
 type MovieService interface {
-	// EnsureMovieCache は指定した TMDB 映画 ID に対応する movie_cache レコードの
-	// 存在と有効期限を保証します。
+	// 指定した TMDB 映画 ID に対応する movie_cache レコードの存在と有効期限を保証する。
 	// - 有効なキャッシュがあればそれを返す
 	// - キャッシュが無い、または期限切れの場合は TMDB から取得してキャッシュを更新する
 	EnsureMovieCache(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error)
 
-	// SearchMovies は TMDB の検索APIで映画を検索し、候補一覧を返します。
+	// TMDB の検索APIで映画を検索し、候補一覧を返す。
 	SearchMovies(ctx context.Context, query string, page int) ([]TMDBSearchResult, int, error)
 }
 
-// TMDBConfig は TMDB 連携に必要な設定値を表します。
+// TMDB 連携に必要な設定値。
 type TMDBConfig struct {
 	APIKey          string
 	BaseURL         string
 	DefaultLanguage string
 }
 
+// MovieService の実装です。
 type movieService struct {
 	db         *gorm.DB
 	httpClient *http.Client
 	cfg        TMDBConfig
 }
 
-// NewMovieService は MovieService の実装を生成します。
-// 環境変数から TMDB の設定値を読み込みます。
+// MovieService の実装を生成する。
 func NewMovieService(db *gorm.DB) MovieService {
 	cfg := TMDBConfig{
 		APIKey:          os.Getenv("TMDB_API_KEY"),
@@ -132,7 +129,7 @@ type TMDBSearchResult struct {
 	VoteAverage   *float64 `json:"vote_average,omitempty"`
 }
 
-// SearchMovies は TMDB の検索APIで映画を検索し、候補一覧を返します。
+// TMDB の検索APIで映画を検索し、候補一覧を返す。
 func (s *movieService) SearchMovies(ctx context.Context, query string, page int) ([]TMDBSearchResult, int, error) {
 	q := strings.TrimSpace(query)
 	if q == "" {
@@ -175,7 +172,7 @@ func (s *movieService) SearchMovies(ctx context.Context, query string, page int)
 	}
 	req.Header.Set("Accept", "application/json")
 
-	// TMDB にリクエストを送信する。
+	// TMDB にリクエストを送信。
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to call TMDB: %w", err)
@@ -191,7 +188,7 @@ func (s *movieService) SearchMovies(ctx context.Context, query string, page int)
 		return nil, 0, fmt.Errorf("failed to decode TMDB response: %w", err)
 	}
 
-	// TMDBSearchResult に変換する。
+	// TMDBSearchResult に変換。
 	out := make([]TMDBSearchResult, 0, len(body.Results))
 	for _, r := range body.Results {
 		var release *string
@@ -217,10 +214,10 @@ func (s *movieService) SearchMovies(ctx context.Context, query string, page int)
 	return out, body.TotalResults, nil
 }
 
-// EnsureMovieCache は指定した TMDB 映画 ID に対応する movie_cache レコードの
-// 存在と有効期限を保証します。
+// 指定した TMDB 映画 ID に対応する movie_cache レコードの存在と有効期限を保証する。
+// - 有効なキャッシュがあればそれを返す
+// - キャッシュが無い、または期限切れの場合は TMDB から取得してキャッシュを更新する
 func (s *movieService) EnsureMovieCache(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error) {
-	fmt.Println("EnsureMovieCache", tmdbMovieID)
 	if tmdbMovieID <= 0 {
 		return nil, fmt.Errorf("invalid tmdb movie id: %d", tmdbMovieID)
 	}
@@ -249,7 +246,6 @@ func (s *movieService) EnsureMovieCache(ctx context.Context, tmdbMovieID int) (*
 
 	// キャッシュが存在しない、または期限切れの場合は TMDB から取得する
 	tmdbMovie, err := s.fetchMovieFromTMDB(ctx, tmdbMovieID)
-	fmt.Println("EnsureMovieCache tmdbMovie", tmdbMovie)
 	if err != nil {
 		return nil, err
 	}
@@ -266,9 +262,8 @@ func (s *movieService) EnsureMovieCache(ctx context.Context, tmdbMovieID int) (*
 	return &cache, nil
 }
 
-// fetchMovieFromTMDB は TMDB の /movie/{movie_id} エンドポイントから映画情報を取得します。
+// TMDB の /movie/{movie_id} エンドポイントから映画情報を取得する。
 func (s *movieService) fetchMovieFromTMDB(ctx context.Context, tmdbMovieID int) (*tmdbMovieResponse, error) {
-	fmt.Println("fetchMovieFromTMDB", tmdbMovieID)
 	base, err := url.Parse(s.cfg.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid TMDB_BASE_URL: %w", err)
@@ -324,7 +319,7 @@ func (s *movieService) fetchMovieFromTMDB(ctx context.Context, tmdbMovieID int) 
 	return &body, nil
 }
 
-// buildMovieCacheFromTMDB は TMDB レスポンスから MovieCache エンティティを構築します。
+// TMDB レスポンスから movie_cache レコードを構築する。
 func (s *movieService) buildMovieCacheFromTMDB(movie *tmdbMovieResponse, now time.Time) (model.MovieCache, error) {
 	cache := model.MovieCache{
 		TmdbMovieID: movie.ID,
@@ -361,7 +356,7 @@ func (s *movieService) buildMovieCacheFromTMDB(movie *tmdbMovieResponse, now tim
 	return cache, nil
 }
 
-// upsertMovieCache は movie_cache テーブルに対して UPSERT を行います。
+// movie_cache テーブルに対して UPSERT を行う。
 func (s *movieService) upsertMovieCache(ctx context.Context, cache *model.MovieCache) error {
 	return s.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "tmdb_movie_id"}},

@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// MovieHandler は映画検索等のHTTPハンドラです。
+// 映画検索等のHTTPハンドラです。
 type MovieHandler struct {
 	movieService service.MovieService
 }
@@ -18,8 +18,8 @@ func NewMovieHandler(movieService service.MovieService) *MovieHandler {
 	return &MovieHandler{movieService: movieService}
 }
 
-// SearchMovies は TMDB 検索結果を返します。
-// GET /api/v1/movies/search?q=...&page=1
+// TMDB 検索結果を返します。
+// GET /api/v1/movies/search?q={query}&page={page}
 func (h *MovieHandler) SearchMovies(c *gin.Context) {
 	q := strings.TrimSpace(c.Query("q"))
 	page := parseIntDefault(c.Query("page"), 1)

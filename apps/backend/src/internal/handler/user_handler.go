@@ -12,13 +12,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// UserHandler はユーザー関連のHTTPハンドラーを提供します。
+// ユーザー関連のHTTPハンドラー。
 type UserHandler struct {
 	userService service.UserService
 	tagService  service.TagService
 }
 
-// NewUserHandler は UserHandler を生成します。
+// UserHandler を生成する。
 func NewUserHandler(userService service.UserService, tagService service.TagService) *UserHandler {
 	return &UserHandler{
 		userService: userService,
@@ -26,7 +26,7 @@ func NewUserHandler(userService service.UserService, tagService service.TagServi
 	}
 }
 
-// UserProfileResponse はユーザープロフィールのレスポンス形式です。
+// ユーザープロフィールのレスポンス形式。
 type UserProfileResponse struct {
 	ID          string  `json:"id"`
 	DisplayID   string  `json:"display_id"`
@@ -35,7 +35,7 @@ type UserProfileResponse struct {
 	Bio         *string `json:"bio,omitempty"`
 }
 
-// GetMe は認証済みユーザー自身の情報を返します。
+// 認証済みユーザー自身の情報を返す。
 // GET /api/v1/users/me
 func (h *UserHandler) GetMe(c *gin.Context) {
 	userRaw, exists := c.Get("user")
@@ -59,7 +59,7 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 	})
 }
 
-// GetUserByDisplayID は display_id からユーザー情報を取得します。
+// display_id からユーザー情報を取得する。
 // GET /api/v1/users/:displayId
 func (h *UserHandler) GetUserByDisplayID(c *gin.Context) {
 	displayID := c.Param("displayId")
@@ -87,7 +87,7 @@ func (h *UserHandler) GetUserByDisplayID(c *gin.Context) {
 	})
 }
 
-// ListUserTags はユーザーが作成したタグ一覧を取得します。
+// ユーザーが作成したタグ一覧を取得する。
 // GET /api/v1/users/:displayId/tags
 func (h *UserHandler) ListUserTags(c *gin.Context) {
 	displayID := c.Param("displayId")
@@ -189,7 +189,7 @@ func (h *UserHandler) FollowUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "successfully followed"})
 }
 
-// UnfollowUser は指定ユーザーをアンフォローします。
+// 指定ユーザーをアンフォローする。
 // DELETE /api/v1/users/:displayId/follow
 func (h *UserHandler) UnfollowUser(c *gin.Context) {
 	displayID := c.Param("displayId")
@@ -236,7 +236,7 @@ func (h *UserHandler) UnfollowUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "successfully unfollowed"})
 }
 
-// ListFollowing は指定ユーザーがフォローしているユーザー一覧を取得します。
+// 指定ユーザーがフォローしているユーザー一覧を取得する。
 // GET /api/v1/users/:displayId/following
 func (h *UserHandler) ListFollowing(c *gin.Context) {
 	displayID := c.Param("displayId")
@@ -265,7 +265,6 @@ func (h *UserHandler) ListFollowing(c *gin.Context) {
 		return
 	}
 
-	// レスポンス用に変換
 	items := make([]UserProfileResponse, len(users))
 	for i, u := range users {
 		items[i] = UserProfileResponse{
@@ -285,7 +284,7 @@ func (h *UserHandler) ListFollowing(c *gin.Context) {
 	})
 }
 
-// ListFollowers は指定ユーザーをフォローしているユーザー一覧を取得します。
+// 指定ユーザーをフォローしているユーザー一覧を取得する。
 // GET /api/v1/users/:displayId/followers
 func (h *UserHandler) ListFollowers(c *gin.Context) {
 	displayID := c.Param("displayId")
@@ -314,7 +313,6 @@ func (h *UserHandler) ListFollowers(c *gin.Context) {
 		return
 	}
 
-	// レスポンス用に変換
 	items := make([]UserProfileResponse, len(users))
 	for i, u := range users {
 		items[i] = UserProfileResponse{
@@ -334,7 +332,7 @@ func (h *UserHandler) ListFollowers(c *gin.Context) {
 	})
 }
 
-// GetUserFollowStats はユーザーのフォロー数・フォロワー数を取得します。
+// ユーザーのフォロー数・フォロワー数を取得する。
 // GET /api/v1/users/:displayId/follow-stats
 func (h *UserHandler) GetUserFollowStats(c *gin.Context) {
 	displayID := c.Param("displayId")
@@ -360,7 +358,7 @@ func (h *UserHandler) GetUserFollowStats(c *gin.Context) {
 		return
 	}
 
-	// 認証ユーザーがこのユーザーをフォローしているかチェック
+	// 認証ユーザーがこのユーザーをフォローしているか確認
 	isFollowing := false
 	if viewerRaw, exists := c.Get("user"); exists {
 		if viewer, ok := viewerRaw.(*model.User); ok && viewer != nil {
@@ -375,13 +373,18 @@ func (h *UserHandler) GetUserFollowStats(c *gin.Context) {
 	})
 }
 
+// ユーザーのページ番号とページサイズを取得する。
 func parseIntDefaultUser(s string, def int) int {
+	// ページ番号が空の場合はデフォルト値を返す
 	if s == "" {
 		return def
 	}
+
+	// ページ番号を整数に変換。変換に失敗した場合はデフォルト値を返す。
 	v, err := strconv.Atoi(s)
 	if err != nil {
 		return def
 	}
+
 	return v
 }

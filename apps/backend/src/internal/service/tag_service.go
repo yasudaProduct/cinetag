@@ -38,8 +38,8 @@ type TagService interface {
 	// publicOnly が true の場合、公開タグのみを返します（他ユーザーのページ閲覧時）。
 	ListTagsByUserID(ctx context.Context, userID string, publicOnly bool, page, pageSize int) ([]TagListItem, int64, error)
 
-	// GetTagDetail は指定タグの詳細を返します。
-	// viewerUserID は任意で、非公開タグの参照権限判定に利用します。
+	// 指定タグの詳細を返す。
+	// viewerUserID は任意で、非公開タグの参照権限判定に利用する。
 	GetTagDetail(ctx context.Context, tagID string, viewerUserID *string) (*TagDetail, error)
 
 	// ListTagMovies は指定タグに含まれる映画一覧を返します。
@@ -76,11 +76,11 @@ type TagService interface {
 }
 
 type tagService struct {
-	tagRepo          repository.TagRepository
-	tagMovieRepo     repository.TagMovieRepository
-	tagFollowerRepo  repository.TagFollowerRepository
-	movieService     MovieService
-	imageBaseURL     string
+	tagRepo         repository.TagRepository
+	tagMovieRepo    repository.TagMovieRepository
+	tagFollowerRepo repository.TagFollowerRepository
+	movieService    MovieService
+	imageBaseURL    string
 }
 
 // NewTagService は TagService の実装を生成します。
@@ -256,13 +256,15 @@ func (s *tagService) UpdateTag(ctx context.Context, tagID string, userID string,
 	return s.GetTagDetail(ctx, tagID, &viewer)
 }
 
+// 指定タグの詳細を返す。
+// - viewerUserID は任意で、非公開タグの参照権限判定に利用する。
 func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserID *string) (*TagDetail, error) {
-	// 必須バリデーション（tagID）
+	// 必須バリデーション
 	if strings.TrimSpace(tagID) == "" {
 		return nil, fmt.Errorf("tag_id is required")
 	}
 
-	// タグの詳細を取得する。
+	// タグの詳細を取得。
 	row, err := s.tagRepo.FindDetailByID(ctx, tagID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -271,7 +273,7 @@ func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserI
 		return nil, err
 	}
 
-	// 非公開タグの場合、ビューアーの権限をチェックする。
+	// 非公開タグの場合、ビューアーの権限をチェック。
 	if !row.IsPublic {
 		if viewerUserID == nil || strings.TrimSpace(*viewerUserID) == "" || *viewerUserID != row.OwnerID {
 			// ビューアーの権限がない場合、エラーを返す
@@ -279,7 +281,7 @@ func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserI
 		}
 	}
 
-	// ビューアーがタグの作成者の場合、編集可能なフラグを立てる。
+	// ビューアーがタグの作成者の場合、編集可能なフラグを立てる
 	canEdit := viewerUserID != nil && strings.TrimSpace(*viewerUserID) != "" && *viewerUserID == row.OwnerID
 
 	// 映画追加権限の判定
@@ -295,11 +297,10 @@ func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserI
 	// 参加者（タグに映画を追加したユーザー、作成者除く）を取得
 	contributors, contributorCount, err := s.tagMovieRepo.ListContributorsByTag(ctx, tagID, row.OwnerID, 10)
 	if err != nil {
-		// 参加者取得に失敗しても詳細自体は返す（ベストエフォート）
+		// 参加者取得に失敗しても詳細自体は返す
 		contributors = []repository.TagContributor{}
 		contributorCount = 0
 	}
-
 	participants := make([]TagParticipant, 0, len(contributors))
 	for _, c := range contributors {
 		participants = append(participants, TagParticipant{
