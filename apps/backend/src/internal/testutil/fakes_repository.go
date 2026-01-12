@@ -119,3 +119,55 @@ func (f *FakeTagMovieRepository) Delete(ctx context.Context, tagMovieID string) 
 	}
 	return f.DeleteFn(ctx, tagMovieID)
 }
+
+// FakeTagFollowerRepository は repository.TagFollowerRepository の手書き fake です。
+type FakeTagFollowerRepository struct {
+	CreateFn            func(ctx context.Context, tagID, userID string) error
+	DeleteFn            func(ctx context.Context, tagID, userID string) error
+	IsFollowingFn       func(ctx context.Context, tagID, userID string) (bool, error)
+	ListFollowersFn     func(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error)
+	CountFollowersFn    func(ctx context.Context, tagID string) (int64, error)
+	ListFollowingTagsFn func(ctx context.Context, userID string, page, pageSize int) ([]*model.Tag, int64, error)
+}
+
+func (f *FakeTagFollowerRepository) Create(ctx context.Context, tagID, userID string) error {
+	if f.CreateFn == nil {
+		return nil
+	}
+	return f.CreateFn(ctx, tagID, userID)
+}
+
+func (f *FakeTagFollowerRepository) Delete(ctx context.Context, tagID, userID string) error {
+	if f.DeleteFn == nil {
+		return nil
+	}
+	return f.DeleteFn(ctx, tagID, userID)
+}
+
+func (f *FakeTagFollowerRepository) IsFollowing(ctx context.Context, tagID, userID string) (bool, error) {
+	if f.IsFollowingFn == nil {
+		return false, nil
+	}
+	return f.IsFollowingFn(ctx, tagID, userID)
+}
+
+func (f *FakeTagFollowerRepository) ListFollowers(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error) {
+	if f.ListFollowersFn == nil {
+		return []*model.User{}, 0, nil
+	}
+	return f.ListFollowersFn(ctx, tagID, page, pageSize)
+}
+
+func (f *FakeTagFollowerRepository) CountFollowers(ctx context.Context, tagID string) (int64, error) {
+	if f.CountFollowersFn == nil {
+		return 0, nil
+	}
+	return f.CountFollowersFn(ctx, tagID)
+}
+
+func (f *FakeTagFollowerRepository) ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]*model.Tag, int64, error) {
+	if f.ListFollowingTagsFn == nil {
+		return []*model.Tag{}, 0, nil
+	}
+	return f.ListFollowingTagsFn(ctx, userID, page, pageSize)
+}

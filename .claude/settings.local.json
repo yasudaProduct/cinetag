@@ -5,7 +5,9 @@
       "Bash(ENV=develop go run:*)",
       "Bash(go build:*)",
       "Bash(npm run lint)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

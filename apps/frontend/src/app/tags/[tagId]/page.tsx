@@ -7,11 +7,15 @@ import { AvatarCircle } from "@/components/AvatarCircle";
 import { getTagDetail } from "@/lib/api/tags/detail";
 import { listTagMovies } from "@/lib/api/tags/movies";
 import { deleteMovieFromTag } from "@/lib/api/tags/deleteMovie";
-import { Search, Plus, Pencil } from "lucide-react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { followTag } from "@/lib/api/tags/follow";
+import { unfollowTag } from "@/lib/api/tags/unfollow";
+import { getTagFollowStatus } from "@/lib/api/tags/getFollowStatus";
+import { Search, Plus, Pencil, Heart } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MovieAddModal } from "@/components/MovieAddModal";
 import { TagModal } from "@/components/TagModal";
-import { useAuth } from "@clerk/nextjs";
+import { TagFollowersModal } from "@/components/TagFollowersModal";
+import { useAuth, useUser } from "@clerk/nextjs";
 
 export default function TagDetailPage({
   params,
@@ -22,7 +26,10 @@ export default function TagDetailPage({
   const [query, setQuery] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [followersOpen, setFollowersOpen] = useState(false);
   const { getToken } = useAuth();
+  const { isSignedIn } = useUser();
+  const queryClient = useQueryClient();
 
   const detailQuery = useQuery({
     queryKey: ["tagDetail", tagId],
@@ -56,7 +63,37 @@ export default function TagDetailPage({
     },
   });
 
+  // フォロー状態取得
+  const followStatusQuery = useQuery({
+    queryKey: ["tagFollowStatus", tagId],
+    queryFn: async () => {
+      const token = await getToken({ template: "cinetag-backend" });
+      if (!token) return { isFollowing: false };
+      return await getTagFollowStatus(tagId, token);
+    },
+    enabled: isSignedIn === true,
+  });
+
+  // フォロー/アンフォローミューテーション
+  const followMutation = useMutation({
+    mutationFn: async () => {
+      const token = await getToken({ template: "cinetag-backend" });
+      if (!token) throw new Error("認証が必要です");
+      const isFollowing = followStatusQuery.data?.isFollowing ?? false;
+      if (isFollowing) {
+        await unfollowTag(tagId, token);
+      } else {
+        await followTag(tagId, token);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tagFollowStatus", tagId] });
+      detailQuery.refetch();
+    },
+  });
+
   const detail = detailQuery.data ?? null;
+  const isFollowing = followStatusQuery.data?.isFollowing ?? false;
   const movies = moviesQuery.data ?? [];
   const canEditTag = detail?.canEdit ?? false;
   const canAddMovie = detail?.canAddMovie ?? false;
@@ -114,35 +151,62 @@ export default function TagDetailPage({
 
               {/* 参加者 */}
               <div className="mt-6">
-                <div className="text-xs text-gray-500 font-semibold">
-                  {detail?.participantCount ?? 0}人の参加者
-                </div>
-                <div className="mt-3 flex items-center">
-                  {(detail?.participants ?? []).slice(0, 4).map((p, idx) => (
-                    <div
-                      key={`${p.username}-${idx}`}
-                      className={idx === 0 ? "" : "-ml-2"}
-                    >
-                      <AvatarCircle
-                        name={p.username}
-                        avatarUrl={p.avatarUrl}
-                        displayId={p.displayId}
-                        className="h-9 w-9"
-                      />
-                    </div>
-                  ))}
-                  {detail && detail.participantCount > 4 && (
-                    <div className="-ml-2">
-                      <div className="h-9 w-9 rounded-full bg-pink-100 border border-pink-200 flex items-center justify-center text-xs font-bold text-pink-600">
-                        +{detail.participantCount - 4}
+                <button
+                  type="button"
+                  onClick={() => setFollowersOpen(true)}
+                  className="w-full text-left hover:bg-gray-50 rounded-xl p-2 -m-2 transition-colors"
+                >
+                  <div className="text-xs text-gray-500 font-semibold">
+                    {detail?.participantCount ?? 0}人の参加者
+                  </div>
+                  <div className="mt-3 flex items-center">
+                    {(detail?.participants ?? []).slice(0, 4).map((p, idx) => (
+                      <div
+                        key={`${p.username}-${idx}`}
+                        className={idx === 0 ? "" : "-ml-2"}
+                      >
+                        <AvatarCircle
+                          name={p.username}
+                          avatarUrl={p.avatarUrl}
+                          className="h-9 w-9"
+                        />
                       </div>
-                    </div>
-                  )}
-                </div>
+                    ))}
+                    {detail && detail.participantCount > 4 && (
+                      <div className="-ml-2">
+                        <div className="h-9 w-9 rounded-full bg-pink-100 border border-pink-200 flex items-center justify-center text-xs font-bold text-pink-600">
+                          +{detail.participantCount - 4}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </button>
               </div>
 
               {/* Actions */}
               <div className="mt-7 space-y-3">
+                {/* フォローボタン（ログインユーザーのみ表示、自分が作成者でない場合） */}
+                {isSignedIn && !canEditTag && (
+                  <button
+                    type="button"
+                    disabled={followMutation.isPending}
+                    className={`w-full font-bold py-3 rounded-full flex items-center justify-center gap-2 shadow-sm hover:shadow transition-all ${
+                      isFollowing
+                        ? "bg-pink-100 text-pink-600 border border-pink-300 hover:bg-pink-200"
+                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    }`}
+                    onClick={() => followMutation.mutate()}
+                  >
+                    <Heart
+                      className={`w-5 h-5 ${isFollowing ? "fill-current" : ""}`}
+                    />
+                    {followMutation.isPending
+                      ? "処理中..."
+                      : isFollowing
+                        ? "フォロー中"
+                        : "フォローする"}
+                  </button>
+                )}
                 {canAddMovie ? (
                   <button
                     type="button"
@@ -262,6 +326,13 @@ export default function TagDetailPage({
           }}
         />
       ) : null}
+
+      <TagFollowersModal
+        open={followersOpen}
+        tagId={tagId}
+        tagTitle={detail?.title ?? ""}
+        onClose={() => setFollowersOpen(false)}
+      />
     </div>
   );
 }

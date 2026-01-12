@@ -58,27 +58,45 @@ type TagService interface {
 	// RemoveMovieFromTag はタグから映画を削除します。
 	// タグ作成者は全ての映画を削除可能。他のユーザーは自分が追加した映画のみ削除可能。
 	RemoveMovieFromTag(ctx context.Context, tagMovieID string, userID string) error
+
+	// FollowTag はタグをフォローします。
+	FollowTag(ctx context.Context, tagID, userID string) error
+
+	// UnfollowTag はタグのフォローを解除します。
+	UnfollowTag(ctx context.Context, tagID, userID string) error
+
+	// IsFollowingTag はユーザーがタグをフォローしているかチェックします。
+	IsFollowingTag(ctx context.Context, tagID, userID string) (bool, error)
+
+	// ListTagFollowers はタグのフォロワー一覧を返します。
+	ListTagFollowers(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error)
+
+	// ListFollowingTags はユーザーがフォローしているタグ一覧を返します。
+	ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]TagListItem, int64, error)
 }
 
 type tagService struct {
-	tagRepo      repository.TagRepository
-	tagMovieRepo repository.TagMovieRepository
-	movieService MovieService
-	imageBaseURL string
+	tagRepo          repository.TagRepository
+	tagMovieRepo     repository.TagMovieRepository
+	tagFollowerRepo  repository.TagFollowerRepository
+	movieService     MovieService
+	imageBaseURL     string
 }
 
 // NewTagService は TagService の実装を生成します。
 func NewTagService(
 	tagRepo repository.TagRepository,
 	tagMovieRepo repository.TagMovieRepository,
+	tagFollowerRepo repository.TagFollowerRepository,
 	movieService MovieService,
 	imageBaseURL string,
 ) TagService {
 	return &tagService{
-		tagRepo:      tagRepo,
-		tagMovieRepo: tagMovieRepo,
-		movieService: movieService,
-		imageBaseURL: strings.TrimRight(imageBaseURL, "/"),
+		tagRepo:         tagRepo,
+		tagMovieRepo:    tagMovieRepo,
+		tagFollowerRepo: tagFollowerRepo,
+		movieService:    movieService,
+		imageBaseURL:    strings.TrimRight(imageBaseURL, "/"),
 	}
 }
 
@@ -174,6 +192,8 @@ var (
 	ErrTagPermissionDenied   = errors.New("tag permission denied")    // タグの編集権限がない
 	ErrTagMovieAlreadyExists = errors.New("tag movie already exists") // タグに既に映画が存在する
 	ErrTagMovieNotFound      = errors.New("tag movie not found")      // タグ映画が存在しない
+	ErrAlreadyFollowingTag   = errors.New("already following tag")    // 既にタグをフォロー済み
+	ErrNotFollowingTag       = errors.New("not following tag")        // タグをフォローしていない
 )
 
 func (s *tagService) UpdateTag(ctx context.Context, tagID string, userID string, patch UpdateTagPatch) (*TagDetail, error) {
@@ -739,4 +759,192 @@ func (s *tagService) RemoveMovieFromTag(ctx context.Context, tagMovieID string, 
 	}
 
 	return nil
+}
+
+// FollowTag はタグをフォローします。
+func (s *tagService) FollowTag(ctx context.Context, tagID, userID string) error {
+	if strings.TrimSpace(tagID) == "" {
+		return fmt.Errorf("tag_id is required")
+	}
+	if strings.TrimSpace(userID) == "" {
+		return fmt.Errorf("user_id is required")
+	}
+
+	// タグの存在確認
+	tag, err := s.tagRepo.FindByID(ctx, tagID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrTagNotFound
+		}
+		return err
+	}
+
+	// 非公開タグはフォローできない（作成者以外）
+	if !tag.IsPublic && tag.UserID != userID {
+		return ErrTagPermissionDenied
+	}
+
+	// 既にフォロー済みかチェック
+	isFollowing, err := s.tagFollowerRepo.IsFollowing(ctx, tagID, userID)
+	if err != nil {
+		return err
+	}
+	if isFollowing {
+		return ErrAlreadyFollowingTag
+	}
+
+	// フォロー関係を作成
+	return s.tagFollowerRepo.Create(ctx, tagID, userID)
+}
+
+// UnfollowTag はタグのフォローを解除します。
+func (s *tagService) UnfollowTag(ctx context.Context, tagID, userID string) error {
+	if strings.TrimSpace(tagID) == "" {
+		return fmt.Errorf("tag_id is required")
+	}
+	if strings.TrimSpace(userID) == "" {
+		return fmt.Errorf("user_id is required")
+	}
+
+	// タグの存在確認
+	_, err := s.tagRepo.FindByID(ctx, tagID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrTagNotFound
+		}
+		return err
+	}
+
+	// フォローしているかチェック
+	isFollowing, err := s.tagFollowerRepo.IsFollowing(ctx, tagID, userID)
+	if err != nil {
+		return err
+	}
+	if !isFollowing {
+		return ErrNotFollowingTag
+	}
+
+	// フォロー関係を削除
+	return s.tagFollowerRepo.Delete(ctx, tagID, userID)
+}
+
+// IsFollowingTag はユーザーがタグをフォローしているかチェックします。
+func (s *tagService) IsFollowingTag(ctx context.Context, tagID, userID string) (bool, error) {
+	if strings.TrimSpace(tagID) == "" {
+		return false, fmt.Errorf("tag_id is required")
+	}
+	if strings.TrimSpace(userID) == "" {
+		return false, nil
+	}
+
+	return s.tagFollowerRepo.IsFollowing(ctx, tagID, userID)
+}
+
+// ListTagFollowers はタグのフォロワー一覧を返します。
+func (s *tagService) ListTagFollowers(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error) {
+	if strings.TrimSpace(tagID) == "" {
+		return nil, 0, fmt.Errorf("tag_id is required")
+	}
+	if page < 1 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	// タグの存在確認
+	_, err := s.tagRepo.FindByID(ctx, tagID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, 0, ErrTagNotFound
+		}
+		return nil, 0, err
+	}
+
+	return s.tagFollowerRepo.ListFollowers(ctx, tagID, page, pageSize)
+}
+
+// ListFollowingTags はユーザーがフォローしているタグ一覧を返します。
+func (s *tagService) ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]TagListItem, int64, error) {
+	if strings.TrimSpace(userID) == "" {
+		return nil, 0, fmt.Errorf("user_id is required")
+	}
+	if page < 1 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	tags, total, err := s.tagFollowerRepo.ListFollowingTags(ctx, userID, page, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+	if total == 0 {
+		return []TagListItem{}, 0, nil
+	}
+
+	// 映画ポスター画像の取得
+	imagesByTag := make(map[string][]string, len(tags))
+	if s.movieService != nil {
+		for _, tag := range tags {
+			tagMovies, err := s.tagMovieRepo.ListRecentByTag(ctx, tag.ID, 4)
+			if err != nil {
+				continue
+			}
+
+			for _, tm := range tagMovies {
+				if len(imagesByTag[tag.ID]) >= 4 {
+					break
+				}
+				cache, err := s.movieService.EnsureMovieCache(ctx, tm.TmdbMovieID)
+				if err != nil {
+					continue
+				}
+				if cache.PosterPath == nil || *cache.PosterPath == "" {
+					continue
+				}
+				poster := *cache.PosterPath
+				if s.imageBaseURL != "" {
+					poster = s.imageBaseURL + poster
+				}
+				imagesByTag[tag.ID] = append(imagesByTag[tag.ID], poster)
+			}
+		}
+	}
+
+	// タグ作成者の情報を取得するため、リポジトリからユーザー情報を取得
+	items := make([]TagListItem, 0, len(tags))
+	for _, tag := range tags {
+		// タグ作成者の情報を取得
+		author := ""
+		authorDisplayID := ""
+		if tagDetail, err := s.tagRepo.FindDetailByID(ctx, tag.ID); err == nil {
+			author = tagDetail.OwnerDisplayName
+			authorDisplayID = tagDetail.OwnerDisplayID
+		}
+
+		item := TagListItem{
+			ID:              tag.ID,
+			Title:           tag.Title,
+			Description:     tag.Description,
+			Author:          author,
+			AuthorDisplayID: authorDisplayID,
+			CoverImageURL:   tag.CoverImageURL,
+			IsPublic:        tag.IsPublic,
+			MovieCount:      tag.MovieCount,
+			FollowerCount:   tag.FollowerCount,
+			Images:          imagesByTag[tag.ID],
+			CreatedAt:       tag.CreatedAt,
+		}
+		items = append(items, item)
+	}
+
+	return items, total, nil
 }

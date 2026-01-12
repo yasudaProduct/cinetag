@@ -26,7 +26,8 @@ func NewRouter() *gin.Engine {
 	imageBaseURL := os.Getenv("TMDB_IMAGE_BASE_URL")
 	tagRepo := repository.NewTagRepository(database)
 	tagMovieRepo := repository.NewTagMovieRepository(database)
-	tagService := service.NewTagService(tagRepo, tagMovieRepo, movieService, imageBaseURL)
+	tagFollowerRepo := repository.NewTagFollowerRepository(database)
+	tagService := service.NewTagService(tagRepo, tagMovieRepo, tagFollowerRepo, movieService, imageBaseURL)
 	userRepo := repository.NewUserRepository(database)
 	userFollowerRepo := repository.NewUserFollowerRepository(database)
 	userService := service.NewUserService(userRepo, userFollowerRepo)
@@ -76,6 +77,7 @@ func NewRouter() *gin.Engine {
 		api.GET("/tags", tagHandler.ListPublicTags)
 		api.GET("/tags/:tagId", optionalAuthMiddleware, tagHandler.GetTagDetail)
 		api.GET("/tags/:tagId/movies", optionalAuthMiddleware, tagHandler.ListTagMovies)
+		api.GET("/tags/:tagId/followers", tagHandler.ListTagFollowers)
 
 		// ユーザー情報取得（認証不要）
 		api.GET("/users/:displayId", userHandler.GetUserByDisplayID)
@@ -101,6 +103,14 @@ func NewRouter() *gin.Engine {
 			authGroup.PATCH("/tags/:tagId", tagHandler.UpdateTag)
 			authGroup.POST("/tags/:tagId/movies", tagHandler.AddMovieToTag)
 			authGroup.DELETE("/tags/:tagId/movies/:tagMovieId", tagHandler.RemoveMovieFromTag)
+
+			// タグフォロー
+			authGroup.POST("/tags/:tagId/follow", tagHandler.FollowTag)
+			authGroup.DELETE("/tags/:tagId/follow", tagHandler.UnfollowTag)
+			authGroup.GET("/tags/:tagId/follow-status", tagHandler.GetTagFollowStatus)
+
+			// 自分のフォロー中タグ一覧
+			authGroup.GET("/me/following-tags", tagHandler.ListFollowingTags)
 		}
 	}
 

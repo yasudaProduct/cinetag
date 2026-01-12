@@ -23,6 +23,11 @@ type fakeTagService struct {
 	AddMovieToTagFn      func(ctx context.Context, in service.AddMovieToTagInput) (*model.TagMovie, error)
 	UpdateTagFn          func(ctx context.Context, tagID string, userID string, patch service.UpdateTagPatch) (*service.TagDetail, error)
 	RemoveMovieFromTagFn func(ctx context.Context, tagMovieID string, userID string) error
+	FollowTagFn          func(ctx context.Context, tagID, userID string) error
+	UnfollowTagFn        func(ctx context.Context, tagID, userID string) error
+	IsFollowingTagFn     func(ctx context.Context, tagID, userID string) (bool, error)
+	ListTagFollowersFn   func(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error)
+	ListFollowingTagsFn  func(ctx context.Context, userID string, page, pageSize int) ([]service.TagListItem, int64, error)
 }
 
 func (f *fakeTagService) ListPublicTags(ctx context.Context, q, sort string, page, pageSize int) ([]service.TagListItem, int64, error) {
@@ -79,6 +84,41 @@ func (f *fakeTagService) RemoveMovieFromTag(ctx context.Context, tagMovieID stri
 		return nil
 	}
 	return f.RemoveMovieFromTagFn(ctx, tagMovieID, userID)
+}
+
+func (f *fakeTagService) FollowTag(ctx context.Context, tagID, userID string) error {
+	if f.FollowTagFn == nil {
+		return nil
+	}
+	return f.FollowTagFn(ctx, tagID, userID)
+}
+
+func (f *fakeTagService) UnfollowTag(ctx context.Context, tagID, userID string) error {
+	if f.UnfollowTagFn == nil {
+		return nil
+	}
+	return f.UnfollowTagFn(ctx, tagID, userID)
+}
+
+func (f *fakeTagService) IsFollowingTag(ctx context.Context, tagID, userID string) (bool, error) {
+	if f.IsFollowingTagFn == nil {
+		return false, nil
+	}
+	return f.IsFollowingTagFn(ctx, tagID, userID)
+}
+
+func (f *fakeTagService) ListTagFollowers(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error) {
+	if f.ListTagFollowersFn == nil {
+		return []*model.User{}, 0, nil
+	}
+	return f.ListTagFollowersFn(ctx, tagID, page, pageSize)
+}
+
+func (f *fakeTagService) ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]service.TagListItem, int64, error) {
+	if f.ListFollowingTagsFn == nil {
+		return []service.TagListItem{}, 0, nil
+	}
+	return f.ListFollowingTagsFn(ctx, userID, page, pageSize)
 }
 
 // newTagHandlerRouter は TagHandler のテスト用ルーターを生成します。
