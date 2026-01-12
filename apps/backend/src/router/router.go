@@ -11,13 +11,15 @@ import (
 )
 
 func NewRouter() *gin.Engine {
-	r := gin.Default()
+	// gin.Default() の代わりに gin.New() を使用し、
+	// カスタムのロガーとリカバリーミドルウェアを適用
+	r := gin.New()
 
 	// 依存関係の組み立て
 	deps := NewDependencies()
 
-	// ミドルウェア設定
-	setupMiddleware(r)
+	// ミドルウェア設定（ログとリカバリーを含む）
+	setupMiddleware(r, deps)
 
 	// ルート設定
 	setupRoutes(r, deps)
@@ -26,7 +28,14 @@ func NewRouter() *gin.Engine {
 }
 
 // setupMiddleware はミドルウェアを設定します。
-func setupMiddleware(r *gin.Engine) {
+func setupMiddleware(r *gin.Engine, deps *Dependencies) {
+	// リカバリーミドルウェア（パニック時のログ出力）
+	r.Use(deps.RecoveryMiddleware)
+
+	// リクエストログミドルウェア（request_id付与、リクエストログ出力）
+	r.Use(deps.RequestLoggerMiddleware)
+
+	// CORS設定
 	r.Use(cors.New(cors.Config{
 		// 許可するオリジン（開発環境と本番環境のフロントエンドURL）
 		AllowOrigins: []string{
