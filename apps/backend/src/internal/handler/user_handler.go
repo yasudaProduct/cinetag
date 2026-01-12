@@ -170,6 +170,10 @@ func (h *UserHandler) FollowUser(c *gin.Context) {
 	// フォローを実行
 	err = h.userService.FollowUser(c.Request.Context(), currentUser.ID, targetUser.ID)
 	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
 		if errors.Is(err, service.ErrCannotFollowSelf) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot follow yourself"})
 			return

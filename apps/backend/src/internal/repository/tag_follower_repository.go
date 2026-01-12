@@ -14,6 +14,8 @@ type TagFollowerRepository interface {
 	Create(ctx context.Context, tagID, userID string) error
 	// Delete はタグフォロー関係を削除します
 	Delete(ctx context.Context, tagID, userID string) error
+	// DeleteAllByUserID は指定ユーザーに紐づくタグフォロー関係を全て削除します。
+	DeleteAllByUserID(ctx context.Context, userID string) error
 	// IsFollowing は userID が tagID をフォローしているかチェックします
 	IsFollowing(ctx context.Context, tagID, userID string) (bool, error)
 	// ListFollowers はタグをフォローしているユーザー一覧を返します
@@ -44,6 +46,12 @@ func (r *tagFollowerRepository) Create(ctx context.Context, tagID, userID string
 func (r *tagFollowerRepository) Delete(ctx context.Context, tagID, userID string) error {
 	return r.db.WithContext(ctx).
 		Where("tag_id = ? AND user_id = ?", tagID, userID).
+		Delete(&model.TagFollower{}).Error
+}
+
+func (r *tagFollowerRepository) DeleteAllByUserID(ctx context.Context, userID string) error {
+	return r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
 		Delete(&model.TagFollower{}).Error
 }
 

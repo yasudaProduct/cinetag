@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -9,19 +10,28 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// clerkUserCreatedEvent は Clerk の user.created Webhook ペイロードの一部を表します。
-type clerkUserCreatedEvent struct {
-	Type string `json:"type"`
-	Data struct {
-		ID             string `json:"id"`
-		Username       string `json:"username"`
-		FirstName      string `json:"first_name"`
-		LastName       string `json:"last_name"`
-		ImageURL       string `json:"image_url"`
-		EmailAddresses []struct {
-			EmailAddress string `json:"email_address"`
-		} `json:"email_addresses"`
-	} `json:"data"`
+// clerkWebhookEvent は Clerk Webhook の共通ペイロードを表します。
+// data の中身はイベントタイプにより異なるため RawMessage で受け取ります。
+type clerkWebhookEvent struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
+}
+
+// clerkUserCreatedData は Clerk の user.created Webhook の data 部分を表します。
+type clerkUserCreatedData struct {
+	ID             string `json:"id"`
+	Username       string `json:"username"`
+	FirstName      string `json:"first_name"`
+	LastName       string `json:"last_name"`
+	ImageURL       string `json:"image_url"`
+	EmailAddresses []struct {
+		EmailAddress string `json:"email_address"`
+	} `json:"email_addresses"`
+}
+
+// clerkUserDeletedData は Clerk の user.deleted Webhook の data 部分を表します。
+type clerkUserDeletedData struct {
+	ID string `json:"id"`
 }
 
 // ClerkWebhookHandler は Clerk Webhook を処理するハンドラーです。
@@ -38,65 +48,96 @@ func NewClerkWebhookHandler(userService service.UserService) *ClerkWebhookHandle
 
 // HandleWebhook は POST /api/v1/clerk/webhook を処理します。
 //
-// 現時点では svix 署名検証ロジックは未実装であり、payload の user.created イベントのみを処理します。
+// 現時点では svix 署名検証ロジックは未実装です。
 // TODO: svix の署名検証を追加し、Clerk からの正当なリクエストのみを受け付ける。
 func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 
 	// ペイロードをバインド
-	var event clerkUserCreatedEvent
+	var event clerkWebhookEvent
 	if err := c.ShouldBindJSON(&event); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid webhook payload",
 		})
 		return
 	}
-	fmt.Println("[HandleWebhook] clerkUserCreatedEvent.Type", event.Type)
-	fmt.Println("[HandleWebhook] clerkUserCreatedEvent.Data.ID", event.Data.ID)
-	fmt.Println("[HandleWebhook] clerkUserCreatedEvent.Data.Username", event.Data.Username)
-	fmt.Println("[HandleWebhook] clerkUserCreatedEvent.Data.FirstName", event.Data.FirstName)
-	fmt.Println("[HandleWebhook] clerkUserCreatedEvent.Data.LastName", event.Data.LastName)
-	fmt.Println("[HandleWebhook] clerkUserCreatedEvent.Data.ImageURL", event.Data.ImageURL)
+	fmt.Println("[HandleWebhook] clerkWebhookEvent.Type", event.Type)
 
-	// 他のイベントタイプは無視
-	if event.Type != "user.created" {
+	switch event.Type {
+	case "user.created":
+		var data clerkUserCreatedData
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "invalid webhook data",
+			})
+			return
+		}
+
+		fmt.Println("[HandleWebhook] clerkUserCreatedData.ID", data.ID)
+		fmt.Println("[HandleWebhook] clerkUserCreatedData.Username", data.Username)
+		fmt.Println("[HandleWebhook] clerkUserCreatedData.FirstName", data.FirstName)
+		fmt.Println("[HandleWebhook] clerkUserCreatedData.LastName", data.LastName)
+		fmt.Println("[HandleWebhook] clerkUserCreatedData.ImageURL", data.ImageURL)
+
+		email := ""
+		if len(data.EmailAddresses) > 0 {
+			email = data.EmailAddresses[0].EmailAddress
+		}
+
+		var avatarURL *string
+		if data.ImageURL != "" {
+			url := data.ImageURL
+			avatarURL = &url
+		}
+
+		// clerkUserInfo を作成
+		clerkUser, err := service.NewClerkUserInfoFromWebhook(
+			data.ID,
+			email,
+			data.FirstName,
+			data.LastName,
+			avatarURL,
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "failed to sync user",
+			})
+			return
+		}
+
+		if _, err := h.userService.EnsureUser(c.Request.Context(), clerkUser); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "failed to sync user",
+			})
+			return
+		}
+
+		c.Status(http.StatusOK)
+		return
+
+	case "user.deleted":
+		var data clerkUserDeletedData
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "invalid webhook data",
+			})
+			return
+		}
+		fmt.Println("[HandleWebhook] clerkUserDeletedData.ID", data.ID)
+
+		// Clerk側で削除されたユーザーを、DB側で論理削除＋匿名化し、関連データをクリーンアップする。
+		if err := h.userService.HandleClerkUserDeleted(c.Request.Context(), data.ID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "failed to handle user deleted",
+			})
+			return
+		}
+
+		c.Status(http.StatusOK)
+		return
+
+	default:
+		// 他のイベントタイプは無視
 		c.Status(http.StatusOK)
 		return
 	}
-
-	// TODO: user.updated, user.deletedイベントを考慮する必要はあるか。なんの時に発生するイベントか。
-
-	email := ""
-	if len(event.Data.EmailAddresses) > 0 {
-		email = event.Data.EmailAddresses[0].EmailAddress
-	}
-
-	var avatarURL *string
-	if event.Data.ImageURL != "" {
-		url := event.Data.ImageURL
-		avatarURL = &url
-	}
-
-	// clerkUserInfo を作成
-	clerkUser, err := service.NewClerkUserInfoFromWebhook(
-		event.Data.ID,
-		email,
-		event.Data.FirstName,
-		event.Data.LastName,
-		avatarURL,
-	)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to sync user",
-		})
-		return
-	}
-
-	if _, err := h.userService.EnsureUser(c.Request.Context(), clerkUser); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to sync user",
-		})
-		return
-	}
-
-	c.Status(http.StatusOK)
 }

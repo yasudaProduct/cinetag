@@ -8,7 +8,7 @@
 #
 @api_prefix = {{api}}{{version}}
 
-### Clerk Webhook（user.created のみ処理。現状は署名検証なし）
+### Clerk Webhook（user.created）
 POST {{host}}{{api_prefix}}/clerk/webhook
 Content-Type: application/json
 
@@ -27,3 +27,13 @@ Content-Type: application/json
 }
 
 
+### Clerk Webhook（user.deleted）
+POST {{host}}{{api_prefix}}/clerk/webhook
+Content-Type: application/json
+
+{
+  "type": "user.deleted",
+  "data": {
+    "id": "user_123"
+  }
+}

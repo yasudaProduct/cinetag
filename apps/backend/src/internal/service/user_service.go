@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"cinetag-backend/src/internal/model"
 	"cinetag-backend/src/internal/repository"
@@ -61,23 +62,32 @@ type UserService interface {
 
 	// GetFollowStats はフォロー数とフォロワー数を取得します。
 	GetFollowStats(ctx context.Context, userID string) (following int64, followers int64, err error)
+
+	// HandleClerkUserDeleted は Clerk 側で削除されたユーザーをローカルDBへ反映します。
+	// users を論理削除＋匿名化し、関連するフォロー関係をクリーンアップします。
+	HandleClerkUserDeleted(ctx context.Context, clerkUserID string) error
 }
 
 type userService struct {
+	db               *gorm.DB
 	userRepo         repository.UserRepository
 	userFollowerRepo repository.UserFollowerRepository
+	tagFollowerRepo  repository.TagFollowerRepository
 }
 
 // NewUserService は UserService の実装を生成します。
-func NewUserService(userRepo repository.UserRepository, userFollowerRepo repository.UserFollowerRepository) UserService {
+func NewUserService(db *gorm.DB, userRepo repository.UserRepository, userFollowerRepo repository.UserFollowerRepository, tagFollowerRepo repository.TagFollowerRepository) UserService {
 	return &userService{
+		db:               db,
 		userRepo:         userRepo,
 		userFollowerRepo: userFollowerRepo,
+		tagFollowerRepo:  tagFollowerRepo,
 	}
 }
 
 // EnsureUser は Clerk ユーザーに対応する users レコードの存在を保証します。
 func (s *userService) EnsureUser(ctx context.Context, clerkInfo ClerkUserInfo) (*model.User, error) {
+	fmt.Println("[user_service] EnsureUser", clerkInfo.ID)
 	if clerkInfo.ID == "" {
 		return nil, errors.New("clerk user id is required")
 	}
@@ -146,6 +156,9 @@ func (s *userService) GetUserByDisplayID(ctx context.Context, displayID string) 
 		}
 		return nil, err
 	}
+	if user != nil && user.DeletedAt != nil {
+		return nil, ErrUserNotFound
+	}
 
 	return user, nil
 }
@@ -162,11 +175,15 @@ func (s *userService) FollowUser(ctx context.Context, followerID, followeeID str
 	}
 
 	// フォロー対象のユーザーが存在するか確認
-	if _, err := s.userRepo.FindByID(ctx, followeeID); err != nil {
+	followee, err := s.userRepo.FindByID(ctx, followeeID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
 		}
 		return err
+	}
+	if followee != nil && followee.DeletedAt != nil {
+		return ErrUserNotFound
 	}
 
 	// 既にフォロー済みかチェック
@@ -252,4 +269,48 @@ func (s *userService) GetFollowStats(ctx context.Context, userID string) (follow
 	}
 
 	return following, followers, nil
+}
+
+// HandleClerkUserDeleted は Clerk 側で削除されたユーザーを、DB側で論理削除＋匿名化し、関連データをクリーンアップします。
+func (s *userService) HandleClerkUserDeleted(ctx context.Context, clerkUserID string) error {
+	clerkUserID = strings.TrimSpace(clerkUserID)
+	if clerkUserID == "" {
+		return errors.New("clerk user id is required")
+	}
+	if s.db == nil {
+		return errors.New("db is required")
+	}
+
+	now := time.Now()
+
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		userRepo := repository.NewUserRepository(tx)
+		userFollowerRepo := repository.NewUserFollowerRepository(tx)
+		tagFollowerRepo := repository.NewTagFollowerRepository(tx)
+
+		u, err := userRepo.FindByClerkUserID(ctx, clerkUserID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// 既に同期されていない/存在しない場合は成功扱い
+				return nil
+			}
+			return err
+		}
+
+		// ユーザーを論理削除＋匿名化
+		anonymizedEmail := fmt.Sprintf("deleted+%s@example.invalid", u.ID)
+		if err := userRepo.UpdateForClerkUserDeleted(ctx, u.ID, now, anonymizedEmail); err != nil {
+			return err
+		}
+
+		// 当該ユーザーに紐づくフォロー関係をクリーンアップ
+		if err := tagFollowerRepo.DeleteAllByUserID(ctx, u.ID); err != nil {
+			return err
+		}
+		if err := userFollowerRepo.DeleteAllByUserID(ctx, u.ID); err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
