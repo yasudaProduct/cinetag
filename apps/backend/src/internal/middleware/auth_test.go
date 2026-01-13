@@ -89,7 +89,8 @@ func newAuthTestRouter(t *testing.T, mw gin.HandlerFunc) *gin.Engine {
 func TestAuthMiddleware(t *testing.T) {
 	t.Run("設定不備: CLERK_JWKS_URL が空なら 500", func(t *testing.T) {
 		t.Setenv("CLERK_JWKS_URL", "")
-		mw := NewAuthMiddleware(&fakeUserService{})
+		logger := testutil.NewTestLogger()
+		mw := NewAuthMiddleware(logger, &fakeUserService{})
 		r := newAuthTestRouter(t, mw)
 
 		rw := testutil.PerformRequest(r, http.MethodGet, "/ok", nil, map[string]string{
@@ -103,7 +104,8 @@ func TestAuthMiddleware(t *testing.T) {
 	t.Run("未認証: Authorization ヘッダなしは 401", func(t *testing.T) {
 		// Verify に到達しないのでURLはダミーでよい
 		t.Setenv("CLERK_JWKS_URL", "http://example.invalid/jwks")
-		mw := NewAuthMiddleware(&fakeUserService{})
+		logger := testutil.NewTestLogger()
+		mw := NewAuthMiddleware(logger, &fakeUserService{})
 		r := newAuthTestRouter(t, mw)
 
 		rw := testutil.PerformRequest(r, http.MethodGet, "/ok", nil, nil)
@@ -114,7 +116,8 @@ func TestAuthMiddleware(t *testing.T) {
 
 	t.Run("未認証: Bearer 形式でない場合は 401", func(t *testing.T) {
 		t.Setenv("CLERK_JWKS_URL", "http://example.invalid/jwks")
-		mw := NewAuthMiddleware(&fakeUserService{})
+		logger := testutil.NewTestLogger()
+		mw := NewAuthMiddleware(logger, &fakeUserService{})
 		r := newAuthTestRouter(t, mw)
 
 		rw := testutil.PerformRequest(r, http.MethodGet, "/ok", nil, map[string]string{
@@ -127,7 +130,8 @@ func TestAuthMiddleware(t *testing.T) {
 
 	t.Run("未認証: トークン形式が不正なら 401", func(t *testing.T) {
 		t.Setenv("CLERK_JWKS_URL", "http://example.invalid/jwks")
-		mw := NewAuthMiddleware(&fakeUserService{})
+		logger := testutil.NewTestLogger()
+		mw := NewAuthMiddleware(logger, &fakeUserService{})
 		r := newAuthTestRouter(t, mw)
 
 		rw := testutil.PerformRequest(r, http.MethodGet, "/ok", nil, map[string]string{
@@ -154,7 +158,8 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 		token := mustSignRS256JWT(t, kid, claims, priv)
 
-		mw := NewAuthMiddleware(&fakeUserService{})
+		logger := testutil.NewTestLogger()
+		mw := NewAuthMiddleware(logger, &fakeUserService{})
 		r := newAuthTestRouter(t, mw)
 		rw := testutil.PerformRequest(r, http.MethodGet, "/ok", nil, map[string]string{
 			"Authorization": "Bearer " + token,
@@ -180,7 +185,8 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 		token := mustSignRS256JWT(t, kid, claims, priv)
 
-		mw := NewAuthMiddleware(&fakeUserService{})
+		logger := testutil.NewTestLogger()
+		mw := NewAuthMiddleware(logger, &fakeUserService{})
 		r := newAuthTestRouter(t, mw)
 		rw := testutil.PerformRequest(r, http.MethodGet, "/ok", nil, map[string]string{
 			"Authorization": "Bearer " + token,
@@ -211,7 +217,8 @@ func TestAuthMiddleware(t *testing.T) {
 			return nil, expected
 		}}
 
-		mw := NewAuthMiddleware(us)
+		logger := testutil.NewTestLogger()
+		mw := NewAuthMiddleware(logger, us)
 		r := newAuthTestRouter(t, mw)
 		rw := testutil.PerformRequest(r, http.MethodGet, "/ok", nil, map[string]string{
 			"Authorization": "Bearer " + token,
@@ -247,7 +254,8 @@ func TestAuthMiddleware(t *testing.T) {
 			return &model.User{ID: "u-local"}, nil
 		}}
 
-		mw := NewAuthMiddleware(us)
+		logger := testutil.NewTestLogger()
+		mw := NewAuthMiddleware(logger, us)
 		r := newAuthTestRouter(t, mw)
 		rw := testutil.PerformRequest(r, http.MethodGet, "/ok", nil, map[string]string{
 			"Authorization": "Bearer " + token,

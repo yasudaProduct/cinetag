@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -39,13 +40,14 @@ type TMDBConfig struct {
 
 // MovieService の実装です。
 type movieService struct {
+	logger     *slog.Logger
 	db         *gorm.DB
 	httpClient *http.Client
 	cfg        TMDBConfig
 }
 
 // MovieService を生成する。
-func NewMovieService(db *gorm.DB) MovieService {
+func NewMovieService(logger *slog.Logger, db *gorm.DB) MovieService {
 	cfg := TMDBConfig{
 		APIKey:          os.Getenv("TMDB_API_KEY"),
 		BaseURL:         os.Getenv("TMDB_BASE_URL"),
@@ -60,7 +62,8 @@ func NewMovieService(db *gorm.DB) MovieService {
 	}
 
 	return &movieService{
-		db: db,
+		logger: logger,
+		db:     db,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
@@ -236,11 +239,18 @@ func (s *movieService) EnsureMovieCache(ctx context.Context, tmdbMovieID int) (*
 	switch {
 	case err == nil && cache.ExpiresAt.After(now):
 		// 有効なキャッシュがある場合はそのまま返す
-		fmt.Println("EnsureMovieCache cache", cache)
+		// デバッグログ（DEBUG）
+		s.logger.Debug("service.EnsureMovieCache cache hit",
+			slog.Int("tmdb_movie_id", tmdbMovieID),
+		)
 		return &cache, nil
 	case err != nil && !errors.Is(err, gorm.ErrRecordNotFound):
 		// それ以外の DB エラーはそのまま返す
-		fmt.Println("EnsureMovieCache err", err)
+		// エラーログ（ERROR）
+		s.logger.Error("service.EnsureMovieCache failed",
+			slog.Int("tmdb_movie_id", tmdbMovieID),
+			slog.Any("error", err),
+		)
 		return nil, err
 	}
 
@@ -292,30 +302,56 @@ func (s *movieService) fetchMovieFromTMDB(ctx context.Context, tmdbMovieID int) 
 		}
 	}
 	req.Header.Set("Accept", "application/json")
-	fmt.Println("fetchMovieFromTMDB req", req)
+
+	// デバッグログ（DEBUG）
+	s.logger.Debug("service.fetchMovieFromTMDB request",
+		slog.Int("tmdb_movie_id", tmdbMovieID),
+		slog.String("url", base.String()),
+	)
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		fmt.Println("fetchMovieFromTMDB err", err)
+		// エラーログ（ERROR）
+		s.logger.Error("service.fetchMovieFromTMDB request failed",
+			slog.Int("tmdb_movie_id", tmdbMovieID),
+			slog.Any("error", err),
+		)
 		return nil, fmt.Errorf("failed to call TMDB: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		fmt.Println("fetchMovieFromTMDB status not found", resp.StatusCode)
+		// デバッグログ（DEBUG）
+		s.logger.Debug("service.fetchMovieFromTMDB not found",
+			slog.Int("tmdb_movie_id", tmdbMovieID),
+			slog.Int("status_code", resp.StatusCode),
+		)
 		return nil, fmt.Errorf("tmdb movie not found: %d", tmdbMovieID)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		fmt.Println("fetchMovieFromTMDB status not ok", resp.StatusCode)
+		// エラーログ（ERROR）
+		s.logger.Error("service.fetchMovieFromTMDB request failed",
+			slog.Int("tmdb_movie_id", tmdbMovieID),
+			slog.Int("status_code", resp.StatusCode),
+		)
 		return nil, fmt.Errorf("tmdb request failed: status=%d", resp.StatusCode)
 	}
 
 	var body tmdbMovieResponse
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		fmt.Println("fetchMovieFromTMDB err", err)
+		// エラーログ（ERROR）
+		s.logger.Error("service.fetchMovieFromTMDB decode failed",
+			slog.Int("tmdb_movie_id", tmdbMovieID),
+			slog.Any("error", err),
+		)
 		return nil, fmt.Errorf("failed to decode TMDB response: %w", err)
 	}
-	fmt.Println("fetchMovieFromTMDB body", body)
+
+	// デバッグログ（DEBUG）
+	s.logger.Debug("service.fetchMovieFromTMDB success",
+		slog.Int("tmdb_movie_id", tmdbMovieID),
+		slog.String("title", body.Title),
+	)
 	return &body, nil
 }
 

@@ -8,6 +8,7 @@ import (
 
 	"cinetag-backend/src/internal/model"
 	"cinetag-backend/src/internal/repository"
+	"cinetag-backend/src/internal/testutil"
 
 	"gorm.io/gorm"
 )
@@ -129,7 +130,8 @@ func TestUserService_EnsureUser(t *testing.T) {
 	t.Run("入力バリデーション: clerk user id が必須", func(t *testing.T) {
 		t.Parallel()
 
-		svc := NewUserService(nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		logger := testutil.NewTestLogger()
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "", Email: "a@example.com"})
 		if err == nil {
 			t.Fatalf("expected error")
@@ -139,7 +141,8 @@ func TestUserService_EnsureUser(t *testing.T) {
 	t.Run("入力バリデーション: email が必須", func(t *testing.T) {
 		t.Parallel()
 
-		svc := NewUserService(nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		logger := testutil.NewTestLogger()
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1", Email: ""})
 		if err == nil {
 			t.Fatalf("expected error")
@@ -160,7 +163,8 @@ func TestUserService_EnsureUser(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewUserService(nil, repo, &fakeUserFollowerRepo{}, nil)
+		logger := testutil.NewTestLogger()
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
 
 		out, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1", Email: "a@example.com"})
 		if err != nil {
@@ -183,7 +187,8 @@ func TestUserService_EnsureUser(t *testing.T) {
 				return nil, expected
 			},
 		}
-		svc := NewUserService(nil, repo, &fakeUserFollowerRepo{}, nil)
+		logger := testutil.NewTestLogger()
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
 
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1", Email: "a@example.com"})
 		if !errors.Is(err, expected) {
@@ -211,7 +216,8 @@ func TestUserService_EnsureUser(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewUserService(nil, repo, &fakeUserFollowerRepo{}, nil)
+		logger := testutil.NewTestLogger()
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
 
 		avatar := "https://example.com/a.png"
 		out, err := svc.EnsureUser(context.Background(), ClerkUserInfo{
@@ -256,7 +262,8 @@ func TestUserService_EnsureUser(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewUserService(nil, repo, &fakeUserFollowerRepo{}, nil)
+		logger := testutil.NewTestLogger()
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
 
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{
 			ID:        "clerk_1",
@@ -287,7 +294,8 @@ func TestUserService_EnsureUser(t *testing.T) {
 				return expected
 			},
 		}
-		svc := NewUserService(nil, repo, &fakeUserFollowerRepo{}, nil)
+		logger := testutil.NewTestLogger()
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
 
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1", Email: "a@example.com"})
 		if !errors.Is(err, expected) {

@@ -2,10 +2,11 @@ package handler
 
 import (
 	"errors"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
+	"cinetag-backend/src/internal/middleware"
 	"cinetag-backend/src/internal/model"
 	"cinetag-backend/src/internal/service"
 
@@ -14,13 +15,15 @@ import (
 
 // ユーザー関連のHTTPハンドラー。
 type UserHandler struct {
+	logger      *slog.Logger
 	userService service.UserService
 	tagService  service.TagService
 }
 
 // UserHandler を生成する。
-func NewUserHandler(userService service.UserService, tagService service.TagService) *UserHandler {
+func NewUserHandler(logger *slog.Logger, userService service.UserService, tagService service.TagService) *UserHandler {
 	return &UserHandler{
+		logger:      logger,
 		userService: userService,
 		tagService:  tagService,
 	}
@@ -135,9 +138,23 @@ func (h *UserHandler) ListUserTags(c *gin.Context) {
 // FollowUser は指定ユーザーをフォローします。
 // POST /api/v1/users/:displayId/follow
 func (h *UserHandler) FollowUser(c *gin.Context) {
-	fmt.Println("[user_handler] FollowUser")
-	fmt.Println("[user_handler] displayId", c.Param("displayId"))
 	displayID := c.Param("displayId")
+	requestID := middleware.GetRequestID(c)
+
+	// 開始ログ（INFO）
+	attrs := []any{
+		slog.String("request_id", requestID),
+		slog.String("display_id", displayID),
+	}
+
+	// 認証済みの場合は user_id も含める
+	if userVal, ok := c.Get("user"); ok {
+		if user, ok2 := userVal.(*model.User); ok2 && user != nil {
+			attrs = append(attrs, slog.String("user_id", user.ID))
+		}
+	}
+
+	h.logger.Info("handler.FollowUser started", attrs...)
 	if displayID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "display_id is required"})
 		return

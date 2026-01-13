@@ -1,8 +1,7 @@
 package middleware
 
 import (
-	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -17,8 +16,10 @@ import (
 // - Authorization が無い場合: そのまま通す（匿名アクセス）
 // - Authorization があるが不正: 401 を返す
 // - CLERK_JWKS_URL 等の検証器の設定は AuthMiddleware と同様。
-func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc {
-	fmt.Println("[NewOptionalAuthMiddleware] NewOptionalAuthMiddleware")
+func NewOptionalAuthMiddleware(logger *slog.Logger, userService service.UserService) gin.HandlerFunc {
+	// 初期化ログ（DEBUG）
+	logger.Debug("middleware.NewOptionalAuthMiddleware initialized")
+
 	jwksURL := os.Getenv("CLERK_JWKS_URL")
 	issuer := os.Getenv("CLERK_ISSUER")
 	audience := os.Getenv("CLERK_AUDIENCE")
@@ -26,7 +27,7 @@ func NewOptionalAuthMiddleware(userService service.UserService) gin.HandlerFunc 
 	// Clerk JWT 検証器を生成する。
 	validator, err := NewClerkJWTValidator(jwksURL, issuer, audience)
 	if err != nil {
-		log.Printf("OptionalAuthMiddleware misconfigured: %v", err)
+		logger.Error("OptionalAuthMiddleware misconfigured", slog.Any("error", err))
 		validator = nil
 	}
 

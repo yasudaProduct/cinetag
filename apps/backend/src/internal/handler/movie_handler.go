@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -11,11 +12,15 @@ import (
 
 // 映画検索等のHTTPハンドラです。
 type MovieHandler struct {
+	logger       *slog.Logger
 	movieService service.MovieService
 }
 
-func NewMovieHandler(movieService service.MovieService) *MovieHandler {
-	return &MovieHandler{movieService: movieService}
+func NewMovieHandler(logger *slog.Logger, movieService service.MovieService) *MovieHandler {
+	return &MovieHandler{
+		logger:       logger,
+		movieService: movieService,
+	}
 }
 
 // TMDB 検索結果を返します。

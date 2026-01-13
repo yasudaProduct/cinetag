@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"time"
 
 	"cinetag-backend/src/internal/model"
@@ -20,12 +20,16 @@ type UserRepository interface {
 }
 
 type userRepository struct {
-	db *gorm.DB
+	logger *slog.Logger
+	db     *gorm.DB
 }
 
 // UserRepository の実装を生成する。
-func NewUserRepository(db *gorm.DB) UserRepository {
-	return &userRepository{db: db}
+func NewUserRepository(logger *slog.Logger, db *gorm.DB) UserRepository {
+	return &userRepository{
+		logger: logger,
+		db:     db,
+	}
 }
 
 // userID からユーザー情報を取得する。
@@ -48,7 +52,10 @@ func (r *userRepository) FindByClerkUserID(ctx context.Context, clerkUserID stri
 
 // display_id からユーザー情報を取得する。
 func (r *userRepository) FindByDisplayID(ctx context.Context, displayID string) (*model.User, error) {
-	fmt.Println("[user_repository] FindByDisplayID", displayID)
+	// 開始ログ（DEBUG）
+	r.logger.Debug("repository.FindByDisplayID started",
+		slog.String("display_id", displayID),
+	)
 	var user model.User
 	if err := r.db.WithContext(ctx).Where("display_id = ?", displayID).First(&user).Error; err != nil {
 		return nil, err

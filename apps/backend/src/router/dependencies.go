@@ -44,26 +44,26 @@ func NewDependencies() *Dependencies {
 	tagRepo := repository.NewTagRepository(database)
 	tagMovieRepo := repository.NewTagMovieRepository(database)
 	tagFollowerRepo := repository.NewTagFollowerRepository(database)
-	userRepo := repository.NewUserRepository(database)
+	userRepo := repository.NewUserRepository(log, database)
 	userFollowerRepo := repository.NewUserFollowerRepository(database)
 
 	// Services
-	movieService := service.NewMovieService(database)
+	movieService := service.NewMovieService(log, database)
 	imageBaseURL := os.Getenv("TMDB_IMAGE_BASE_URL")
-	tagService := service.NewTagService(tagRepo, tagMovieRepo, tagFollowerRepo, movieService, imageBaseURL)
-	userService := service.NewUserService(database, userRepo, userFollowerRepo, tagFollowerRepo)
+	tagService := service.NewTagService(log, tagRepo, tagMovieRepo, tagFollowerRepo, movieService, imageBaseURL)
+	userService := service.NewUserService(log, database, userRepo, userFollowerRepo, tagFollowerRepo)
 
 	// Handlers
-	tagHandler := handler.NewTagHandler(tagService)
-	movieHandler := handler.NewMovieHandler(movieService)
-	userHandler := handler.NewUserHandler(userService, tagService)
-	clerkWebhookHandler := handler.NewClerkWebhookHandler(userService)
+	tagHandler := handler.NewTagHandler(log, tagService)
+	movieHandler := handler.NewMovieHandler(log, movieService)
+	userHandler := handler.NewUserHandler(log, userService, tagService)
+	clerkWebhookHandler := handler.NewClerkWebhookHandler(log, userService)
 
 	// Middlewares
 	requestLoggerMiddleware := middleware.NewRequestLoggerMiddleware(log)
 	recoveryMiddleware := middleware.NewRecoveryMiddleware(log)
-	authMiddleware := middleware.NewAuthMiddleware(userService)
-	optionalAuthMiddleware := middleware.NewOptionalAuthMiddleware(userService)
+	authMiddleware := middleware.NewAuthMiddleware(log, userService)
+	optionalAuthMiddleware := middleware.NewOptionalAuthMiddleware(log, userService)
 
 	return &Dependencies{
 		Logger:                  log,

@@ -3,8 +3,10 @@ package testutil
 import (
 	"bytes"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,6 +16,15 @@ import (
 func NewTestRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	return gin.New()
+}
+
+// NewTestLogger はテスト用のロガーを返します。
+// 出力は os.Stderr に送られますが、通常はテスト中は表示されません。
+func NewTestLogger() *slog.Logger {
+	handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+	return slog.New(handler)
 }
 
 // PerformRequest は http.Handler に対して疑似リクエストを実行し、レスポンスを返します。

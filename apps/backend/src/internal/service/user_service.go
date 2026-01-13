@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -72,6 +73,7 @@ type UserService interface {
 }
 
 type userService struct {
+	logger          *slog.Logger
 	db               *gorm.DB
 	userRepo         repository.UserRepository
 	userFollowerRepo repository.UserFollowerRepository
@@ -79,8 +81,9 @@ type userService struct {
 }
 
 // UserService の実装を生成する。
-func NewUserService(db *gorm.DB, userRepo repository.UserRepository, userFollowerRepo repository.UserFollowerRepository, tagFollowerRepo repository.TagFollowerRepository) UserService {
+func NewUserService(logger *slog.Logger, db *gorm.DB, userRepo repository.UserRepository, userFollowerRepo repository.UserFollowerRepository, tagFollowerRepo repository.TagFollowerRepository) UserService {
 	return &userService{
+		logger:          logger,
 		db:               db,
 		userRepo:         userRepo,
 		userFollowerRepo: userFollowerRepo,
@@ -90,7 +93,10 @@ func NewUserService(db *gorm.DB, userRepo repository.UserRepository, userFollowe
 
 // Clerk ユーザーに対応する users レコードの存在を保証する。
 func (s *userService) EnsureUser(ctx context.Context, clerkInfo ClerkUserInfo) (*model.User, error) {
-	fmt.Println("[user_service] EnsureUser", clerkInfo.ID)
+	// 開始ログ（DEBUG）
+	s.logger.Debug("service.EnsureUser started",
+		slog.String("clerk_user_id", clerkInfo.ID),
+	)
 	if clerkInfo.ID == "" {
 		return nil, errors.New("clerk user id is required")
 	}
@@ -169,7 +175,10 @@ func resolveDisplayName(clerkInfo ClerkUserInfo) string {
 
 // display_id からユーザー情報を取得する。
 func (s *userService) GetUserByDisplayID(ctx context.Context, displayID string) (*model.User, error) {
-	fmt.Println("[user_service] GetUserByDisplayID", displayID)
+	// 開始ログ（DEBUG）
+	s.logger.Debug("service.GetUserByDisplayID started",
+		slog.String("display_id", displayID),
+	)
 	if displayID == "" {
 		return nil, errors.New("display_id is required")
 	}
@@ -190,7 +199,11 @@ func (s *userService) GetUserByDisplayID(ctx context.Context, displayID string) 
 
 // 指定ユーザーをフォローする。
 func (s *userService) FollowUser(ctx context.Context, followerID, followeeID string) error {
-	fmt.Println("[user_service] FollowUser", followerID, followeeID)
+	// 開始ログ（DEBUG）
+	s.logger.Debug("service.FollowUser started",
+		slog.String("follower_id", followerID),
+		slog.String("followee_id", followeeID),
+	)
 	if followerID == "" || followeeID == "" {
 		return errors.New("follower_id and followee_id are required")
 	}
@@ -309,7 +322,7 @@ func (s *userService) DeactivateUser(ctx context.Context, userID string) error {
 	now := time.Now()
 
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		userRepo := repository.NewUserRepository(tx)
+		userRepo := repository.NewUserRepository(s.logger, tx)
 		userFollowerRepo := repository.NewUserFollowerRepository(tx)
 		tagFollowerRepo := repository.NewTagFollowerRepository(tx)
 

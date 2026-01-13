@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -96,6 +96,7 @@ type TagService interface {
 }
 
 type tagService struct {
+	logger          *slog.Logger
 	tagRepo         repository.TagRepository
 	tagMovieRepo    repository.TagMovieRepository
 	tagFollowerRepo repository.TagFollowerRepository
@@ -105,6 +106,7 @@ type tagService struct {
 
 // TagService を生成する。
 func NewTagService(
+	logger *slog.Logger,
 	tagRepo repository.TagRepository,
 	tagMovieRepo repository.TagMovieRepository,
 	tagFollowerRepo repository.TagFollowerRepository,
@@ -112,6 +114,7 @@ func NewTagService(
 	imageBaseURL string,
 ) TagService {
 	return &tagService{
+		logger:          logger,
 		tagRepo:         tagRepo,
 		tagMovieRepo:    tagMovieRepo,
 		tagFollowerRepo: tagFollowerRepo,
@@ -560,11 +563,16 @@ func (s *tagService) AddMovieToTag(ctx context.Context, in AddMovieToTagInput) (
 
 	// 可能であれば、作成時にベストエフォートでキャッシュを温める（失敗してもAPIは成功扱い）
 	if s.movieService != nil {
+		logger := s.logger // goroutine内で使用するためキャプチャ
 		go func(movieID int) {
 			ctx2, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			if _, err := s.movieService.EnsureMovieCache(ctx2, movieID); err != nil {
-				log.Printf("failed to warm movie cache: tmdb_movie_id=%d err=%v", movieID, err)
+				// エラーログ（ERROR）
+				logger.Error("service.CreateTag failed to warm movie cache",
+					slog.Int("tmdb_movie_id", movieID),
+					slog.Any("error", err),
+				)
 			}
 		}(in.TmdbMovieID)
 	}
@@ -610,13 +618,23 @@ func (s *tagService) ListPublicTags(ctx context.Context, q, sort string, page, p
 			if err != nil {
 				return nil, 0, err
 			}
-			fmt.Println("tagMovies", tagMovies)
+
+			// デバッグログ（DEBUG）
+			s.logger.Debug("service.ListPublicTags processing tag movies",
+				slog.String("tag_id", r.ID),
+				slog.Int("tag_movies_count", len(tagMovies)),
+			)
 
 			for _, tm := range tagMovies {
 				if len(imagesByTag[r.ID]) >= 4 {
 					break
 				}
-				fmt.Println("tm", tm)
+
+				// デバッグログ（DEBUG）
+				s.logger.Debug("service.ListPublicTags processing tag movie",
+					slog.String("tag_id", r.ID),
+					slog.Int("tmdb_movie_id", tm.TmdbMovieID),
+				)
 				cache, err := s.movieService.EnsureMovieCache(ctx, tm.TmdbMovieID)
 				if err != nil {
 					// 画像の取得失敗はタグ一覧全体のエラーにはせずスキップする。

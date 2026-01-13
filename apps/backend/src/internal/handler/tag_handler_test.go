@@ -126,7 +126,8 @@ func newTagHandlerRouter(t *testing.T, tagSvc service.TagService, user *model.Us
 	t.Helper()
 
 	r := testutil.NewTestRouter()
-	h := NewTagHandler(tagSvc)
+	logger := testutil.NewTestLogger()
+	h := NewTagHandler(logger, tagSvc)
 
 	api := r.Group("/api/v1")
 	api.GET("/tags", h.ListPublicTags)

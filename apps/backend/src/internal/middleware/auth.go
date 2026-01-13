@@ -1,8 +1,7 @@
 package middleware
 
 import (
-	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -19,8 +18,10 @@ import (
 //   - Clerk の JWKS で RS256 JWT を検証し、sub（Clerk user ID）を信頼できる形で取得します。
 //   - JWKS の取得先は環境変数 `CLERK_JWKS_URL` に設定してください。
 //   - 必要なら `CLERK_ISSUER` / `CLERK_AUDIENCE` も指定し、iss/aud の検証を有効化できます。
-func NewAuthMiddleware(userService service.UserService) gin.HandlerFunc {
-	fmt.Println("[NewAuthMiddleware] NewAuthMiddleware")
+func NewAuthMiddleware(logger *slog.Logger, userService service.UserService) gin.HandlerFunc {
+	// 初期化ログ（DEBUG）
+	logger.Debug("middleware.NewAuthMiddleware initialized")
+
 	jwksURL := os.Getenv("CLERK_JWKS_URL")
 	issuer := os.Getenv("CLERK_ISSUER")
 	audience := os.Getenv("CLERK_AUDIENCE")
@@ -29,7 +30,7 @@ func NewAuthMiddleware(userService service.UserService) gin.HandlerFunc {
 	validator, err := NewClerkJWTValidator(jwksURL, issuer, audience)
 	if err != nil {
 		// ルーティング初期化時に気づけるようログに出し、リクエストは 500 を返す
-		log.Printf("AuthMiddleware misconfigured: %v", err)
+		logger.Error("AuthMiddleware misconfigured", slog.Any("error", err))
 		validator = nil
 	}
 

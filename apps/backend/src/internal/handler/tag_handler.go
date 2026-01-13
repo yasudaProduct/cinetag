@@ -2,10 +2,11 @@ package handler
 
 import (
 	"errors"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
+	"cinetag-backend/src/internal/middleware"
 	"cinetag-backend/src/internal/model"
 	"cinetag-backend/src/internal/service"
 
@@ -14,12 +15,14 @@ import (
 
 // タグ関連の HTTP ハンドラー。
 type TagHandler struct {
+	logger     *slog.Logger
 	tagService service.TagService
 }
 
 // TagHandler を初期化して返す。
-func NewTagHandler(tagService service.TagService) *TagHandler {
+func NewTagHandler(logger *slog.Logger, tagService service.TagService) *TagHandler {
 	return &TagHandler{
+		logger:     logger,
 		tagService: tagService,
 	}
 }
@@ -290,7 +293,22 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 // @Param request body addTagMovieRequest true "映画追加リクエスト"
 func (h *TagHandler) AddMovieToTag(c *gin.Context) {
 	tagID := c.Param("tagId")
-	fmt.Println("tagID", tagID)
+	requestID := middleware.GetRequestID(c)
+
+	// 開始ログ（INFO）
+	attrs := []any{
+		slog.String("request_id", requestID),
+		slog.String("tag_id", tagID),
+	}
+
+	// 認証済みの場合は user_id も含める
+	if userVal, ok := c.Get("user"); ok {
+		if user, ok2 := userVal.(*model.User); ok2 && user != nil {
+			attrs = append(attrs, slog.String("user_id", user.ID))
+		}
+	}
+
+	h.logger.Info("handler.AddMovieToTag started", attrs...)
 
 	var req addTagMovieRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

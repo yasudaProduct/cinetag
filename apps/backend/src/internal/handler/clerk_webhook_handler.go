@@ -2,9 +2,10 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
+	"log/slog"
 	"net/http"
 
+	"cinetag-backend/src/internal/middleware"
 	"cinetag-backend/src/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -37,12 +38,14 @@ type clerkUserDeletedData struct {
 
 // Clerk Webhook を処理するハンドラーです。
 type ClerkWebhookHandler struct {
+	logger      *slog.Logger
 	userService service.UserService
 }
 
 // ClerkWebhookHandler を初期化して返します。
-func NewClerkWebhookHandler(userService service.UserService) *ClerkWebhookHandler {
+func NewClerkWebhookHandler(logger *slog.Logger, userService service.UserService) *ClerkWebhookHandler {
 	return &ClerkWebhookHandler{
+		logger:      logger,
 		userService: userService,
 	}
 }
@@ -52,6 +55,8 @@ func NewClerkWebhookHandler(userService service.UserService) *ClerkWebhookHandle
 // TODO: svix の署名検証を追加し、Clerk からの正当なリクエストのみを受け付ける。
 func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 
+	requestID := middleware.GetRequestID(c)
+
 	// ペイロードをバインド
 	var event clerkWebhookEvent
 	if err := c.ShouldBindJSON(&event); err != nil {
@@ -60,7 +65,12 @@ func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 		})
 		return
 	}
-	fmt.Println("[HandleWebhook] clerkWebhookEvent.Type", event.Type)
+
+	// 開始ログ（INFO）
+	h.logger.Info("handler.HandleWebhook started",
+		slog.String("request_id", requestID),
+		slog.String("event_type", event.Type),
+	)
 
 	switch event.Type {
 	case "user.created":
@@ -72,11 +82,15 @@ func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 			return
 		}
 
-		fmt.Println("[HandleWebhook] clerkUserCreatedData.ID", data.ID)
-		fmt.Println("[HandleWebhook] clerkUserCreatedData.Username", data.Username)
-		fmt.Println("[HandleWebhook] clerkUserCreatedData.FirstName", data.FirstName)
-		fmt.Println("[HandleWebhook] clerkUserCreatedData.LastName", data.LastName)
-		fmt.Println("[HandleWebhook] clerkUserCreatedData.ImageURL", data.ImageURL)
+		// デバッグログ（DEBUG）
+		h.logger.Debug("handler.HandleWebhook user.created",
+			slog.String("request_id", requestID),
+			slog.String("clerk_user_id", data.ID),
+			slog.String("username", data.Username),
+			slog.String("first_name", data.FirstName),
+			slog.String("last_name", data.LastName),
+			slog.String("image_url", data.ImageURL),
+		)
 
 		email := ""
 		if len(data.EmailAddresses) > 0 {
@@ -127,7 +141,12 @@ func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 			})
 			return
 		}
-		fmt.Println("[HandleWebhook] clerkUserDeletedData.ID", data.ID)
+
+		// デバッグログ（DEBUG）
+		h.logger.Debug("handler.HandleWebhook user.deleted",
+			slog.String("request_id", requestID),
+			slog.String("clerk_user_id", data.ID),
+		)
 
 		// ユーザーが存在しない場合は成功とする
 		u, err := h.userService.FindUserByClerkUserID(c.Request.Context(), data.ID)
