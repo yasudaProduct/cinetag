@@ -20,11 +20,13 @@ export type UserProfile = z.infer<typeof UserProfileSchema>;
  * display_id からユーザー情報を取得する
  */
 export async function getUserByDisplayId(
-  displayId: string
+  displayId: string,
+  options: { cache?: RequestCache } = {}
 ): Promise<UserProfile> {
   const base = getPublicApiBaseOrThrow();
   const res = await fetch(`${base}/api/v1/users/${encodeURIComponent(displayId)}`, {
     method: "GET",
+    cache: options.cache,
   });
 
   const body = await safeJson(res);
