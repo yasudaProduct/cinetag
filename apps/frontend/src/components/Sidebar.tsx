@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   Search,
+  Plus,
   Tag,
   User,
   Settings,
   Bell,
   FileText,
   ShieldCheck,
-  Circle,
 } from "lucide-react";
 import {
   SignedIn,
@@ -18,14 +19,19 @@ import {
   SignInButton,
   UserButton,
   useAuth,
+  useClerk,
 } from "@clerk/nextjs";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMe } from "@/lib/api/users/getMe";
 import { cn } from "@/lib/utils";
+import { TagModal } from "@/components/TagModal";
 
 export const Sidebar = () => {
   const pathname = usePathname();
   const { isSignedIn, isLoaded, getToken } = useAuth();
+  const { openSignIn } = useClerk();
+  const queryClient = useQueryClient();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const { data: currentUser } = useQuery({
     queryKey: ["users", "me"],
@@ -43,13 +49,18 @@ export const Sidebar = () => {
 
   const menuItems = [
     { icon: Search, label: "タグを検索", href: "/tags" },
-    { icon: Tag, label: "フォローしたタグ", href: "/#following-tags" },
-    { icon: User, label: "マイページ", href: myPageHref },
-    { icon: Settings, label: "設定", href: "/#settings" },
-    { icon: Bell, label: "通知", href: "/#notifications" },
+    ...(isLoaded && isSignedIn
+      ? [
+          { icon: Tag, label: "フォローしたタグ", href: "/#following-tags" },
+          { icon: User, label: "マイページ", href: myPageHref },
+          { icon: Settings, label: "設定", href: "/#settings" },
+          { icon: Bell, label: "通知", href: "/#notifications" },
+        ]
+      : []),
   ];
 
   const bottomMenuItems = [
+    { icon: Bell, label: "お知らせ", href: "/#news" },
     { icon: FileText, label: "利用規約", href: "/terms" },
     { icon: ShieldCheck, label: "プライバシーポリシー", href: "/privacy" },
   ];
@@ -93,6 +104,27 @@ export const Sidebar = () => {
             </Link>
           );
         })}
+
+        <button
+          type="button"
+          disabled={!isLoaded}
+          onClick={() => {
+            if (isSignedIn) {
+              setIsCreateModalOpen(true);
+              return;
+            }
+            openSignIn({}); // 未ログイン時はサインインを促す
+          }}
+          className={cn(
+            "w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#FFD75E] text-gray-900 text-sm font-bold rounded-2xl transition-all shadow-sm hover:shadow active:scale-[0.98]",
+            isLoaded
+              ? "hover:bg-[#ffcf40]"
+              : "opacity-60 cursor-not-allowed hover:bg-[#FFD75E]"
+          )}
+        >
+          <Plus className="w-5 h-5" />
+          新しいタグを作成
+        </button>
       </nav>
 
       {/* Bottom Menu */}
@@ -152,6 +184,18 @@ export const Sidebar = () => {
           </SignedOut>
         </div>
       </div>
+
+      <SignedIn>
+        <TagModal
+          open={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onCreated={() => {
+            queryClient.invalidateQueries({
+              predicate: (query) => query.queryKey[0] === "tags",
+            });
+          }}
+        />
+      </SignedIn>
     </aside>
   );
 };
