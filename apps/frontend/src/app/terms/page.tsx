@@ -1,12 +1,8 @@
 "use client";
 
-import { Header } from "@/components/Header";
-
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-[#FFF5F5]">
-      <Header />
-
+    <div className="min-h-screen">
       <main className="container mx-auto px-4 md:px-6 py-10 max-w-4xl">
         <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-8 md:p-12">
           <h1 className="text-3xl font-bold text-gray-900 mb-8">利用規約</h1>

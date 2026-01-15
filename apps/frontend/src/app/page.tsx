@@ -1,6 +1,5 @@
 "use client";
 
-import { Header } from "@/components/Header";
 import { CategoryCard } from "@/components/CategoryCard";
 import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -101,9 +100,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF5F5]">
-      <Header />
-
+    <div className="min-h-screen">
       <main className="container mx-auto px-4 md:px-6 py-12">
         {/* Hero Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">

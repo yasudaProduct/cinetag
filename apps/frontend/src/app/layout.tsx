@@ -4,6 +4,7 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "../components/providers/query-client-provider";
 import { jaJP } from "@clerk/localizations";
+import { Sidebar } from "../components/Sidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -47,9 +48,14 @@ export default function RootLayout({
     >
       <html lang="ja">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          className={`${geistSans.variable} ${geistMono.variable} antialiased flex min-h-screen bg-[#FFF5F5] text-gray-900`}
         >
-          <Providers>{children}</Providers>
+          <Providers>
+            <Sidebar />
+            <main className="flex-1 ml-64 min-h-screen">
+              {children}
+            </main>
+          </Providers>
         </body>
       </html>
     </ClerkProvider>

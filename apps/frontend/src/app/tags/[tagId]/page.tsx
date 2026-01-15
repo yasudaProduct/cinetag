@@ -1,7 +1,6 @@
 "use client";
 
 import { use, useState } from "react";
-import { Header } from "@/components/Header";
 import { MoviePosterCard } from "@/components/MoviePosterCard";
 import { AvatarCircle } from "@/components/AvatarCircle";
 import { getTagDetail } from "@/lib/api/tags/detail";
@@ -107,9 +106,7 @@ export default function TagDetailPage({
   })();
 
   return (
-    <div className="min-h-screen bg-[#FFF5F5]">
-      <Header />
-
+    <div className="min-h-screen">
       <main className="container mx-auto px-4 md:px-6 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left: Tag info card */}
