@@ -213,9 +213,9 @@ export const TagModal = (props: TagModalProps) => {
 
   return (
     <Modal open={open} onClose={onClose}>
-      <div className="w-full max-w-xl mx-auto rounded-3xl bg-[#FFF9F3] shadow-xl border border-[#F3E1D6]">
+      <div className="w-full max-w-xl mx-auto rounded-3xl bg-[#FFF9F3] shadow-xl border border-[#F3E1D6] max-h-[100vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between px-8 pt-8">
+        <div className="flex items-start justify-between px-8 pt-8 flex-shrink-0">
           <div>
             <h2 className="text-2xl md:text-3xl font-extrabold text-[#1F1A2B] tracking-tight">
               {title}
@@ -235,7 +235,7 @@ export const TagModal = (props: TagModalProps) => {
         </div>
 
         {/* Body */}
-        <div className="px-8 pb-8 pt-6 space-y-6">
+        <div className="px-8 pb-8 pt-6 space-y-6 overflow-y-auto">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Tag Name */}
             <div className="space-y-2">

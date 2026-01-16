@@ -25,7 +25,7 @@ export function Modal({ open, children, onClose }: ModalProps) {
       }}
     >
       <div
-        className="w-full max-h-[100vh] overflow-auto"
+        className="w-full"
         onClick={(e) => {
           // モーダル内容クリックでは閉じないようにバブリングを止める
           e.stopPropagation();

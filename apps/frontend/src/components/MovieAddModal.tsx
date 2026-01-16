@@ -74,8 +74,8 @@ export const MovieAddModal = ({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <div className="w-full max-w-2xl mx-auto rounded-3xl bg-white shadow-xl border border-gray-200">
-        <div className="flex items-start justify-between px-7 pt-7">
+      <div className="w-full max-w-2xl mx-auto rounded-3xl bg-white shadow-xl border border-gray-200 max-h-[90vh] flex flex-col">
+        <div className="flex items-start justify-between px-7 pt-7 flex-shrink-0">
           <div>
             <h2 className="text-xl md:text-2xl font-extrabold text-gray-900 tracking-tight">
               映画を追加
@@ -94,7 +94,7 @@ export const MovieAddModal = ({
           </button>
         </div>
 
-        <div className="px-7 pb-2 space-y-5">
+        <div className="px-7 pb-2 space-y-5 overflow-y-auto">
           <div className="mt-2 text-xs text-gray-500">
             2文字以上で検索します。
           </div>
