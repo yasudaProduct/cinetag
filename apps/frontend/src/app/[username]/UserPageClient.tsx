@@ -2,7 +2,7 @@
 
 import { AvatarCircle } from "@/components/AvatarCircle";
 import { CategoryCard } from "@/components/CategoryCard";
-import { Search, Plus, UserPlus, UserMinus } from "lucide-react";
+import { Search, UserPlus, UserMinus, Settings } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -176,152 +176,110 @@ export default function UserPageClient(props: {
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-4 md:px-6 py-12">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Left Sidebar - Profile */}
-          <aside className="lg:w-80 flex-shrink-0">
-            <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm sticky top-24">
-              {/* Avatar */}
-              <div className="flex justify-center mb-6">
-                <AvatarCircle
-                  name={displayName}
-                  avatarUrl={profileUser.avatar_url ?? undefined}
-                  className="w-32 h-32 text-4xl"
-                  sizes="128px"
-                />
-              </div>
-
-              {/* User Info */}
-              <div className="text-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                  {displayName}
-                </h1>
-                <p className="text-sm text-gray-500 mb-4">
-                  {profileUser.bio ||
-                    "映画のムードに合わせた最高のプレイリストを厳選"}
-                </p>
-              </div>
-
-              {/* Follow Button - 他人のページのみ表示 */}
-              {!isOwnPage && isLoaded && isSignedIn && (
-                <button
-                  onClick={handleFollowToggle}
-                  disabled={
-                    followMutation.isPending || unfollowMutation.isPending
-                  }
-                  className={`w-full mb-6 py-3 px-6 rounded-full flex items-center justify-center gap-2 font-medium transition-all ${
-                    isFollowing
-                      ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      : "bg-pink-500 text-white hover:bg-pink-600"
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {isFollowing ? (
-                    <>
-                      <UserMinus className="w-5 h-5" />
-                      <span>フォロー中</span>
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="w-5 h-5" />
-                      <span>フォローする</span>
-                    </>
-                  )}
-                </button>
-              )}
-
-              {/* Stats */}
-              <div className="flex justify-center gap-8 mb-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-pink-500 mb-1">
-                    {createdCount}
-                  </div>
-                  <div className="text-sm text-gray-600">作成カテゴリ</div>
+        <div className="flex flex-col gap-8">
+          {/* Top Profile Section */}
+          <div className="w-full">
+            <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
+                {/* Avatar */}
+                <div className="flex-shrink-0">
+                  <AvatarCircle
+                    name={displayName}
+                    avatarUrl={profileUser.avatar_url ?? undefined}
+                    className="w-32 h-32 text-4xl"
+                    sizes="128px"
+                  />
                 </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-500 mb-1">
-                    {followingCount}
+
+                {/* User Info & Stats */}
+                <div className="flex-1 text-center md:text-left">
+                  <div className="mb-4">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                      {displayName}
+                    </h1>
+                    <p className="text-sm text-gray-500 mb-4 max-w-2xl">
+                      {profileUser.bio || ""}
+                    </p>
                   </div>
-                  <div className="text-sm text-gray-600">フォロー中</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-500 mb-1">
-                    {followersCount}
+
+                  {/* Stats */}
+                  <div className="flex justify-center md:justify-start gap-8 mb-6">
+                    <div className="text-center md:text-left">
+                      <div className="text-2xl font-bold text-pink-500 mb-1">
+                        {createdCount}
+                      </div>
+                      <div className="text-xs text-gray-600">作成カテゴリ</div>
+                    </div>
+                    <div className="text-center md:text-left">
+                      <div className="text-2xl font-bold text-blue-500 mb-1">
+                        {followingCount}
+                      </div>
+                      <div className="text-xs text-gray-600">フォロー中</div>
+                    </div>
+                    <div className="text-center md:text-left">
+                      <div className="text-2xl font-bold text-purple-500 mb-1">
+                        {followersCount}
+                      </div>
+                      <div className="text-xs text-gray-600">フォロワー</div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">フォロワー</div>
+
+                  {/* Actions */}
+                  <div className="flex justify-center md:justify-start gap-4">
+                    {/* Follow Button - 他人のページのみ表示 */}
+                    {!isOwnPage && isLoaded && isSignedIn && (
+                      <button
+                        onClick={handleFollowToggle}
+                        disabled={
+                          followMutation.isPending || unfollowMutation.isPending
+                        }
+                        className={`py-2 px-6 rounded-full flex items-center justify-center gap-2 font-medium transition-all ${
+                          isFollowing
+                            ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            : "bg-pink-500 text-white hover:bg-pink-600"
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {isFollowing ? (
+                          <>
+                            <UserMinus className="w-4 h-4" />
+                            <span>フォロー中</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="w-4 h-4" />
+                            <span>フォローする</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                    {/* Navigation - 自分のページのみ表示 */}
+                    {isOwnPage && (
+                      <div className="flex gap-2">
+                        <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-pink-50 text-pink-600 font-medium text-sm">
+                          <svg
+                            className="w-4 h-4"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
+                          </svg>
+                          マイカテゴリ
+                        </button>
+                        <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50 font-medium text-sm border border-gray-200">
+                          <Settings className="w-4 h-4" />
+                          設定
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-
-              {/* Navigation - 自分のページのみ表示 */}
-              {isOwnPage && (
-                <>
-                  <nav className="space-y-2">
-                    <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-pink-50 text-pink-600 font-medium">
-                      <svg
-                        className="w-5 h-5"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
-                      </svg>
-                      マイカテゴリ
-                    </button>
-                    <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-50 font-medium">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
-                      </svg>
-                      登録した映画
-                    </button>
-                    <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-50 font-medium">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                        />
-                      </svg>
-                      お気に入り
-                    </button>
-                  </nav>
-
-                  {/* New Category Button */}
-                  <button className="w-full mt-6 bg-[#FFD75E] hover:bg-[#ffcf40] text-gray-900 font-bold py-3 px-6 rounded-full flex items-center justify-center gap-2 shadow-sm hover:shadow transition-all">
-                    <Plus className="w-5 h-5" />
-                    <span>新しいカテゴリを作成</span>
-                  </button>
-                </>
-              )}
             </div>
-          </aside>
+          </div>
 
-          {/* Right Content - Tags */}
-          <div className="flex-1">
-            {/* Header */}
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                {isOwnPage ? "マイカテゴリ" : `${displayName}のカテゴリ`}
-              </h2>
-              <p className="text-gray-600">
-                {isOwnPage
-                  ? "あなたが作成した映画カテゴリの一覧です"
-                  : `${displayName}が作成した映画カテゴリの一覧です`}
-              </p>
-            </div>
-
+          {/* Bottom Content - Tabs & Lists */}
+          <div className="w-full">
             {/* Tabs */}
             <div className="flex items-center gap-2 mb-8 border-b border-gray-200 overflow-x-auto">
               <button
