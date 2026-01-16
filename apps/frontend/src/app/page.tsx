@@ -1,11 +1,9 @@
 "use client";
 
-import { Header } from "@/components/Header";
-import { CategoryCard } from "@/components/CategoryCard";
-import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { TagsGrid } from "@/components/TagsGrid";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { TagModal, CreatedTagForList } from "@/components/TagModal";
-import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listTags } from "@/lib/api/tags/list";
 import type { TagListItem } from "@/lib/validation/tag.api";
@@ -101,43 +99,8 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF5F5]">
-      <Header />
-
+    <div className="min-h-screen">
       <main className="container mx-auto px-4 md:px-6 py-12">
-        {/* Hero Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-              タグを探そう！
-            </h1>
-            <p className="text-gray-600">
-              お気に入りの映画リストを見つけたり、自分だけのタグを作ってみよう。
-            </p>
-          </div>
-          <SignedIn>
-            <button
-              type="button"
-              className="bg-[#FFD75E] hover:bg-[#ffcf40] text-gray-900 font-bold py-3 px-6 rounded-full flex items-center gap-2 shadow-sm hover:shadow transition-all"
-              onClick={() => setIsCreateModalOpen(true)}
-            >
-              <Plus className="w-5 h-5" />
-              <span>新しいタグを作成</span>
-            </button>
-          </SignedIn>
-          <SignedOut>
-            <SignInButton mode="modal">
-              <button
-                type="button"
-                className="bg-[#FFD75E] hover:bg-[#ffcf40] text-gray-900 font-bold py-3 px-6 rounded-full flex items-center gap-2 shadow-sm hover:shadow transition-all"
-              >
-                <Plus className="w-5 h-5" />
-                <span>新しいタグを作成</span>
-              </button>
-            </SignInButton>
-          </SignedOut>
-        </div>
-
         {/* Search & Filter */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
           {/* Search Bar */}
@@ -190,31 +153,20 @@ export default function Home() {
         </div>
 
         {/* Category Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {/* {MOCK_CATEGORIES.map((category) => ( */}
-          {tagsQuery.isLoading ? (
-            <div>読み込み中...</div>
-          ) : tagsQuery.isError ? (
-            <div>タグ一覧の取得に失敗しました</div>
-          ) : tags.length > 0 ? (
-            tags.map((tag) => (
-              <CategoryCard
-                key={tag.id}
-                title={tag.title}
-                description={tag.description ?? ""}
-                author={tag.author}
-                authorDisplayId={tag.authorDisplayId}
-                movieCount={tag.movieCount}
-                likes={tag.followerCount}
-                images={tag.images || []}
-                href={`/tags/${tag.id}`}
-              />
-            ))
-          ) : (
-            <div>タグがありません</div>
-          )}
-          {/* ))} */}
-        </div>
+        {tagsQuery.isError ? (
+          <div className="text-center py-12 text-red-600">
+            タグ一覧の取得に失敗しました
+          </div>
+        ) : (
+          <div className="mb-12">
+            <TagsGrid
+              tags={tags}
+              isLoading={tagsQuery.isLoading}
+              emptyMessage="タグがありません"
+              columns="4"
+            />
+          </div>
+        )}
 
         {/* Pagination */}
         {totalPages > 0 && (

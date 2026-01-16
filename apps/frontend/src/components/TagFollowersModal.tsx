@@ -30,9 +30,9 @@ export function TagFollowersModal({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <div className="bg-white rounded-3xl shadow-xl w-full max-w-md mx-4">
+      <div className="bg-white rounded-3xl shadow-xl w-full max-w-md mx-auto max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-gray-600" />
             <h2 className="text-lg font-bold text-gray-900">フォロワー</h2>
@@ -48,7 +48,7 @@ export function TagFollowersModal({
         </div>
 
         {/* Tag title */}
-        <div className="px-6 py-3 bg-gray-50 border-b border-gray-100">
+        <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex-shrink-0">
           <p className="text-sm text-gray-600 truncate">
             タグ: <span className="font-semibold text-gray-900">{tagTitle}</span>
           </p>
@@ -56,7 +56,7 @@ export function TagFollowersModal({
         </div>
 
         {/* Content */}
-        <div className="px-6 py-4 max-h-80 overflow-y-auto">
+        <div className="px-6 py-4 overflow-y-auto">
           {followersQuery.isLoading ? (
             <div className="text-center py-8 text-gray-500">読み込み中...</div>
           ) : followersQuery.isError ? (
@@ -96,7 +96,7 @@ export function TagFollowersModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100">
+        <div className="px-6 py-4 border-t border-gray-100 flex-shrink-0">
           <button
             type="button"
             onClick={onClose}

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import { getMe } from "@/lib/api/users/getMe";
-import { Header } from "@/components/Header";
 
 export default function MyPage() {
   const router = useRouter();
@@ -38,8 +37,7 @@ export default function MyPage() {
 
   if (!isLoaded || isLoading) {
     return (
-      <div className="min-h-screen bg-[#FFF5F5]">
-        <Header />
+      <div className="min-h-screen">
         <div className="flex items-center justify-center h-96">
           <p className="text-gray-600">読み込み中...</p>
         </div>
@@ -49,8 +47,7 @@ export default function MyPage() {
 
   if (isError) {
     return (
-      <div className="min-h-screen bg-[#FFF5F5]">
-        <Header />
+      <div className="min-h-screen">
         <div className="flex items-center justify-center h-96">
           <p className="text-gray-600">エラーが発生しました</p>
         </div>
@@ -60,8 +57,7 @@ export default function MyPage() {
 
   // リダイレクト中
   return (
-    <div className="min-h-screen bg-[#FFF5F5]">
-      <Header />
+    <div className="min-h-screen">
       <div className="flex items-center justify-center h-96">
         <p className="text-gray-600">リダイレクト中...</p>
       </div>

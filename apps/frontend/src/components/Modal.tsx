@@ -19,13 +19,13 @@ export function Modal({ open, children, onClose }: ModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
       onClick={() => {
         if (onClose) onClose();
       }}
     >
       <div
-        className="max-h-[100vh] overflow-auto"
+        className="w-full"
         onClick={(e) => {
           // モーダル内容クリックでは閉じないようにバブリングを止める
           e.stopPropagation();
