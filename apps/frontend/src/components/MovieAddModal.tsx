@@ -74,7 +74,7 @@ export const MovieAddModal = ({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <div className="w-full max-w-2xl mx-4 rounded-3xl bg-white shadow-xl border border-gray-200">
+      <div className="w-full max-w-2xl mx-auto rounded-3xl bg-white shadow-xl border border-gray-200">
         <div className="flex items-start justify-between px-7 pt-7">
           <div>
             <h2 className="text-xl md:text-2xl font-extrabold text-gray-900 tracking-tight">

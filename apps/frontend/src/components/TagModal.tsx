@@ -213,7 +213,7 @@ export const TagModal = (props: TagModalProps) => {
 
   return (
     <Modal open={open} onClose={onClose}>
-      <div className="w-full max-w-xl mx-4 rounded-3xl bg-[#FFF9F3] shadow-xl border border-[#F3E1D6]">
+      <div className="w-full max-w-xl mx-auto rounded-3xl bg-[#FFF9F3] shadow-xl border border-[#F3E1D6]">
         {/* Header */}
         <div className="flex items-start justify-between px-8 pt-8">
           <div>

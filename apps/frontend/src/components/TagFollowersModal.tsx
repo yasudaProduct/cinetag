@@ -30,7 +30,7 @@ export function TagFollowersModal({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <div className="bg-white rounded-3xl shadow-xl w-full max-w-md mx-4">
+      <div className="bg-white rounded-3xl shadow-xl w-full max-w-md mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
