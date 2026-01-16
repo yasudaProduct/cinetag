@@ -51,7 +51,7 @@ export const Sidebar = () => {
     { icon: Search, label: "タグを検索", href: "/tags" },
     ...(isLoaded && isSignedIn
       ? [
-          { icon: Tag, label: "フォローしたタグ", href: "/#following-tags" },
+          { icon: Tag, label: "フォローしたタグ", href: "/tags/following" },
           { icon: User, label: "マイページ", href: myPageHref },
           { icon: Settings, label: "設定", href: "/#settings" },
           { icon: Bell, label: "通知", href: "/#notifications" },
