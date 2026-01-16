@@ -84,24 +84,33 @@ export const Sidebar = () => {
         {menuItems.map((item) => {
           const isActive = pathname === item.href;
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all",
-                isActive
-                  ? "bg-[#FFD75E] text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-              )}
-            >
-              <item.icon
+            <div className="relative group" key={item.href}>
+              <div
                 className={cn(
-                  "w-5 h-5",
-                  isActive ? "text-gray-900" : "text-gray-400"
+                  "absolute left-0 top-0 bottom-0 w-1.5 bg-[#FFD75E] transition-opacity",
+                  isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                 )}
               />
-              {item.label}
-            </Link>
+              <Link
+                href={item.href}
+                className={cn(
+                  "relative flex items-center gap-3 px-4 py-3 rounded-r-2xl text-sm font-bold transition-all overflow-hidden",
+                  isActive
+                    ? "text-gray-900"
+                    : "text-gray-600 group-hover:text-gray-900"
+                )}
+              >
+                <item.icon
+                  className={cn(
+                    "w-5 h-5 transition-colors",
+                    isActive
+                      ? "text-gray-900"
+                      : "text-gray-400 group-hover:text-gray-900"
+                  )}
+                />
+                {item.label}
+              </Link>
+            </div>
           );
         })}
 
@@ -116,7 +125,7 @@ export const Sidebar = () => {
             openSignIn({}); // 未ログイン時はサインインを促す
           }}
           className={cn(
-            "w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#FFD75E] text-gray-900 text-sm font-bold rounded-2xl transition-all shadow-sm hover:shadow active:scale-[0.98]",
+            "w-full flex items-center justify-center gap-2 mt-4 px-4 py-3 bg-[#FFD75E] text-gray-900 text-sm font-bold rounded-2xl transition-all shadow-sm hover:shadow active:scale-[0.98]",
             isLoaded
               ? "hover:bg-[#ffcf40]"
               : "opacity-60 cursor-not-allowed hover:bg-[#FFD75E]"
