@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import { getMe } from "@/lib/api/users/getMe";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function MyPage() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function MyPage() {
     return (
       <div className="min-h-screen">
         <div className="flex items-center justify-center h-96">
-          <p className="text-gray-600">読み込み中...</p>
+          <Spinner size="lg" className="text-gray-600" />
         </div>
       </div>
     );
@@ -59,7 +60,7 @@ export default function MyPage() {
   return (
     <div className="min-h-screen">
       <div className="flex items-center justify-center h-96">
-        <p className="text-gray-600">リダイレクト中...</p>
+        <Spinner size="lg" className="text-gray-600" label="リダイレクト中" />
       </div>
     </div>
   );

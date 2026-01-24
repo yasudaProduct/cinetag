@@ -15,6 +15,7 @@ import { MovieAddModal } from "@/components/MovieAddModal";
 import { TagModal } from "@/components/TagModal";
 import { TagFollowersModal } from "@/components/TagFollowersModal";
 import { useAuth, useUser } from "@clerk/nextjs";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function TagDetailPage({
   params,
@@ -197,11 +198,16 @@ export default function TagDetailPage({
                     <Heart
                       className={`w-5 h-5 ${isFollowing ? "fill-current" : ""}`}
                     />
-                    {followMutation.isPending
-                      ? "処理中..."
-                      : isFollowing
-                        ? "フォロー中"
-                        : "フォローする"}
+                    {followMutation.isPending ? (
+                      <span className="flex items-center gap-2">
+                        <Spinner size="sm" />
+                        処理中
+                      </span>
+                    ) : isFollowing ? (
+                      "フォロー中"
+                    ) : (
+                      "フォローする"
+                    )}
                   </button>
                 )}
                 {canAddMovie ? (
@@ -282,8 +288,8 @@ export default function TagDetailPage({
             </div>
 
             {(detailQuery.isLoading || moviesQuery.isLoading) && (
-              <div className="mt-10 text-center text-gray-600">
-                読み込み中...
+              <div className="mt-10 flex justify-center">
+                <Spinner size="md" className="text-gray-600" />
               </div>
             )}
 

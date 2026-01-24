@@ -9,6 +9,7 @@ import { getFollowStats } from "@/lib/api/users/getFollowStats";
 import { followUser } from "@/lib/api/users/followUser";
 import { unfollowUser } from "@/lib/api/users/unfollowUser";
 import { notFound } from "next/navigation";
+import { Spinner } from "@/components/ui/spinner";
 import {
   UserProfile as UserProfileComponent,
   UserPageTabs,
@@ -107,7 +108,7 @@ export default function UserPageClient(props: {
     return (
       <div className="min-h-screen">
         <div className="flex items-center justify-center h-96">
-          <p className="text-gray-600">読み込み中...</p>
+          <Spinner size="lg" className="text-gray-600" />
         </div>
       </div>
     );

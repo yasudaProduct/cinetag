@@ -1,6 +1,7 @@
 "use client";
 
 import { CategoryCard } from "@/components/CategoryCard";
+import { Spinner } from "@/components/ui/spinner";
 
 type Tag = {
   id: string;
@@ -28,9 +29,9 @@ export function TagsGrid({
 }: TagsGridProps) {
   if (isLoading) {
     return (
-      <p className="text-gray-600 col-span-full text-center py-8">
-        読み込み中...
-      </p>
+      <div className="col-span-full flex justify-center py-8">
+        <Spinner size="md" className="text-gray-600" />
+      </div>
     );
   }
 
