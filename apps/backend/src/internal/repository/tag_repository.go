@@ -199,7 +199,7 @@ func (r *tagRepository) ListPublicTags(ctx context.Context, filter TagListFilter
 	// Count()はSELECTをCOUNT(*)に置き換えるため、Select句を再指定
 	qb := baseQuery.Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
 				t.movie_count, t.follower_count, t.created_at,
-				u.username AS author, u.display_id AS author_display_id`)
+				u.display_name AS author, u.display_id AS author_display_id`)
 
 	switch filter.Sort {
 	case "recent":
@@ -245,7 +245,7 @@ func (r *tagRepository) ListTagsByUserID(ctx context.Context, filter UserTagList
 	// Count()はSELECTをCOUNT(*)に置き換えるため、Select句を再指定
 	qb := baseQuery.Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
 				t.movie_count, t.follower_count, t.created_at,
-				u.username AS author, u.display_id AS author_display_id`).
+				u.display_name AS author, u.display_id AS author_display_id`).
 		Order("t.created_at DESC")
 
 	var rows []TagSummary
