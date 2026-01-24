@@ -51,6 +51,7 @@ export const CategoryCard = ({
                 alt={`Movie poster ${index + 1}`}
                 fill
                 className="object-cover"
+                sizes="(max-width: 640px) 45vw, (max-width: 768px) 22vw, 150px"
               />
             ) : (
               <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-xs">
