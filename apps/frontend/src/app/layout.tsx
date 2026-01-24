@@ -52,7 +52,7 @@ export default function RootLayout({
         >
           <Providers>
             <Sidebar />
-            <main className="flex-1 ml-64 min-h-screen">
+            <main className="flex-1 md:ml-64 min-h-screen pb-20 md:pb-0">
               {children}
             </main>
           </Providers>
