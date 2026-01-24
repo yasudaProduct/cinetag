@@ -613,8 +613,7 @@ func TestTagService_GetTagDetail(t *testing.T) {
 					IsPublic:         true,
 					AddMoviePolicy:   "everyone",
 					OwnerID:          "owner1",
-					OwnerUsername:    "owner",
-					OwnerDisplayName: "Owner",
+										OwnerDisplayName: "Owner",
 				}, nil
 			}
 		})
@@ -646,8 +645,7 @@ func TestTagService_GetTagDetail(t *testing.T) {
 					IsPublic:         true,
 					AddMoviePolicy:   "owner_only",
 					OwnerID:          ownerID,
-					OwnerUsername:    "owner",
-					OwnerDisplayName: "Owner",
+										OwnerDisplayName: "Owner",
 				}, nil
 			}
 		})
@@ -683,8 +681,7 @@ func TestTagService_GetTagDetail(t *testing.T) {
 					IsPublic:         true,
 					AddMoviePolicy:   "everyone",
 					OwnerID:          "owner1",
-					OwnerUsername:    "owner",
-					OwnerDisplayName: "Owner",
+										OwnerDisplayName: "Owner",
 				}, nil
 			}
 		})
@@ -724,8 +721,7 @@ func TestTagService_UpdateTag(t *testing.T) {
 					IsPublic:         true,
 					AddMoviePolicy:   "owner_only",
 					OwnerID:          "u1",
-					OwnerUsername:    "user1",
-					OwnerDisplayName: "User1",
+										OwnerDisplayName: "User1",
 				}, nil
 			}
 		})

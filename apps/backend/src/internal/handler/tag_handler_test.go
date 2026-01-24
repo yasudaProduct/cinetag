@@ -622,7 +622,6 @@ func TestTagHandler_GetTagDetail(t *testing.T) {
 					CanEdit:        false,
 					Owner: service.TagOwner{
 						ID:          "u1",
-						Username:    "user1",
 						DisplayName: "User1",
 					},
 				}, nil
@@ -659,7 +658,6 @@ func TestTagHandler_GetTagDetail(t *testing.T) {
 					CanEdit:        false,
 					Owner: service.TagOwner{
 						ID:          "u1",
-						Username:    "user1",
 						DisplayName: "User1",
 					},
 				}, nil
@@ -699,7 +697,6 @@ func TestTagHandler_UpdateTag(t *testing.T) {
 					CanAddMovie:    true,
 					Owner: service.TagOwner{
 						ID:          userID,
-						Username:    "user1",
 						DisplayName: "User1",
 					},
 				}, nil

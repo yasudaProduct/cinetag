@@ -152,7 +152,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 	t.Run("既存ユーザーがいる: Create は呼ばれずそのまま返る", func(t *testing.T) {
 		t.Parallel()
 
-		existing := &model.User{ID: "u_exist", ClerkUserID: "clerk_1", Username: "x"}
+		existing := &model.User{ID: "u_exist", ClerkUserID: "clerk_1", DisplayName: "x"}
 		var createCalled bool
 		repo := &fakeUserRepo{
 			FindByClerkUserIDFn: func(ctx context.Context, clerkUserID string) (*model.User, error) {
@@ -207,7 +207,6 @@ func TestUserService_EnsureUser(t *testing.T) {
 			CreateFn: func(ctx context.Context, user *model.User) error {
 				created = &model.User{
 					ClerkUserID: user.ClerkUserID,
-					Username:    user.Username,
 					DisplayName: user.DisplayName,
 					Email:       user.Email,
 					AvatarURL:   user.AvatarURL,
@@ -240,7 +239,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 			t.Fatalf("unexpected created user: %+v", created)
 		}
 		// displayName は FirstName + LastName を優先して使う
-		if created.Username != "廃止予定" || created.DisplayName != "first last" {
+		if created.DisplayName != "first last" {
 			t.Fatalf("unexpected name fields: %+v", created)
 		}
 		if created.AvatarURL == nil || *created.AvatarURL != avatar {
@@ -277,8 +276,8 @@ func TestUserService_EnsureUser(t *testing.T) {
 		if created == nil {
 			t.Fatalf("expected Create to be called")
 		}
-		if created.Username != "廃止予定" || created.DisplayName != "名無し" {
-			t.Fatalf("expected 名無し, got username=%q displayName=%q", created.Username, created.DisplayName)
+		if created.DisplayName != "名無し" {
+			t.Fatalf("expected 名無し, got displayName=%q", created.DisplayName)
 		}
 	})
 

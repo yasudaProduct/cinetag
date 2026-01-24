@@ -160,11 +160,11 @@ export default function TagDetailPage({
                   <div className="mt-3 flex items-center">
                     {(detail?.participants ?? []).slice(0, 4).map((p, idx) => (
                       <div
-                        key={`${p.username}-${idx}`}
+                        key={`${p.name}-${idx}`}
                         className={idx === 0 ? "" : "-ml-2"}
                       >
                         <AvatarCircle
-                          name={p.username}
+                          name={p.name}
                           avatarUrl={p.avatarUrl}
                           className="h-9 w-9"
                         />

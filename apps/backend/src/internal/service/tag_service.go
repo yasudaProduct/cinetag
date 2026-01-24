@@ -168,7 +168,6 @@ type TagDetail struct {
 // タグの所有者を表す構造体。
 type TagOwner struct {
 	ID          string  `json:"id"`
-	Username    string  `json:"username"`
 	DisplayID   string  `json:"display_id"`
 	DisplayName string  `json:"display_name"`
 	AvatarURL   *string `json:"avatar_url,omitempty"`
@@ -350,7 +349,6 @@ func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserI
 		FollowerCount:  row.FollowerCount,
 		Owner: TagOwner{
 			ID:          row.OwnerID,
-			Username:    row.OwnerUsername,
 			DisplayID:   row.OwnerDisplayID,
 			DisplayName: row.OwnerDisplayName,
 			AvatarURL:   row.OwnerAvatarURL,

@@ -47,7 +47,6 @@ type TagDetailRow struct {
 	UpdatedAt      time.Time `gorm:"column:updated_at"`
 
 	OwnerID          string  `gorm:"column:owner_id"`
-	OwnerUsername    string  `gorm:"column:owner_username"`
 	OwnerDisplayID   string  `gorm:"column:owner_display_id"`
 	OwnerDisplayName string  `gorm:"column:owner_display_name"`
 	OwnerAvatarURL   *string `gorm:"column:owner_avatar_url"`
@@ -116,7 +115,7 @@ func (r *tagRepository) FindDetailByID(ctx context.Context, id string) (*TagDeta
 		Table((model.Tag{}).TableName()+" AS t").
 		Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public, t.add_movie_policy,
 				t.movie_count, t.follower_count, t.created_at, t.updated_at,
-				u.id AS owner_id, u.username AS owner_username, u.display_id AS owner_display_id,
+				u.id AS owner_id, u.display_id AS owner_display_id,
 				u.display_name AS owner_display_name, u.avatar_url AS owner_avatar_url`).
 		Joins("JOIN "+(model.User{}).TableName()+" AS u ON u.id = t.user_id").
 		Where("t.id = ?", id).

@@ -59,14 +59,13 @@ func beginTx(t *testing.T, db *gorm.DB) *gorm.DB {
 	return tx
 }
 
-func createUser(t *testing.T, db *gorm.DB, clerkID, username string) *model.User {
+func createUser(t *testing.T, db *gorm.DB, clerkID, displayName string) *model.User {
 	t.Helper()
 
 	u := &model.User{
 		ClerkUserID: clerkID,
-		Username:    username,
-		DisplayName: username,
-		Email:       username + "@example.com",
+		DisplayName: displayName,
+		Email:       displayName + "@example.com",
 	}
 	if err := db.Create(u).Error; err != nil {
 		t.Fatalf("ユーザー作成に失敗: %v", err)
