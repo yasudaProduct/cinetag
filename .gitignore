@@ -9,3 +9,5 @@ apps/backend/build-errors.log
 apps/frontend/.open-next/
 apps/frontend/.wrangler/
 apps/frontend/.dev.vars/
+.claude/command_history.log
+.claude/settings.local.json
