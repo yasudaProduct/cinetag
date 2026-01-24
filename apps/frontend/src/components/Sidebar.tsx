@@ -32,6 +32,7 @@ export const Sidebar = () => {
   const { openSignIn } = useClerk();
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
 
   const { data: currentUser } = useQuery({
     queryKey: ["users", "me"],
@@ -47,6 +48,7 @@ export const Sidebar = () => {
     ? `/${currentUser.display_id}`
     : "/mypage";
 
+  // Desktop用メニュー
   const menuItems = [
     { icon: Search, label: "タグを検索", href: "/tags" },
     ...(isLoaded && isSignedIn
@@ -57,6 +59,23 @@ export const Sidebar = () => {
           { icon: Bell, label: "通知", href: "/#notifications" },
         ]
       : []),
+  ];
+
+  // Mobile用メニュー（設定は別途ポップアップで表示）
+  const mobileMenuItems = [
+    { icon: Search, label: "タグを検索", href: "/tags" },
+    ...(isLoaded && isSignedIn
+      ? [
+          { icon: Tag, label: "フォローしたタグ", href: "/tags/following" },
+        ]
+      : []),
+  ];
+
+  // 設定メニュー内の項目
+  const settingsMenuItems = [
+    { icon: User, label: "マイページ", href: myPageHref },
+    { icon: Settings, label: "設定", href: "/#settings" },
+    { icon: Bell, label: "通知", href: "/#notifications" },
   ];
 
   const bottomMenuItems = [
@@ -92,7 +111,7 @@ export const Sidebar = () => {
                     "absolute left-0 top-0 bottom-0 w-1.5 bg-[#FFD75E] transition-opacity",
                     isActive
                       ? "opacity-100"
-                      : "opacity-0 group-hover:opacity-100"
+                      : "opacity-0 group-hover:opacity-100",
                   )}
                 />
                 <Link
@@ -101,7 +120,7 @@ export const Sidebar = () => {
                     "relative flex items-center gap-3 px-4 py-3 rounded-r-2xl text-sm font-bold transition-all overflow-hidden",
                     isActive
                       ? "text-gray-900"
-                      : "text-gray-600 group-hover:text-gray-900"
+                      : "text-gray-600 group-hover:text-gray-900",
                   )}
                 >
                   <item.icon
@@ -109,7 +128,7 @@ export const Sidebar = () => {
                       "w-5 h-5 transition-colors",
                       isActive
                         ? "text-gray-900"
-                        : "text-gray-400 group-hover:text-gray-900"
+                        : "text-gray-400 group-hover:text-gray-900",
                     )}
                   />
                   {item.label}
@@ -132,7 +151,7 @@ export const Sidebar = () => {
               "w-full flex items-center justify-center gap-2 mt-4 px-4 py-3 bg-[#FFD75E] text-gray-900 text-sm font-bold rounded-2xl transition-all shadow-sm hover:shadow active:scale-[0.98]",
               isLoaded
                 ? "hover:bg-[#ffcf40]"
-                : "opacity-60 cursor-not-allowed hover:bg-[#FFD75E]"
+                : "opacity-60 cursor-not-allowed hover:bg-[#FFD75E]",
             )}
           >
             <Plus className="w-5 h-5" />
@@ -160,7 +179,7 @@ export const Sidebar = () => {
                   "flex items-center gap-3 px-4 py-2 rounded-xl text-xs font-bold transition-colors",
                   isActive
                     ? "text-blue-600"
-                    : "text-gray-400 hover:text-gray-600"
+                    : "text-gray-400 hover:text-gray-600",
                 )}
               >
                 <item.icon className="w-4 h-4" />
@@ -204,8 +223,8 @@ export const Sidebar = () => {
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around bg-white/90 backdrop-blur-md border-t border-gray-200 px-2 py-3 md:hidden safe-area-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        {menuItems.map((item) => {
+      <nav className="fixed bottom-0 left-0 right-0 z-50 w-[80%] mx-auto flex items-center justify-around rounded-full bg-white backdrop-blur-md border-t border-gray-200 px-2 py-2 mb-2 md:hidden safe-area-bottom ">
+        {mobileMenuItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
@@ -213,13 +232,13 @@ export const Sidebar = () => {
               href={item.href}
               className={cn(
                 "flex flex-col items-center justify-center p-2 rounded-xl transition-all",
-                isActive ? "text-[#FFD75E]" : "text-gray-400"
+                isActive ? "text-[#FFD75E]" : "text-gray-400",
               )}
             >
               <item.icon
                 className={cn(
                   "w-6 h-6",
-                  isActive ? "fill-current" : "stroke-current"
+                  isActive ? "fill-current" : "stroke-current",
                 )}
               />
             </Link>
@@ -239,11 +258,52 @@ export const Sidebar = () => {
           }}
           className={cn(
             "flex items-center justify-center p-3 rounded-full bg-[#FFD75E] text-gray-900 shadow-lg active:scale-95 transition-transform",
-            isLoaded ? "opacity-100" : "opacity-50"
+            isLoaded ? "opacity-100" : "opacity-50",
           )}
         >
           <Plus className="w-6 h-6" />
         </button>
+
+        {/* Mobile Settings Button (ログイン時のみ) */}
+        {isLoaded && isSignedIn && (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)}
+              className={cn(
+                "flex flex-col items-center justify-center p-2 rounded-xl transition-all",
+                isSettingsMenuOpen ? "text-[#FFD75E]" : "text-gray-400",
+              )}
+            >
+              <Settings className="w-6 h-6" />
+            </button>
+
+            {/* Settings Popup Menu */}
+            {isSettingsMenuOpen && (
+              <>
+                {/* Backdrop */}
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsSettingsMenuOpen(false)}
+                />
+                {/* Menu */}
+                <div className="absolute bottom-14 right-0 z-50 w-48 bg-white rounded-2xl shadow-lg border border-gray-200 py-2 overflow-hidden">
+                  {settingsMenuItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsSettingsMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <item.icon className="w-5 h-5 text-gray-400" />
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </nav>
 
       <SignedIn>
