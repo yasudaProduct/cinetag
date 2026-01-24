@@ -1,0 +1,48 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go test:*)",
+      "Bash(ENV=develop go run:*)",
+      "Bash(go build:*)",
+      "Bash(npm run lint)",
+      "Bash(npx tsc:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(npm run lint:*)",
+      "Bash(go fmt:*)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[$(date)] $USER: $(jq -r '.tool_input.command')\" >> .claude/command_history.log"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file_path=$(jq -r '.tool_input.file_path') && if [[ \"$file_path\" == *.go ]]; then go fmt \"$file_path\" 2>/dev/null; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file_path=$(jq -r '.tool_input.file_path') && if [[ \"$file_path\" == *.go ]]; then go fmt \"$file_path\" 2>/dev/null; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

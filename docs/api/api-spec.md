@@ -360,20 +360,53 @@ Host: localhost:8080
 
 - **概要**: ログインユーザーがフォローしているタグ一覧を取得する。
 - **認証**: 必須
-- **クエリパラメータ**:
-  - `page` (任意): ページ番号（デフォルト: 1）
-  - `page_size` (任意): 1ページあたりの件数（デフォルト: 20、最大: 100）
-- **レスポンス形式**: `/api/v1/tags` と同様（`items` の中身が「フォロー中タグ」となる）。
+- **クエリパラメータ**
+
+| 名前        | 型  | 必須 | 説明                                             |
+|-------------|-----|------|--------------------------------------------------|
+| `page`      | int | 任意 | ページ番号（デフォルト: 1）                     |
+| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限例: 100） |
+
+- **レスポンス例（200）**
+
+```json
+{
+  "items": [
+    {
+      "id": "tag-uuid-1",
+      "title": "90年代SFクラシック",
+      "description": "黄金時代の象徴的なSF作品。",
+      "author": "retro_future",
+      "author_display_id": "retro_future",
+      "cover_image_url": null,
+      "is_public": true,
+      "movie_count": 55,
+      "follower_count": 2100,
+      "images": [
+        "https://image.tmdb.org/t/p/w400/poster1.jpg",
+        "https://image.tmdb.org/t/p/w400/poster2.jpg",
+        "https://image.tmdb.org/t/p/w400/poster3.jpg",
+        "https://image.tmdb.org/t/p/w400/poster4.jpg"
+      ],
+      "created_at": "2025-01-01T12:00:00Z"
+    }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total_count": 1
+}
+```
 
 #### 4.11 POST `/api/v1/clerk/webhook`
 
-- **概要**: Clerk Webhook を受信し、`user.created` イベントをローカル `users` テーブルに同期する。
+- **概要**: Clerk Webhook を受信し、`user.created` および `user.deleted` イベントをローカル `users` テーブルに同期する。
 - **認証**: 不要
 - **注意**
   - 現時点では **svix署名検証は未実装**（将来追加予定）。
-  - `type` が `user.created` 以外のイベントは `200 OK` で無視する。
+  - サポートするイベントタイプ: `user.created`, `user.deleted`
+  - これら以外のイベントは `200 OK` で無視する。
 
-- **リクエストボディ（例）**
+- **リクエストボディ（`user.created` の例）**
 
 ```json
 {
@@ -389,6 +422,17 @@ Host: localhost:8080
         "email_address": "jane@example.com"
       }
     ]
+  }
+}
+```
+
+- **リクエストボディ（`user.deleted` の例）**
+
+```json
+{
+  "type": "user.deleted",
+  "data": {
+    "id": "user_2aBcDeFgHiJk"
   }
 }
 ```
