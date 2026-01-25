@@ -198,6 +198,29 @@ func TestTagHandler_CreateTag(t *testing.T) {
 		}
 	})
 
+	t.Run("user が無効な型: 500", func(t *testing.T) {
+		t.Parallel()
+
+		r := testutil.NewTestRouter()
+		logger := testutil.NewTestLogger()
+		h := NewTagHandler(logger, &fakeTagService{})
+
+		r.Use(func(c *gin.Context) {
+			// 無効な型をセット
+			c.Set("user", "invalid-user-type")
+			c.Next()
+		})
+		r.POST("/api/v1/tags", h.CreateTag)
+
+		body := testutil.MustMarshalJSON(t, map[string]any{"title": "t"})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags", body, map[string]string{
+			"Content-Type": "application/json",
+		})
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+	})
+
 	t.Run("タイトル長が100を超える: 400", func(t *testing.T) {
 		t.Parallel()
 
@@ -422,6 +445,29 @@ func TestTagHandler_AddMovieToTag(t *testing.T) {
 		})
 		if rw.Code != http.StatusUnauthorized {
 			t.Fatalf("expected 401, got %d", rw.Code)
+		}
+	})
+
+	t.Run("user が無効な型: 500", func(t *testing.T) {
+		t.Parallel()
+
+		r := testutil.NewTestRouter()
+		logger := testutil.NewTestLogger()
+		h := NewTagHandler(logger, &fakeTagService{})
+
+		r.Use(func(c *gin.Context) {
+			// 無効な型をセット
+			c.Set("user", "invalid-user-type")
+			c.Next()
+		})
+		r.POST("/api/v1/tags/:tagId/movies", h.AddMovieToTag)
+
+		body := testutil.MustMarshalJSON(t, map[string]any{"tmdb_movie_id": 1, "position": 0})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/movies", body, map[string]string{
+			"Content-Type": "application/json",
+		})
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
 		}
 	})
 

@@ -14,6 +14,26 @@ import (
 	"gorm.io/gorm"
 )
 
+// fakeMovieService は MovieService の fake 実装です。
+type fakeMovieService struct {
+	EnsureMovieCacheFn func(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error)
+	SearchMoviesFn     func(ctx context.Context, query string, page int) ([]TMDBSearchResult, int, error)
+}
+
+func (f *fakeMovieService) EnsureMovieCache(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error) {
+	if f.EnsureMovieCacheFn == nil {
+		return &model.MovieCache{}, nil
+	}
+	return f.EnsureMovieCacheFn(ctx, tmdbMovieID)
+}
+
+func (f *fakeMovieService) SearchMovies(ctx context.Context, query string, page int) ([]TMDBSearchResult, int, error) {
+	if f.SearchMoviesFn == nil {
+		return []TMDBSearchResult{}, 0, nil
+	}
+	return f.SearchMoviesFn(ctx, query, page)
+}
+
 type deps struct {
 	tagRepo         *testutil.FakeTagRepository
 	tagMovieRepo    *testutil.FakeTagMovieRepository
@@ -373,6 +393,98 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 			t.Fatalf("expected TagMovieRepository.Create to be called")
 		}
 	})
+
+	t.Run("非同期処理: movieService がある場合、キャッシュウォームが実行される", func(t *testing.T) {
+		t.Parallel()
+
+		// goroutine が呼ばれたことを検証するためのチャネル
+		done := make(chan int, 1)
+
+		movieSvc := &fakeMovieService{
+			EnsureMovieCacheFn: func(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error) {
+				done <- tmdbMovieID
+				return &model.MovieCache{}, nil
+			},
+		}
+
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id}, nil
+			}
+			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
+				return nil
+			}
+			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
+				return nil
+			}
+			d.movieService = movieSvc
+		})
+
+		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
+			TagID:       "t1",
+			UserID:      "u1",
+			TmdbMovieID: 123,
+			Position:    0,
+		})
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+
+		// goroutine の完了を待つ（タイムアウト付き）
+		select {
+		case movieID := <-done:
+			if movieID != 123 {
+				t.Fatalf("expected movieID=123, got %d", movieID)
+			}
+		case <-time.After(1 * time.Second):
+			t.Fatalf("expected EnsureMovieCache to be called within 1 second")
+		}
+	})
+
+	t.Run("非同期処理: movieService のエラーは無視される（APIは成功）", func(t *testing.T) {
+		t.Parallel()
+
+		done := make(chan bool, 1)
+
+		movieSvc := &fakeMovieService{
+			EnsureMovieCacheFn: func(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error) {
+				done <- true
+				return nil, errors.New("cache warm failed")
+			},
+		}
+
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id}, nil
+			}
+			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
+				return nil
+			}
+			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
+				return nil
+			}
+			d.movieService = movieSvc
+		})
+
+		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
+			TagID:       "t1",
+			UserID:      "u1",
+			TmdbMovieID: 123,
+			Position:    0,
+		})
+		// APIは成功する
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+
+		// goroutine が実行されたことを確認
+		select {
+		case <-done:
+			// OK
+		case <-time.After(1 * time.Second):
+			t.Fatalf("expected EnsureMovieCache to be called within 1 second")
+		}
+	})
 }
 
 func TestTagService_CreateTag(t *testing.T) {
@@ -613,7 +725,7 @@ func TestTagService_GetTagDetail(t *testing.T) {
 					IsPublic:         true,
 					AddMoviePolicy:   "everyone",
 					OwnerID:          "owner1",
-										OwnerDisplayName: "Owner",
+					OwnerDisplayName: "Owner",
 				}, nil
 			}
 		})
@@ -645,7 +757,7 @@ func TestTagService_GetTagDetail(t *testing.T) {
 					IsPublic:         true,
 					AddMoviePolicy:   "owner_only",
 					OwnerID:          ownerID,
-										OwnerDisplayName: "Owner",
+					OwnerDisplayName: "Owner",
 				}, nil
 			}
 		})
@@ -681,7 +793,7 @@ func TestTagService_GetTagDetail(t *testing.T) {
 					IsPublic:         true,
 					AddMoviePolicy:   "everyone",
 					OwnerID:          "owner1",
-										OwnerDisplayName: "Owner",
+					OwnerDisplayName: "Owner",
 				}, nil
 			}
 		})
@@ -721,7 +833,7 @@ func TestTagService_UpdateTag(t *testing.T) {
 					IsPublic:         true,
 					AddMoviePolicy:   "owner_only",
 					OwnerID:          "u1",
-										OwnerDisplayName: "User1",
+					OwnerDisplayName: "User1",
 				}, nil
 			}
 		})
