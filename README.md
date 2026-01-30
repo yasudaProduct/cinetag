@@ -66,6 +66,7 @@
 2. **既存ブランチを別ディレクトリでチェックアウトする**
 
    ```bash
+   git branch -v
    git worktree add ../staging develop
    ```
 
@@ -85,13 +86,7 @@
 
 詳細な解説: [Git公式マニュアル（worktree）](https://git-scm.com/docs/git-worktree)
 
-
-
-
-
 ---
-
-
 
 
 ### 詳細
