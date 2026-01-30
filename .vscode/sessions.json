@@ -53,7 +53,7 @@
         "name": "backend-test-terminal",
         "autoExecuteCommands": true,
         "icon": "terminal",
-        "color": "terminal.ansiRed",
+        "color": "terminal.ansiGreen",
         "commands": [
           "cd apps/backend",
           "go test ./..."
@@ -62,10 +62,19 @@
       {
         "name": "ngrok",
         "autoExecuteCommands": true,
-        "icon": "browser",
+        "icon": "terminal",
         "color": "terminal.ansiYellow",
         "commands": [
           "ngrok http 8080"
+        ]
+      },
+      {
+        "name": "git",
+        "autoExecuteCommands": true,
+        "icon": "git-branch",
+        "color": "terminal.ansiYellow",
+        "commands": [
+          "echo \"ここでgitコマンドを実行してください\""
         ]
       }
     ]
