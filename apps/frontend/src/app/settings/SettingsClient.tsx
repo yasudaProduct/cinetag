@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, useClerk, useAuth } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Camera, Trash2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Camera, Trash2, AlertTriangle, LogOut } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { Spinner } from "@/components/ui/spinner";
@@ -308,7 +308,8 @@ export function SettingsClient() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900 capitalize">
-                        {account.provider.replace(/^oauth_/, "")}</p>
+                        {account.provider.replace(/^oauth_/, "")}
+                      </p>
                       <p className="text-xs text-gray-500">
                         {account.emailAddress || "連携済み"}
                       </p>
@@ -322,6 +323,22 @@ export function SettingsClient() {
               </p>
             )}
           </div>
+        </section>
+
+        {/* サインアウトセクション */}
+        <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-4">サインアウト</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            このデバイスからサインアウトします。
+          </p>
+          <button
+            type="button"
+            onClick={() => signOut({ redirectUrl: "/" })}
+            className="flex items-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            サインアウト
+          </button>
         </section>
 
         {/* 退会セクション */}
