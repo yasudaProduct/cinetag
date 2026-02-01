@@ -5,18 +5,14 @@ import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { TagModal, CreatedTagForList } from "@/components/TagModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listTags, type ListTagsResult } from "@/lib/api/tags/list";
+import { listTags } from "@/lib/api/tags/list";
 import type { TagListItem } from "@/lib/validation/tag.api";
 
 const PAGE_SIZE = 10;
 
 type SortOption = "popular" | "recent" | "movie_count";
 
-type HomeClientProps = {
-  initialData: ListTagsResult;
-};
-
-export default function HomeClient({ initialData }: HomeClientProps) {
+export default function HomeClient() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -40,10 +36,6 @@ export default function HomeClient({ initialData }: HomeClientProps) {
     setCurrentPage(1);
   };
 
-  // 初期状態かどうかを判定（SSRデータを使うべきか）
-  const isInitialState =
-    debouncedSearchQuery === "" && sort === "popular" && currentPage === 1;
-
   const tagsQuery = useQuery({
     queryKey: ["tags", debouncedSearchQuery, sort, currentPage],
     queryFn: () =>
@@ -53,7 +45,6 @@ export default function HomeClient({ initialData }: HomeClientProps) {
         page: currentPage,
         pageSize: PAGE_SIZE,
       }),
-    initialData: isInitialState ? initialData : undefined,
   });
 
   const tags = tagsQuery.data?.items ?? [];
