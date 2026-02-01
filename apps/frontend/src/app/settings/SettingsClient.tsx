@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser, useClerk, useAuth } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,6 +8,7 @@ import { ArrowLeft, Camera, Trash2, AlertTriangle, LogOut } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { Spinner } from "@/components/ui/spinner";
+import { ImageUploadModal } from "@/components/ImageUploadModal";
 import { getMe } from "@/lib/api/users/getMe";
 import { updateMe } from "@/lib/api/users/updateMe";
 
@@ -20,7 +21,7 @@ export function SettingsClient() {
 
   const [displayName, setDisplayName] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -28,8 +29,6 @@ export function SettingsClient() {
     type: "success" | "error";
     text: string;
   } | null>(null);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // バックエンドからユーザー情報を取得
   const { data: backendUser } = useQuery({
@@ -100,49 +99,13 @@ export function SettingsClient() {
     }
   };
 
-  const handleImageUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // ファイルサイズチェック (5MB以下)
-    if (file.size > 5 * 1024 * 1024) {
-      setMessage({
-        type: "error",
-        text: "画像サイズは5MB以下にしてください",
-      });
-      return;
-    }
-
-    // ファイルタイプチェック
-    if (!file.type.startsWith("image/")) {
-      setMessage({ type: "error", text: "画像ファイルを選択してください" });
-      return;
-    }
-
-    setIsUploadingImage(true);
-    setMessage(null);
-
-    try {
-      await user.setProfileImage({ file });
-      // Clerk Webhook でバックエンドが更新されるまで少し待機してからキャッシュを無効化
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["users", "me"] });
-      }, 1000);
-      setMessage({ type: "success", text: "プロフィール画像を更新しました" });
-    } catch {
-      setMessage({
-        type: "error",
-        text: "プロフィール画像の更新に失敗しました",
-      });
-    } finally {
-      setIsUploadingImage(false);
-      // input をリセット
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
+  const handleImageUpload = async (file: File) => {
+    await user.setProfileImage({ file });
+    // Clerk Webhook でバックエンドが更新されるまで少し待機してからキャッシュを無効化
+    setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ["users", "me"] });
+    }, 1000);
+    setMessage({ type: "success", text: "プロフィール画像を更新しました" });
   };
 
   const handleDeleteAccount = async () => {
@@ -221,23 +184,11 @@ export function SettingsClient() {
               </div>
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploadingImage}
-                className="absolute bottom-0 right-0 p-2 bg-[#FFD75E] rounded-full shadow-md hover:bg-[#ffcf40] transition-colors disabled:opacity-50"
+                onClick={() => setIsImageModalOpen(true)}
+                className="absolute bottom-0 right-0 p-2 bg-[#FFD75E] rounded-full shadow-md hover:bg-[#ffcf40] transition-colors"
               >
-                {isUploadingImage ? (
-                  <Spinner size="sm" />
-                ) : (
-                  <Camera className="w-4 h-4 text-gray-900" />
-                )}
+                <Camera className="w-4 h-4 text-gray-900" />
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
             </div>
             <div>
               <p className="text-sm text-gray-500 mb-1">プロフィール画像</p>
@@ -396,6 +347,14 @@ export function SettingsClient() {
           )}
         </section>
       </div>
+
+      {/* 画像アップロードモーダル */}
+      <ImageUploadModal
+        open={isImageModalOpen}
+        onClose={() => setIsImageModalOpen(false)}
+        onUpload={handleImageUpload}
+        currentImageUrl={user.imageUrl}
+      />
     </div>
   );
 }

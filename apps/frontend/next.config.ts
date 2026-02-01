@@ -57,8 +57,8 @@ const nextConfig: NextConfig = {
               // フォント: 自サイト + Google Fonts
               "font-src 'self' https://fonts.gstatic.com data:",
 
-              // 画像: 自サイト + data URIs + 外部画像サービス
-              "img-src 'self' data: https://placehold.co https://image.tmdb.org https://img.clerk.com https://images.clerk.dev",
+              // 画像: 自サイト + data URIs + blob URIs + 外部画像サービス
+              "img-src 'self' data: blob: https://placehold.co https://image.tmdb.org https://img.clerk.com https://images.clerk.dev",
 
               // 接続: 自サイト + Clerk + バックエンドAPI
               `connect-src ${connectSrc}`,
