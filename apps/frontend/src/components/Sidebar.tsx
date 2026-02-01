@@ -55,7 +55,7 @@ export const Sidebar = () => {
       ? [
           { icon: Tag, label: "フォローしたタグ", href: "/tags/following" },
           { icon: User, label: "マイページ", href: myPageHref },
-          { icon: Settings, label: "設定", href: "/#settings" },
+          { icon: Settings, label: "設定", href: "/settings" },
           { icon: Bell, label: "通知", href: "/#notifications" },
         ]
       : []),
@@ -74,7 +74,7 @@ export const Sidebar = () => {
   // 設定メニュー内の項目
   const settingsMenuItems = [
     { icon: User, label: "マイページ", href: myPageHref },
-    { icon: Settings, label: "設定", href: "/#settings" },
+    { icon: Settings, label: "設定", href: "/settings" },
     { icon: Bell, label: "通知", href: "/#notifications" },
   ];
 

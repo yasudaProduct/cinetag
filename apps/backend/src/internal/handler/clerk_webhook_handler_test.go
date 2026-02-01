@@ -38,6 +38,10 @@ func (f *fakeWebhookUserService) GetUserByDisplayID(ctx context.Context, display
 	return nil, service.ErrUserNotFound
 }
 
+func (f *fakeWebhookUserService) UpdateUser(ctx context.Context, userID string, input service.UpdateUserInput) (*model.User, error) {
+	return nil, nil
+}
+
 func (f *fakeWebhookUserService) FollowUser(ctx context.Context, followerID, followeeID string) error {
 	return nil
 }
