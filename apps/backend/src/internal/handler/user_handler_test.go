@@ -15,6 +15,7 @@ import (
 
 type fakeUserService struct {
 	GetUserByDisplayIDFn func(ctx context.Context, displayID string) (*model.User, error)
+	UpdateUserFn         func(ctx context.Context, userID string, input service.UpdateUserInput) (*model.User, error)
 	FollowUserFn         func(ctx context.Context, followerID, followeeID string) error
 	UnfollowUserFn       func(ctx context.Context, followerID, followeeID string) error
 	IsFollowingFn        func(ctx context.Context, followerID, followeeID string) (bool, error)
@@ -36,6 +37,17 @@ func (f *fakeUserService) GetUserByDisplayID(ctx context.Context, displayID stri
 		return nil, service.ErrUserNotFound
 	}
 	return f.GetUserByDisplayIDFn(ctx, displayID)
+}
+
+func (f *fakeUserService) UpdateUser(ctx context.Context, userID string, input service.UpdateUserInput) (*model.User, error) {
+	if f.UpdateUserFn == nil {
+		return nil, nil
+	}
+	return f.UpdateUserFn(ctx, userID, input)
+}
+
+func (f *fakeUserService) UpdateUserFromClerk(ctx context.Context, userID string, avatarURL *string) error {
+	return nil
 }
 
 func (f *fakeUserService) FollowUser(ctx context.Context, followerID, followeeID string) error {
@@ -102,6 +114,7 @@ func newUserHandlerRouter(t *testing.T, userSvc service.UserService, tagSvc serv
 		})
 	}
 	auth.GET("/users/me", h.GetMe)
+	auth.PATCH("/users/me", h.UpdateMe)
 	auth.POST("/users/:displayId/follow", h.FollowUser)
 	auth.DELETE("/users/:displayId/follow", h.UnfollowUser)
 
@@ -183,6 +196,121 @@ func TestUserHandler_GetMe(t *testing.T) {
 		}
 		if resp["bio"] != bio {
 			t.Fatalf("expected bio=%s, got %v", bio, resp["bio"])
+		}
+	})
+}
+
+func TestUserHandler_UpdateMe(t *testing.T) {
+	t.Parallel()
+
+	t.Run("未認証(user無し): 401", func(t *testing.T) {
+		t.Parallel()
+
+		r := newUserHandlerRouter(t, &fakeUserService{}, &fakeTagService{}, nil)
+		body := testutil.MustMarshalJSON(t, map[string]any{"display_name": "NewName"})
+		rw := testutil.PerformRequest(r, http.MethodPatch, "/api/v1/users/me", body, nil)
+		if rw.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", rw.Code)
+		}
+	})
+
+	t.Run("user が無効な型: 500", func(t *testing.T) {
+		t.Parallel()
+
+		r := testutil.NewTestRouter()
+		logger := testutil.NewTestLogger()
+		h := NewUserHandler(logger, &fakeUserService{}, &fakeTagService{})
+
+		r.Use(func(c *gin.Context) {
+			c.Set("user", "invalid-user-type")
+			c.Next()
+		})
+		r.PATCH("/api/v1/users/me", h.UpdateMe)
+
+		body := testutil.MustMarshalJSON(t, map[string]any{"display_name": "NewName"})
+		rw := testutil.PerformRequest(r, http.MethodPatch, "/api/v1/users/me", body, nil)
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+	})
+
+	t.Run("無効なリクエストボディ: 400", func(t *testing.T) {
+		t.Parallel()
+
+		u := &model.User{ID: "u1", DisplayID: "user1", DisplayName: "OldName"}
+		r := newUserHandlerRouter(t, &fakeUserService{}, &fakeTagService{}, u)
+
+		// 無効なJSON
+		rw := testutil.PerformRequest(r, http.MethodPatch, "/api/v1/users/me", []byte("invalid json"), nil)
+		if rw.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", rw.Code)
+		}
+	})
+
+	t.Run("サービスが失敗: 400", func(t *testing.T) {
+		t.Parallel()
+
+		userSvc := &fakeUserService{
+			UpdateUserFn: func(ctx context.Context, userID string, input service.UpdateUserInput) (*model.User, error) {
+				return nil, errors.New("display_name cannot be empty")
+			},
+		}
+
+		u := &model.User{ID: "u1", DisplayID: "user1", DisplayName: "OldName"}
+		r := newUserHandlerRouter(t, userSvc, &fakeTagService{}, u)
+
+		body := testutil.MustMarshalJSON(t, map[string]any{"display_name": ""})
+		rw := testutil.PerformRequest(r, http.MethodPatch, "/api/v1/users/me", body, nil)
+		if rw.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", rw.Code)
+		}
+	})
+
+	t.Run("成功: 200 かつ更新されたユーザー情報が返る", func(t *testing.T) {
+		t.Parallel()
+
+		var gotUserID string
+		var gotInput service.UpdateUserInput
+		avatarURL := "https://example.com/avatar.png"
+		bio := "Updated bio"
+
+		userSvc := &fakeUserService{
+			UpdateUserFn: func(ctx context.Context, userID string, input service.UpdateUserInput) (*model.User, error) {
+				gotUserID = userID
+				gotInput = input
+				return &model.User{
+					ID:          userID,
+					DisplayID:   "user1",
+					DisplayName: *input.DisplayName,
+					AvatarURL:   &avatarURL,
+					Bio:         &bio,
+				}, nil
+			},
+		}
+
+		u := &model.User{ID: "u1", DisplayID: "user1", DisplayName: "OldName"}
+		r := newUserHandlerRouter(t, userSvc, &fakeTagService{}, u)
+
+		body := testutil.MustMarshalJSON(t, map[string]any{"display_name": "NewName"})
+		rw := testutil.PerformRequest(r, http.MethodPatch, "/api/v1/users/me", body, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+
+		if gotUserID != "u1" {
+			t.Fatalf("expected userID=u1, got %s", gotUserID)
+		}
+		if gotInput.DisplayName == nil || *gotInput.DisplayName != "NewName" {
+			t.Fatalf("expected DisplayName=NewName, got %v", gotInput.DisplayName)
+		}
+
+		resp := map[string]any{}
+		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
+		if resp["display_name"] != "NewName" {
+			t.Fatalf("expected display_name=NewName, got %v", resp["display_name"])
+		}
+		if resp["avatar_url"] != avatarURL {
+			t.Fatalf("expected avatar_url=%s, got %v", avatarURL, resp["avatar_url"])
 		}
 	})
 }

@@ -38,6 +38,11 @@ type UserProfileResponse struct {
 	Bio         *string `json:"bio,omitempty"`
 }
 
+// ユーザー更新リクエストの形式。
+type UpdateMeRequest struct {
+	DisplayName *string `json:"display_name"`
+}
+
 // 認証済みユーザー自身の情報を返す。
 // GET /api/v1/users/me
 func (h *UserHandler) GetMe(c *gin.Context) {
@@ -59,6 +64,51 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 		DisplayName: user.DisplayName,
 		AvatarURL:   user.AvatarURL,
 		Bio:         user.Bio,
+	})
+}
+
+// 認証済みユーザー自身の情報を更新する。
+// PATCH /api/v1/users/me
+func (h *UserHandler) UpdateMe(c *gin.Context) {
+	userRaw, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	user, ok := userRaw.(*model.User)
+	if !ok || user == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user context"})
+		return
+	}
+
+	var req UpdateMeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	// 更新入力を構築
+	input := service.UpdateUserInput{
+		DisplayName: req.DisplayName,
+	}
+
+	updatedUser, err := h.userService.UpdateUser(c.Request.Context(), user.ID, input)
+	if err != nil {
+		h.logger.Error("failed to update user",
+			slog.String("user_id", user.ID),
+			slog.String("error", err.Error()),
+		)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, UserProfileResponse{
+		ID:          updatedUser.ID,
+		DisplayID:   updatedUser.DisplayID,
+		DisplayName: updatedUser.DisplayName,
+		AvatarURL:   updatedUser.AvatarURL,
+		Bio:         updatedUser.Bio,
 	})
 }
 

@@ -36,6 +36,11 @@ var ErrAlreadyFollowing = errors.New("already following")
 // フォローしていないユーザーをアンフォローしようとした場合のエラー。
 var ErrNotFollowing = errors.New("not following")
 
+// ユーザー更新用の入力構造体。
+type UpdateUserInput struct {
+	DisplayName *string // 表示名（nilの場合は更新しない）
+}
+
 // users テーブルに関するユースケースを表すインターフェース。
 type UserService interface {
 	// Clerk ユーザー情報をもとに、
@@ -49,6 +54,12 @@ type UserService interface {
 
 	// display_id からユーザー情報を取得する。
 	GetUserByDisplayID(ctx context.Context, displayID string) (*model.User, error)
+
+	// ユーザー情報を更新する。
+	UpdateUser(ctx context.Context, userID string, input UpdateUserInput) (*model.User, error)
+
+	// Clerk Webhook からユーザー情報を更新する（avatar_url）。
+	UpdateUserFromClerk(ctx context.Context, userID string, avatarURL *string) error
 
 	// 指定ユーザーをフォローする。
 	FollowUser(ctx context.Context, followerID, followeeID string) error
@@ -73,7 +84,7 @@ type UserService interface {
 }
 
 type userService struct {
-	logger          *slog.Logger
+	logger           *slog.Logger
 	db               *gorm.DB
 	userRepo         repository.UserRepository
 	userFollowerRepo repository.UserFollowerRepository
@@ -83,7 +94,7 @@ type userService struct {
 // UserService の実装を生成する。
 func NewUserService(logger *slog.Logger, db *gorm.DB, userRepo repository.UserRepository, userFollowerRepo repository.UserFollowerRepository, tagFollowerRepo repository.TagFollowerRepository) UserService {
 	return &userService{
-		logger:          logger,
+		logger:           logger,
 		db:               db,
 		userRepo:         userRepo,
 		userFollowerRepo: userFollowerRepo,
@@ -194,6 +205,67 @@ func (s *userService) GetUserByDisplayID(ctx context.Context, displayID string) 
 	}
 
 	return user, nil
+}
+
+// ユーザー情報を更新する。
+func (s *userService) UpdateUser(ctx context.Context, userID string, input UpdateUserInput) (*model.User, error) {
+	s.logger.Debug("service.UpdateUser started",
+		slog.String("user_id", userID),
+	)
+
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, errors.New("user_id is required")
+	}
+
+	// 更新対象のフィールドを構築
+	updates := make(map[string]any)
+
+	if input.DisplayName != nil {
+		displayName := strings.TrimSpace(*input.DisplayName)
+		if displayName == "" {
+			return nil, errors.New("display_name cannot be empty")
+		}
+		if len(displayName) > 100 {
+			return nil, errors.New("display_name is too long (max 100 characters)")
+		}
+		updates["display_name"] = displayName
+	}
+
+	// 更新対象がない場合はエラー
+	if len(updates) == 0 {
+		return nil, errors.New("no fields to update")
+	}
+
+	// updated_at を更新
+	updates["updated_at"] = time.Now()
+
+	// 更新実行
+	if err := s.userRepo.Update(ctx, userID, updates); err != nil {
+		return nil, err
+	}
+
+	// 更新後のユーザー情報を取得して返す
+	return s.userRepo.FindByID(ctx, userID)
+}
+
+// Clerk Webhook からユーザー情報を更新する（avatar_url）。
+func (s *userService) UpdateUserFromClerk(ctx context.Context, userID string, avatarURL *string) error {
+	s.logger.Debug("service.UpdateUserFromClerk started",
+		slog.String("user_id", userID),
+	)
+
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return errors.New("user_id is required")
+	}
+
+	updates := map[string]any{
+		"avatar_url": avatarURL,
+		"updated_at": time.Now(),
+	}
+
+	return s.userRepo.Update(ctx, userID, updates)
 }
 
 // 指定ユーザーをフォローする。

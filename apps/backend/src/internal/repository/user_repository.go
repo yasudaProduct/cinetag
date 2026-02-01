@@ -16,6 +16,7 @@ type UserRepository interface {
 	FindByClerkUserID(ctx context.Context, clerkUserID string) (*model.User, error)
 	FindByDisplayID(ctx context.Context, displayID string) (*model.User, error)
 	Create(ctx context.Context, user *model.User) error
+	Update(ctx context.Context, userID string, updates map[string]any) error
 	UpdateForUserDeactivated(ctx context.Context, userID string, now time.Time, anonymizedEmail string) error
 }
 
@@ -66,6 +67,15 @@ func (r *userRepository) FindByDisplayID(ctx context.Context, displayID string) 
 // ユーザーを作成する。
 func (r *userRepository) Create(ctx context.Context, user *model.User) error {
 	return r.db.WithContext(ctx).Create(user).Error
+}
+
+// ユーザー情報を更新する。
+func (r *userRepository) Update(ctx context.Context, userID string, updates map[string]any) error {
+	return r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ?", userID).
+		Updates(updates).
+		Error
 }
 
 // ユーザーを論理削除＋匿名化する。

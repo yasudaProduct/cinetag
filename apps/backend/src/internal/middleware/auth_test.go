@@ -33,6 +33,14 @@ func (f *fakeUserService) GetUserByDisplayID(ctx context.Context, displayID stri
 	return f.GetUserByDisplayIDFn(ctx, displayID)
 }
 
+func (f *fakeUserService) UpdateUser(ctx context.Context, userID string, input service.UpdateUserInput) (*model.User, error) {
+	return nil, nil
+}
+
+func (f *fakeUserService) UpdateUserFromClerk(ctx context.Context, userID string, avatarURL *string) error {
+	return nil
+}
+
 func (f *fakeUserService) FindUserByClerkUserID(ctx context.Context, clerkUserID string) (*model.User, error) {
 	return nil, service.ErrUserNotFound
 }
