@@ -30,8 +30,8 @@ const nextConfig: NextConfig = {
   async headers() {
     // 開発環境では緩い設定、本番環境では厳格な設定
     const scriptSrc = isDev
-      ? "'self' 'unsafe-inline' 'unsafe-eval'"
-      : "'self' 'unsafe-inline' 'unsafe-eval'"; // TODO: 将来的にNonceベースに移行
+      ? "'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.com"
+      : "'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.com"; // TODO: 将来的にNonceベースに移行
 
     const connectSrc = isDev
       ? "'self' https://clerk.com https://*.clerk.accounts.dev http://localhost:8080"
