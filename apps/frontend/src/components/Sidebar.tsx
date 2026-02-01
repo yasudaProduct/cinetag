@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Search,
   Plus,
@@ -17,7 +17,6 @@ import {
   SignedIn,
   SignedOut,
   SignInButton,
-  UserButton,
   useAuth,
   useClerk,
 } from "@clerk/nextjs";
@@ -33,6 +32,27 @@ export const Sidebar = () => {
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
+
+  // 設定メニュー外をクリックしたらメニューを閉じる
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        settingsMenuRef.current &&
+        !settingsMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsSettingsMenuOpen(false);
+      }
+    };
+
+    if (isSettingsMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isSettingsMenuOpen]);
 
   const { data: currentUser } = useQuery({
     queryKey: ["users", "me"],
@@ -264,7 +284,7 @@ export const Sidebar = () => {
 
         {/* Mobile Settings Button (ログイン時のみ) */}
         {isLoaded && isSignedIn && (
-          <div className="relative">
+          <div className="relative" ref={settingsMenuRef}>
             <button
               type="button"
               onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)}
@@ -278,27 +298,19 @@ export const Sidebar = () => {
 
             {/* Settings Popup Menu */}
             {isSettingsMenuOpen && (
-              <>
-                {/* Backdrop */}
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setIsSettingsMenuOpen(false)}
-                />
-                {/* Menu */}
-                <div className="absolute bottom-14 right-0 z-50 w-48 bg-white rounded-2xl shadow-lg border border-gray-200 py-2 overflow-hidden">
-                  {settingsMenuItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setIsSettingsMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      <item.icon className="w-5 h-5 text-gray-400" />
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              </>
+              <div className="absolute bottom-14 right-0 z-50 w-48 bg-white rounded-2xl shadow-lg border border-gray-200 py-2 overflow-hidden">
+                {settingsMenuItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsSettingsMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <item.icon className="w-5 h-5 text-gray-400" />
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
             )}
           </div>
         )}
