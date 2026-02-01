@@ -188,4 +188,234 @@ func TestClerkJWTValidator_Verify(t *testing.T) {
 			t.Fatalf("expected error")
 		}
 	})
+
+	t.Run("成功: aud が配列の場合（一致）", func(t *testing.T) {
+		t.Parallel()
+
+		kid := "kid1"
+		priv := mustNewRSAKey(t)
+		jwks := testJWKS{Keys: []testJWK{jwkFromPublicKey(kid, &priv.PublicKey)}}
+		srv := newJWKSServer(t, jwks)
+		t.Cleanup(srv.Close)
+
+		v, _ := NewClerkJWTValidator(srv.URL, "", "aud-ok")
+
+		claims := map[string]any{
+			"aud": []any{"aud-other", "aud-ok"},
+			"sub": "user_123",
+			"exp": time.Now().Add(10 * time.Minute).Unix(),
+		}
+		token := mustSignRS256JWT(t, kid, claims, priv)
+
+		got, err := v.Verify(context.Background(), token)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if got["sub"] != "user_123" {
+			t.Fatalf("expected sub=user_123, got %v", got["sub"])
+		}
+	})
+
+	t.Run("失敗: aud が配列で不一致", func(t *testing.T) {
+		t.Parallel()
+
+		kid := "kid1"
+		priv := mustNewRSAKey(t)
+		jwks := testJWKS{Keys: []testJWK{jwkFromPublicKey(kid, &priv.PublicKey)}}
+		srv := newJWKSServer(t, jwks)
+		t.Cleanup(srv.Close)
+
+		v, _ := NewClerkJWTValidator(srv.URL, "", "aud-ok")
+
+		claims := map[string]any{
+			"aud": []any{"aud-other", "aud-ng"},
+			"sub": "user_123",
+			"exp": time.Now().Add(10 * time.Minute).Unix(),
+		}
+		token := mustSignRS256JWT(t, kid, claims, priv)
+
+		_, err := v.Verify(context.Background(), token)
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("成功: issuer が指定されていて一致", func(t *testing.T) {
+		t.Parallel()
+
+		kid := "kid1"
+		priv := mustNewRSAKey(t)
+		jwks := testJWKS{Keys: []testJWK{jwkFromPublicKey(kid, &priv.PublicKey)}}
+		srv := newJWKSServer(t, jwks)
+		t.Cleanup(srv.Close)
+
+		v, _ := NewClerkJWTValidator(srv.URL, "iss-ok", "")
+
+		claims := map[string]any{
+			"iss": "iss-ok",
+			"sub": "user_123",
+			"exp": time.Now().Add(10 * time.Minute).Unix(),
+		}
+		token := mustSignRS256JWT(t, kid, claims, priv)
+
+		got, err := v.Verify(context.Background(), token)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if got["sub"] != "user_123" {
+			t.Fatalf("expected sub=user_123, got %v", got["sub"])
+		}
+	})
+
+	t.Run("成功: audience が単一文字列で一致", func(t *testing.T) {
+		t.Parallel()
+
+		kid := "kid1"
+		priv := mustNewRSAKey(t)
+		jwks := testJWKS{Keys: []testJWK{jwkFromPublicKey(kid, &priv.PublicKey)}}
+		srv := newJWKSServer(t, jwks)
+		t.Cleanup(srv.Close)
+
+		v, _ := NewClerkJWTValidator(srv.URL, "", "aud-ok")
+
+		claims := map[string]any{
+			"aud": "aud-ok",
+			"sub": "user_123",
+			"exp": time.Now().Add(10 * time.Minute).Unix(),
+		}
+		token := mustSignRS256JWT(t, kid, claims, priv)
+
+		got, err := v.Verify(context.Background(), token)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if got["sub"] != "user_123" {
+			t.Fatalf("expected sub=user_123, got %v", got["sub"])
+		}
+	})
+
+	t.Run("失敗: aud が不正な型", func(t *testing.T) {
+		t.Parallel()
+
+		kid := "kid1"
+		priv := mustNewRSAKey(t)
+		jwks := testJWKS{Keys: []testJWK{jwkFromPublicKey(kid, &priv.PublicKey)}}
+		srv := newJWKSServer(t, jwks)
+		t.Cleanup(srv.Close)
+
+		v, _ := NewClerkJWTValidator(srv.URL, "", "aud-ok")
+
+		claims := map[string]any{
+			"aud": 12345, // 不正な型
+			"sub": "user_123",
+			"exp": time.Now().Add(10 * time.Minute).Unix(),
+		}
+		token := mustSignRS256JWT(t, kid, claims, priv)
+
+		_, err := v.Verify(context.Background(), token)
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("成功: exp/nbf を整数で指定しても動作する", func(t *testing.T) {
+		t.Parallel()
+
+		kid := "kid1"
+		priv := mustNewRSAKey(t)
+		jwks := testJWKS{Keys: []testJWK{jwkFromPublicKey(kid, &priv.PublicKey)}}
+		srv := newJWKSServer(t, jwks)
+		t.Cleanup(srv.Close)
+
+		v, _ := NewClerkJWTValidator(srv.URL, "", "")
+
+		claims := map[string]any{
+			"sub": "user_123",
+			"exp": int(time.Now().Add(10 * time.Minute).Unix()),
+			"nbf": int(time.Now().Add(-1 * time.Minute).Unix()),
+		}
+		token := mustSignRS256JWT(t, kid, claims, priv)
+
+		got, err := v.Verify(context.Background(), token)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if got["sub"] != "user_123" {
+			t.Fatalf("expected sub=user_123, got %v", got["sub"])
+		}
+	})
+
+	t.Run("成功: exp が不正な型の場合は検証がスキップされる", func(t *testing.T) {
+		t.Parallel()
+
+		kid := "kid1"
+		priv := mustNewRSAKey(t)
+		jwks := testJWKS{Keys: []testJWK{jwkFromPublicKey(kid, &priv.PublicKey)}}
+		srv := newJWKSServer(t, jwks)
+		t.Cleanup(srv.Close)
+
+		v, _ := NewClerkJWTValidator(srv.URL, "", "")
+
+		claims := map[string]any{
+			"sub": "user_123",
+			"exp": "not-a-number", // 不正な型のexpは検証がスキップされる
+		}
+		token := mustSignRS256JWT(t, kid, claims, priv)
+
+		got, err := v.Verify(context.Background(), token)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if got["sub"] != "user_123" {
+			t.Fatalf("expected sub=user_123, got %v", got["sub"])
+		}
+	})
+
+	t.Run("失敗: iss が存在しないが期待されている", func(t *testing.T) {
+		t.Parallel()
+
+		kid := "kid1"
+		priv := mustNewRSAKey(t)
+		jwks := testJWKS{Keys: []testJWK{jwkFromPublicKey(kid, &priv.PublicKey)}}
+		srv := newJWKSServer(t, jwks)
+		t.Cleanup(srv.Close)
+
+		v, _ := NewClerkJWTValidator(srv.URL, "expected-iss", "")
+
+		claims := map[string]any{
+			"sub": "user_123",
+			"exp": time.Now().Add(10 * time.Minute).Unix(),
+			// iss がない
+		}
+		token := mustSignRS256JWT(t, kid, claims, priv)
+
+		_, err := v.Verify(context.Background(), token)
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("失敗: aud が存在しないが期待されている", func(t *testing.T) {
+		t.Parallel()
+
+		kid := "kid1"
+		priv := mustNewRSAKey(t)
+		jwks := testJWKS{Keys: []testJWK{jwkFromPublicKey(kid, &priv.PublicKey)}}
+		srv := newJWKSServer(t, jwks)
+		t.Cleanup(srv.Close)
+
+		v, _ := NewClerkJWTValidator(srv.URL, "", "expected-aud")
+
+		claims := map[string]any{
+			"sub": "user_123",
+			"exp": time.Now().Add(10 * time.Minute).Unix(),
+			// aud がない
+		}
+		token := mustSignRS256JWT(t, kid, claims, priv)
+
+		_, err := v.Verify(context.Background(), token)
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
 }
