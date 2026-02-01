@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
+import dynamic from "next/dynamic";
 import { MoviePosterCard } from "@/components/MoviePosterCard";
 import { AvatarCircle } from "@/components/AvatarCircle";
 import { getTagDetail } from "@/lib/api/tags/detail";
@@ -11,11 +12,25 @@ import { unfollowTag } from "@/lib/api/tags/unfollow";
 import { getTagFollowStatus } from "@/lib/api/tags/getFollowStatus";
 import { Search, Plus, Pencil, Heart } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MovieAddModal } from "@/components/MovieAddModal";
-import { TagModal } from "@/components/TagModal";
-import { TagFollowersModal } from "@/components/TagFollowersModal";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { Spinner } from "@/components/ui/spinner";
+
+// 動的インポート: モーダルは初期表示に不要なため遅延ロード
+const MovieAddModal = dynamic(
+  () => import("@/components/MovieAddModal").then((mod) => mod.MovieAddModal),
+  { ssr: false }
+);
+const TagModal = dynamic(
+  () => import("@/components/TagModal").then((mod) => mod.TagModal),
+  { ssr: false }
+);
+const TagFollowersModal = dynamic(
+  () =>
+    import("@/components/TagFollowersModal").then(
+      (mod) => mod.TagFollowersModal
+    ),
+  { ssr: false }
+);
 
 export default function TagDetailPage({
   params,
@@ -58,8 +73,7 @@ export default function TagDetailPage({
       return await deleteMovieFromTag({ tagId, tagMovieId, token });
     },
     onSuccess: () => {
-      detailQuery.refetch();
-      moviesQuery.refetch();
+      Promise.all([detailQuery.refetch(), moviesQuery.refetch()]);
     },
   });
 
@@ -87,8 +101,10 @@ export default function TagDetailPage({
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tagFollowStatus", tagId] });
-      detailQuery.refetch();
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["tagFollowStatus", tagId] }),
+        detailQuery.refetch(),
+      ]);
     },
   });
 
@@ -307,8 +323,7 @@ export default function TagDetailPage({
         tagId={tagId}
         onClose={() => setAddOpen(false)}
         onAdded={() => {
-          detailQuery.refetch();
-          moviesQuery.refetch();
+          Promise.all([detailQuery.refetch(), moviesQuery.refetch()]);
         }}
       />
 
