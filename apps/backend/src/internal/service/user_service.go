@@ -58,6 +58,9 @@ type UserService interface {
 	// ユーザー情報を更新する。
 	UpdateUser(ctx context.Context, userID string, input UpdateUserInput) (*model.User, error)
 
+	// Clerk Webhook からユーザー情報を更新する（avatar_url）。
+	UpdateUserFromClerk(ctx context.Context, userID string, avatarURL *string) error
+
 	// 指定ユーザーをフォローする。
 	FollowUser(ctx context.Context, followerID, followeeID string) error
 
@@ -244,6 +247,25 @@ func (s *userService) UpdateUser(ctx context.Context, userID string, input Updat
 
 	// 更新後のユーザー情報を取得して返す
 	return s.userRepo.FindByID(ctx, userID)
+}
+
+// Clerk Webhook からユーザー情報を更新する（avatar_url）。
+func (s *userService) UpdateUserFromClerk(ctx context.Context, userID string, avatarURL *string) error {
+	s.logger.Debug("service.UpdateUserFromClerk started",
+		slog.String("user_id", userID),
+	)
+
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return errors.New("user_id is required")
+	}
+
+	updates := map[string]any{
+		"avatar_url": avatarURL,
+		"updated_at": time.Now(),
+	}
+
+	return s.userRepo.Update(ctx, userID, updates)
 }
 
 // 指定ユーザーをフォローする。

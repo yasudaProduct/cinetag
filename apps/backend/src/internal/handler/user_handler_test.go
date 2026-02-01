@@ -46,6 +46,10 @@ func (f *fakeUserService) UpdateUser(ctx context.Context, userID string, input s
 	return f.UpdateUserFn(ctx, userID, input)
 }
 
+func (f *fakeUserService) UpdateUserFromClerk(ctx context.Context, userID string, avatarURL *string) error {
+	return nil
+}
+
 func (f *fakeUserService) FollowUser(ctx context.Context, followerID, followeeID string) error {
 	if f.FollowUserFn == nil {
 		return nil

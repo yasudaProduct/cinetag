@@ -17,6 +17,7 @@ import (
 type fakeWebhookUserService struct {
 	EnsureUserFn            func(ctx context.Context, clerkUser service.ClerkUserInfo) (*model.User, error)
 	FindUserByClerkUserIDFn func(ctx context.Context, clerkUserID string) (*model.User, error)
+	UpdateUserFromClerkFn   func(ctx context.Context, userID string, avatarURL *string) error
 	DeactivateUserFn        func(ctx context.Context, userID string) error
 }
 
@@ -40,6 +41,13 @@ func (f *fakeWebhookUserService) GetUserByDisplayID(ctx context.Context, display
 
 func (f *fakeWebhookUserService) UpdateUser(ctx context.Context, userID string, input service.UpdateUserInput) (*model.User, error) {
 	return nil, nil
+}
+
+func (f *fakeWebhookUserService) UpdateUserFromClerk(ctx context.Context, userID string, avatarURL *string) error {
+	if f.UpdateUserFromClerkFn == nil {
+		return nil
+	}
+	return f.UpdateUserFromClerkFn(ctx, userID, avatarURL)
 }
 
 func (f *fakeWebhookUserService) FollowUser(ctx context.Context, followerID, followeeID string) error {
@@ -110,7 +118,7 @@ func TestClerkWebhookHandler_HandleWebhook(t *testing.T) {
 
 		r := newWebhookHandlerRouter(t, &fakeWebhookUserService{})
 		body := mustMarshalJSON(t, map[string]any{
-			"type": "user.updated",
+			"type": "session.created",
 			"data": map[string]any{},
 		})
 		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/clerk/webhook", body, nil)
@@ -271,6 +279,183 @@ func TestClerkWebhookHandler_UserCreated(t *testing.T) {
 
 		if gotClerkUser.AvatarURL != nil {
 			t.Errorf("AvatarURL = %v, want nil", gotClerkUser.AvatarURL)
+		}
+	})
+}
+
+func TestClerkWebhookHandler_UserUpdated(t *testing.T) {
+	t.Parallel()
+
+	t.Run("無効なdata: 400", func(t *testing.T) {
+		t.Parallel()
+
+		r := newWebhookHandlerRouter(t, &fakeWebhookUserService{})
+		body := mustMarshalJSON(t, map[string]any{
+			"type": "user.updated",
+			"data": "not an object",
+		})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/clerk/webhook", body, nil)
+		if rw.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", rw.Code)
+		}
+
+		resp := map[string]any{}
+		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
+		if resp["error"] != "invalid webhook data" {
+			t.Fatalf("unexpected error: %v", resp["error"])
+		}
+	})
+
+	t.Run("ユーザーが存在しない(ErrUserNotFound): 200", func(t *testing.T) {
+		t.Parallel()
+
+		userSvc := &fakeWebhookUserService{
+			FindUserByClerkUserIDFn: func(ctx context.Context, clerkUserID string) (*model.User, error) {
+				return nil, service.ErrUserNotFound
+			},
+		}
+
+		r := newWebhookHandlerRouter(t, userSvc)
+		body := mustMarshalJSON(t, map[string]any{
+			"type": "user.updated",
+			"data": map[string]any{
+				"id":        "user_nonexistent",
+				"image_url": "https://example.com/new-avatar.png",
+			},
+		})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/clerk/webhook", body, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+	})
+
+	t.Run("FindUserByClerkUserID失敗(DBエラー): 500", func(t *testing.T) {
+		t.Parallel()
+
+		userSvc := &fakeWebhookUserService{
+			FindUserByClerkUserIDFn: func(ctx context.Context, clerkUserID string) (*model.User, error) {
+				return nil, errors.New("db error")
+			},
+		}
+
+		r := newWebhookHandlerRouter(t, userSvc)
+		body := mustMarshalJSON(t, map[string]any{
+			"type": "user.updated",
+			"data": map[string]any{
+				"id":        "user_123",
+				"image_url": "https://example.com/new-avatar.png",
+			},
+		})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/clerk/webhook", body, nil)
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+
+		resp := map[string]any{}
+		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
+		if resp["error"] != "failed to resolve user by clerk user id" {
+			t.Fatalf("unexpected error: %v", resp["error"])
+		}
+	})
+
+	t.Run("UpdateUserFromClerk失敗: 500", func(t *testing.T) {
+		t.Parallel()
+
+		userSvc := &fakeWebhookUserService{
+			FindUserByClerkUserIDFn: func(ctx context.Context, clerkUserID string) (*model.User, error) {
+				return &model.User{ID: "u1", ClerkUserID: clerkUserID}, nil
+			},
+			UpdateUserFromClerkFn: func(ctx context.Context, userID string, avatarURL *string) error {
+				return errors.New("update failed")
+			},
+		}
+
+		r := newWebhookHandlerRouter(t, userSvc)
+		body := mustMarshalJSON(t, map[string]any{
+			"type": "user.updated",
+			"data": map[string]any{
+				"id":        "user_123",
+				"image_url": "https://example.com/new-avatar.png",
+			},
+		})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/clerk/webhook", body, nil)
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+
+		resp := map[string]any{}
+		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
+		if resp["error"] != "failed to update user" {
+			t.Fatalf("unexpected error: %v", resp["error"])
+		}
+	})
+
+	t.Run("成功: 200 (avatar_url更新)", func(t *testing.T) {
+		t.Parallel()
+
+		var gotUserID string
+		var gotAvatarURL *string
+		userSvc := &fakeWebhookUserService{
+			FindUserByClerkUserIDFn: func(ctx context.Context, clerkUserID string) (*model.User, error) {
+				return &model.User{ID: "u1", ClerkUserID: clerkUserID}, nil
+			},
+			UpdateUserFromClerkFn: func(ctx context.Context, userID string, avatarURL *string) error {
+				gotUserID = userID
+				gotAvatarURL = avatarURL
+				return nil
+			},
+		}
+
+		r := newWebhookHandlerRouter(t, userSvc)
+		body := mustMarshalJSON(t, map[string]any{
+			"type": "user.updated",
+			"data": map[string]any{
+				"id":        "user_123",
+				"image_url": "https://example.com/new-avatar.png",
+			},
+		})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/clerk/webhook", body, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+
+		if gotUserID != "u1" {
+			t.Errorf("userID = %q, want %q", gotUserID, "u1")
+		}
+		if gotAvatarURL == nil || *gotAvatarURL != "https://example.com/new-avatar.png" {
+			t.Errorf("avatarURL = %v, want %q", gotAvatarURL, "https://example.com/new-avatar.png")
+		}
+	})
+
+	t.Run("成功: 200 (avatar_url空でnil)", func(t *testing.T) {
+		t.Parallel()
+
+		var gotAvatarURL *string
+		userSvc := &fakeWebhookUserService{
+			FindUserByClerkUserIDFn: func(ctx context.Context, clerkUserID string) (*model.User, error) {
+				return &model.User{ID: "u1", ClerkUserID: clerkUserID}, nil
+			},
+			UpdateUserFromClerkFn: func(ctx context.Context, userID string, avatarURL *string) error {
+				gotAvatarURL = avatarURL
+				return nil
+			},
+		}
+
+		r := newWebhookHandlerRouter(t, userSvc)
+		body := mustMarshalJSON(t, map[string]any{
+			"type": "user.updated",
+			"data": map[string]any{
+				"id":        "user_123",
+				"image_url": "",
+			},
+		})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/clerk/webhook", body, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+
+		if gotAvatarURL != nil {
+			t.Errorf("avatarURL = %v, want nil", gotAvatarURL)
 		}
 	})
 }

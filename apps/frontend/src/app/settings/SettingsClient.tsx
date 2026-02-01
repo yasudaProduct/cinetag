@@ -126,6 +126,10 @@ export function SettingsClient() {
 
     try {
       await user.setProfileImage({ file });
+      // Clerk Webhook でバックエンドが更新されるまで少し待機してからキャッシュを無効化
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["users", "me"] });
+      }, 1000);
       setMessage({ type: "success", text: "プロフィール画像を更新しました" });
     } catch {
       setMessage({

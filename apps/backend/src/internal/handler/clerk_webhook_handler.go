@@ -31,6 +31,19 @@ type clerkUserCreatedData struct {
 	} `json:"email_addresses"`
 }
 
+// Clerk の user.updated Webhook の data 部分を表します。
+// user.created と同じ形式です。
+type clerkUserUpdatedData struct {
+	ID             string `json:"id"`
+	Username       string `json:"username"`
+	FirstName      string `json:"first_name"`
+	LastName       string `json:"last_name"`
+	ImageURL       string `json:"image_url"`
+	EmailAddresses []struct {
+		EmailAddress string `json:"email_address"`
+	} `json:"email_addresses"`
+}
+
 // Clerk の user.deleted Webhook の data 部分を表します。
 type clerkUserDeletedData struct {
 	ID string `json:"id"`
@@ -126,6 +139,61 @@ func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 		if _, err := h.userService.EnsureUser(c.Request.Context(), clerkUser); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": "failed to sync user",
+			})
+			return
+		}
+
+		c.Status(http.StatusOK)
+		return
+
+	case "user.updated":
+		var data clerkUserUpdatedData
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "invalid webhook data",
+			})
+			return
+		}
+
+		// デバッグログ（DEBUG）
+		h.logger.Debug("handler.HandleWebhook user.updated",
+			slog.String("request_id", requestID),
+			slog.String("clerk_user_id", data.ID),
+			slog.String("image_url", data.ImageURL),
+		)
+
+		// ユーザーが存在しない場合は無視
+		u, err := h.userService.FindUserByClerkUserID(c.Request.Context(), data.ID)
+		if err != nil {
+			if err == service.ErrUserNotFound {
+				h.logger.Warn("handler.HandleWebhook user.updated: user not found",
+					slog.String("request_id", requestID),
+					slog.String("clerk_user_id", data.ID),
+				)
+				c.Status(http.StatusOK)
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "failed to resolve user by clerk user id",
+			})
+			return
+		}
+
+		// avatar_url を更新
+		var avatarURL *string
+		if data.ImageURL != "" {
+			url := data.ImageURL
+			avatarURL = &url
+		}
+
+		if err := h.userService.UpdateUserFromClerk(c.Request.Context(), u.ID, avatarURL); err != nil {
+			h.logger.Error("handler.HandleWebhook user.updated: failed to update user",
+				slog.String("request_id", requestID),
+				slog.String("user_id", u.ID),
+				slog.String("error", err.Error()),
+			)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "failed to update user",
 			})
 			return
 		}

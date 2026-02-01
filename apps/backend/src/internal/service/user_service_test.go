@@ -588,6 +588,109 @@ func TestUserService_UpdateUser(t *testing.T) {
 	})
 }
 
+func TestUserService_UpdateUserFromClerk(t *testing.T) {
+	t.Parallel()
+
+	t.Run("入力バリデーション: user_id が必須", func(t *testing.T) {
+		t.Parallel()
+		logger := testutil.NewTestLogger()
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		avatarURL := "https://example.com/avatar.png"
+		err := svc.UpdateUserFromClerk(context.Background(), "", &avatarURL)
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("入力バリデーション: 空白のみのuser_idはエラー", func(t *testing.T) {
+		t.Parallel()
+		logger := testutil.NewTestLogger()
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		avatarURL := "https://example.com/avatar.png"
+		err := svc.UpdateUserFromClerk(context.Background(), "   ", &avatarURL)
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("リポジトリの更新が失敗: エラーをそのまま返す", func(t *testing.T) {
+		t.Parallel()
+		expected := errors.New("db error")
+		repo := &fakeUserRepo{
+			UpdateFn: func(ctx context.Context, userID string, updates map[string]any) error {
+				return expected
+			},
+		}
+		logger := testutil.NewTestLogger()
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+
+		avatarURL := "https://example.com/avatar.png"
+		err := svc.UpdateUserFromClerk(context.Background(), "u1", &avatarURL)
+		if !errors.Is(err, expected) {
+			t.Fatalf("expected propagated error, got: %v", err)
+		}
+	})
+
+	t.Run("成功: avatar_url が更新される", func(t *testing.T) {
+		t.Parallel()
+		var gotUserID string
+		var gotUpdates map[string]any
+		repo := &fakeUserRepo{
+			UpdateFn: func(ctx context.Context, userID string, updates map[string]any) error {
+				gotUserID = userID
+				gotUpdates = updates
+				return nil
+			},
+		}
+		logger := testutil.NewTestLogger()
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+
+		avatarURL := "https://example.com/new-avatar.png"
+		err := svc.UpdateUserFromClerk(context.Background(), "u1", &avatarURL)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if gotUserID != "u1" {
+			t.Fatalf("expected userID=u1, got %s", gotUserID)
+		}
+		if gotUpdates["avatar_url"] == nil {
+			t.Fatalf("expected avatar_url to be set")
+		}
+		if *(gotUpdates["avatar_url"].(*string)) != "https://example.com/new-avatar.png" {
+			t.Fatalf("expected avatar_url=https://example.com/new-avatar.png, got %v", gotUpdates["avatar_url"])
+		}
+		if _, ok := gotUpdates["updated_at"]; !ok {
+			t.Fatalf("expected updated_at to be set")
+		}
+	})
+
+	t.Run("成功: avatar_url が nil の場合も更新される", func(t *testing.T) {
+		t.Parallel()
+		var gotUpdates map[string]any
+		repo := &fakeUserRepo{
+			UpdateFn: func(ctx context.Context, userID string, updates map[string]any) error {
+				gotUpdates = updates
+				return nil
+			},
+		}
+		logger := testutil.NewTestLogger()
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+
+		err := svc.UpdateUserFromClerk(context.Background(), "u1", nil)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		// avatar_url は nil として更新されるべき
+		if _, ok := gotUpdates["avatar_url"]; !ok {
+			t.Fatalf("expected avatar_url key to be present")
+		}
+		// *string 型の nil ポインタがセットされることを確認
+		if gotUpdates["avatar_url"] != (*string)(nil) {
+			t.Fatalf("expected avatar_url=(*string)(nil), got %v", gotUpdates["avatar_url"])
+		}
+	})
+}
+
 func TestUserService_FollowUser(t *testing.T) {
 	t.Parallel()
 
