@@ -2,6 +2,7 @@
 
 import { Pencil, Film, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Spinner } from "@/components/ui/spinner";
 import { useMemo, useState, type FormEvent } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useMutation } from "@tanstack/react-query";
@@ -355,7 +356,11 @@ export const TagModal = (props: TagModalProps) => {
                 disabled={isSubmitting || (isEditMode && !canSubmit)}
                 className="inline-flex items-center justify-center rounded-full bg-[#FF5C5C] px-8 py-3 text-sm font-semibold text-white shadow-[0_8px_0_#D44242] hover:translate-y-0.5 hover:shadow-[0_6px_0_#D44242] active:translate-y-1 active:shadow-[0_3px_0_#D44242] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-[0_8px_0_#D44242]"
               >
-                {isEditMode && <Pencil className="w-4 h-4 mr-2" />}
+                {isSubmitting ? (
+                  <Spinner size="sm" className="mr-2" />
+                ) : (
+                  isEditMode && <Pencil className="w-4 h-4 mr-2" />
+                )}
                 {isSubmitting ? "処理中..." : submitLabel}
               </button>
             </div>

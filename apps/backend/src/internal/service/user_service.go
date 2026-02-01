@@ -122,7 +122,6 @@ func (s *userService) EnsureUser(ctx context.Context, clerkInfo ClerkUserInfo) (
 
 	user := &model.User{
 		ClerkUserID: clerkInfo.ID,
-		Username:    "廃止予定",
 		DisplayID:   displayID,
 		DisplayName: displayName,
 		Email:       clerkInfo.Email,

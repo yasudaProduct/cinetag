@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Modal } from "@/components/Modal";
 import { AvatarCircle } from "@/components/AvatarCircle";
+import { Spinner } from "@/components/ui/spinner";
 import { listTagFollowers } from "@/lib/api/tags/listFollowers";
 import { X, Users } from "lucide-react";
 
@@ -58,7 +59,9 @@ export function TagFollowersModal({
         {/* Content */}
         <div className="px-6 py-4 overflow-y-auto">
           {followersQuery.isLoading ? (
-            <div className="text-center py-8 text-gray-500">読み込み中...</div>
+            <div className="flex justify-center py-8">
+              <Spinner size="md" className="text-gray-500" />
+            </div>
           ) : followersQuery.isError ? (
             <div className="text-center py-8 text-red-500">
               読み込みに失敗しました

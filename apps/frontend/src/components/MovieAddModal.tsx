@@ -8,6 +8,7 @@ import { searchMovies } from "@/lib/api/movies/search";
 import { addMovieToTag } from "@/lib/api/tags/addMovie";
 import { getBackendTokenOrThrow } from "@/lib/api/_shared/auth";
 import { Modal } from "@/components/Modal";
+import { Spinner } from "@/components/ui/spinner";
 
 type MovieAddModalProps = {
   open: boolean;
@@ -117,7 +118,10 @@ export const MovieAddModal = ({
           {/* {trimmedQ.length >= 2 && ( */}
           <div className="min-h-64 rounded-2xl border border-gray-200 bg-gray-50 p-3">
             {searchQuery.isLoading && (
-              <div className="text-sm text-gray-600">検索中...</div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Spinner size="sm" />
+                検索中...
+              </div>
             )}
             {searchQuery.isError && (
               <div className="text-sm text-red-700">
@@ -220,7 +224,11 @@ export const MovieAddModal = ({
               onClick={() => addMutation.mutate()}
               className="inline-flex items-center justify-center rounded-full bg-[#FF5C5C] px-7 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#ff4a4a] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              {addMutation.isPending ? (
+                <Spinner size="sm" className="mr-2" />
+              ) : (
+                <Plus className="w-4 h-4 mr-2" />
+              )}
               {addMutation.isPending ? "追加中..." : "追加する"}
             </button>
           </div>

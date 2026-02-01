@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { listFollowers } from "@/lib/api/users/listFollowers";
 import { AvatarCircle } from "@/components/AvatarCircle";
+import { Spinner } from "@/components/ui/spinner";
 import Link from "next/link";
 
 type FollowersListProps = {
@@ -17,7 +18,11 @@ export function FollowersList({ username }: FollowersListProps) {
   });
 
   if (isLoading) {
-    return <p className="text-gray-600 text-center py-8">読み込み中...</p>;
+    return (
+      <div className="flex justify-center py-8">
+        <Spinner size="md" className="text-gray-600" />
+      </div>
+    );
   }
 
   if ((followersData?.items ?? []).length === 0) {

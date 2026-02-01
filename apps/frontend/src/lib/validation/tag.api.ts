@@ -105,21 +105,20 @@ const TagDetailOwnerNameSchema = z
         id: z.string().optional(),
         display_id: z.string().optional(),
         display_name: z.string().optional(),
-        username: z.string().optional(),
         avatar_url: z.string().nullable().optional(),
     })
     .passthrough()
     .transform((v) => ({
         id: v.id ?? "",
         displayId: v.display_id,
-        name: v.display_name ?? v.username ?? "unknown",
+        name: v.display_name ?? "unknown",
         avatarUrl: v.avatar_url ?? undefined,
     }));
 
 const TagDetailParticipantSchema = z.union([
     z.string().transform((name) => (
         {
-            username: name,
+            name: name,
             displayId: undefined as string | undefined,
             avatarUrl: undefined as string | undefined
 
@@ -132,7 +131,7 @@ const TagDetailParticipantSchema = z.union([
         })
         .passthrough()
         .transform((p) => ({
-            username: p.name,
+            name: p.name,
             displayId: p.display_id as string | undefined,
             avatarUrl: (p.avatar_url ?? undefined) as string | undefined,
         })),
@@ -145,7 +144,7 @@ export const TagDetailResponseSchema = z
         description: z.string().optional(),
         // 旧: author(string or {name})
         author: TagDetailAuthorNameSchema.optional(),
-        // 新: owner({display_name, username})
+        // 新: owner({display_name})
         owner: TagDetailOwnerNameSchema.optional(),
         can_edit: z.boolean().optional(),
         can_add_movie: z.boolean().optional(),
@@ -157,7 +156,7 @@ export const TagDetailResponseSchema = z
     .transform((data) => {
         const owner = data.owner;
         const authorName = data.author ?? owner?.name ?? "unknown";
-        const participants = (data.participants ?? []).filter((p) => p.username.length > 0);
+        const participants = (data.participants ?? []).filter((p) => p.name.length > 0);
         return {
             id: data.id ?? "",
             title: data.title ?? "",
