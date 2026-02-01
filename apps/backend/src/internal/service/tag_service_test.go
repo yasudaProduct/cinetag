@@ -14,6 +14,26 @@ import (
 	"gorm.io/gorm"
 )
 
+// fakeMovieService は MovieService の fake 実装です。
+type fakeMovieService struct {
+	EnsureMovieCacheFn func(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error)
+	SearchMoviesFn     func(ctx context.Context, query string, page int) ([]TMDBSearchResult, int, error)
+}
+
+func (f *fakeMovieService) EnsureMovieCache(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error) {
+	if f.EnsureMovieCacheFn == nil {
+		return &model.MovieCache{}, nil
+	}
+	return f.EnsureMovieCacheFn(ctx, tmdbMovieID)
+}
+
+func (f *fakeMovieService) SearchMovies(ctx context.Context, query string, page int) ([]TMDBSearchResult, int, error) {
+	if f.SearchMoviesFn == nil {
+		return []TMDBSearchResult{}, 0, nil
+	}
+	return f.SearchMoviesFn(ctx, query, page)
+}
+
 type deps struct {
 	tagRepo         *testutil.FakeTagRepository
 	tagMovieRepo    *testutil.FakeTagMovieRepository
@@ -373,6 +393,98 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 			t.Fatalf("expected TagMovieRepository.Create to be called")
 		}
 	})
+
+	t.Run("非同期処理: movieService がある場合、キャッシュウォームが実行される", func(t *testing.T) {
+		t.Parallel()
+
+		// goroutine が呼ばれたことを検証するためのチャネル
+		done := make(chan int, 1)
+
+		movieSvc := &fakeMovieService{
+			EnsureMovieCacheFn: func(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error) {
+				done <- tmdbMovieID
+				return &model.MovieCache{}, nil
+			},
+		}
+
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id}, nil
+			}
+			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
+				return nil
+			}
+			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
+				return nil
+			}
+			d.movieService = movieSvc
+		})
+
+		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
+			TagID:       "t1",
+			UserID:      "u1",
+			TmdbMovieID: 123,
+			Position:    0,
+		})
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+
+		// goroutine の完了を待つ（タイムアウト付き）
+		select {
+		case movieID := <-done:
+			if movieID != 123 {
+				t.Fatalf("expected movieID=123, got %d", movieID)
+			}
+		case <-time.After(1 * time.Second):
+			t.Fatalf("expected EnsureMovieCache to be called within 1 second")
+		}
+	})
+
+	t.Run("非同期処理: movieService のエラーは無視される（APIは成功）", func(t *testing.T) {
+		t.Parallel()
+
+		done := make(chan bool, 1)
+
+		movieSvc := &fakeMovieService{
+			EnsureMovieCacheFn: func(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error) {
+				done <- true
+				return nil, errors.New("cache warm failed")
+			},
+		}
+
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id}, nil
+			}
+			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
+				return nil
+			}
+			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
+				return nil
+			}
+			d.movieService = movieSvc
+		})
+
+		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
+			TagID:       "t1",
+			UserID:      "u1",
+			TmdbMovieID: 123,
+			Position:    0,
+		})
+		// APIは成功する
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+
+		// goroutine が実行されたことを確認
+		select {
+		case <-done:
+			// OK
+		case <-time.After(1 * time.Second):
+			t.Fatalf("expected EnsureMovieCache to be called within 1 second")
+		}
+	})
 }
 
 func TestTagService_CreateTag(t *testing.T) {
@@ -613,7 +725,7 @@ func TestTagService_GetTagDetail(t *testing.T) {
 					IsPublic:         true,
 					AddMoviePolicy:   "everyone",
 					OwnerID:          "owner1",
-										OwnerDisplayName: "Owner",
+					OwnerDisplayName: "Owner",
 				}, nil
 			}
 		})
@@ -645,7 +757,7 @@ func TestTagService_GetTagDetail(t *testing.T) {
 					IsPublic:         true,
 					AddMoviePolicy:   "owner_only",
 					OwnerID:          ownerID,
-										OwnerDisplayName: "Owner",
+					OwnerDisplayName: "Owner",
 				}, nil
 			}
 		})
@@ -681,7 +793,7 @@ func TestTagService_GetTagDetail(t *testing.T) {
 					IsPublic:         true,
 					AddMoviePolicy:   "everyone",
 					OwnerID:          "owner1",
-										OwnerDisplayName: "Owner",
+					OwnerDisplayName: "Owner",
 				}, nil
 			}
 		})
@@ -721,7 +833,7 @@ func TestTagService_UpdateTag(t *testing.T) {
 					IsPublic:         true,
 					AddMoviePolicy:   "owner_only",
 					OwnerID:          "u1",
-										OwnerDisplayName: "User1",
+					OwnerDisplayName: "User1",
 				}, nil
 			}
 		})
@@ -1106,6 +1218,549 @@ func TestTagService_ListTagMovies_CanDelete(t *testing.T) {
 		}
 		if out[0].CanDelete != true || out[1].CanDelete != false {
 			t.Fatalf("expected [true,false], got: [%v,%v]", out[0].CanDelete, out[1].CanDelete)
+		}
+	})
+}
+
+func TestTagService_FollowTag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("入力バリデーション: tag_id が必須", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, nil)
+		err := svc.FollowTag(context.Background(), "", "u1")
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("入力バリデーション: user_id が必須", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, nil)
+		err := svc.FollowTag(context.Background(), "t1", "")
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("タグが存在しない: ErrTagNotFound", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return nil, gorm.ErrRecordNotFound
+			}
+		})
+
+		err := svc.FollowTag(context.Background(), "t1", "u1")
+		if !errors.Is(err, ErrTagNotFound) {
+			t.Fatalf("expected ErrTagNotFound, got: %v", err)
+		}
+	})
+
+	t.Run("非公開タグを作成者以外がフォロー: ErrTagPermissionDenied", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id, UserID: "owner1", IsPublic: false}, nil
+			}
+		})
+
+		err := svc.FollowTag(context.Background(), "t1", "u1")
+		if !errors.Is(err, ErrTagPermissionDenied) {
+			t.Fatalf("expected ErrTagPermissionDenied, got: %v", err)
+		}
+	})
+
+	t.Run("非公開タグを作成者がフォロー: 成功", func(t *testing.T) {
+		t.Parallel()
+		var created bool
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id, UserID: "owner1", IsPublic: false}, nil
+			}
+			d.tagFollowerRepo.IsFollowingFn = func(ctx context.Context, tagID, userID string) (bool, error) {
+				return false, nil
+			}
+			d.tagFollowerRepo.CreateFn = func(ctx context.Context, tagID, userID string) error {
+				created = true
+				return nil
+			}
+		})
+
+		err := svc.FollowTag(context.Background(), "t1", "owner1")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if !created {
+			t.Fatalf("expected Create to be called")
+		}
+	})
+
+	t.Run("既にフォロー済み: ErrAlreadyFollowingTag", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id, UserID: "owner1", IsPublic: true}, nil
+			}
+			d.tagFollowerRepo.IsFollowingFn = func(ctx context.Context, tagID, userID string) (bool, error) {
+				return true, nil
+			}
+		})
+
+		err := svc.FollowTag(context.Background(), "t1", "u1")
+		if !errors.Is(err, ErrAlreadyFollowingTag) {
+			t.Fatalf("expected ErrAlreadyFollowingTag, got: %v", err)
+		}
+	})
+
+	t.Run("成功: フォローが作成される", func(t *testing.T) {
+		t.Parallel()
+		var gotTagID, gotUserID string
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id, UserID: "owner1", IsPublic: true}, nil
+			}
+			d.tagFollowerRepo.IsFollowingFn = func(ctx context.Context, tagID, userID string) (bool, error) {
+				return false, nil
+			}
+			d.tagFollowerRepo.CreateFn = func(ctx context.Context, tagID, userID string) error {
+				gotTagID = tagID
+				gotUserID = userID
+				return nil
+			}
+		})
+
+		err := svc.FollowTag(context.Background(), "t1", "u1")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if gotTagID != "t1" || gotUserID != "u1" {
+			t.Fatalf("unexpected args: tagID=%s userID=%s", gotTagID, gotUserID)
+		}
+	})
+}
+
+func TestTagService_UnfollowTag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("入力バリデーション: tag_id が必須", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, nil)
+		err := svc.UnfollowTag(context.Background(), "", "u1")
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("入力バリデーション: user_id が必須", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, nil)
+		err := svc.UnfollowTag(context.Background(), "t1", "")
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("タグが存在しない: ErrTagNotFound", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return nil, gorm.ErrRecordNotFound
+			}
+		})
+
+		err := svc.UnfollowTag(context.Background(), "t1", "u1")
+		if !errors.Is(err, ErrTagNotFound) {
+			t.Fatalf("expected ErrTagNotFound, got: %v", err)
+		}
+	})
+
+	t.Run("フォローしていない: ErrNotFollowingTag", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id}, nil
+			}
+			d.tagFollowerRepo.IsFollowingFn = func(ctx context.Context, tagID, userID string) (bool, error) {
+				return false, nil
+			}
+		})
+
+		err := svc.UnfollowTag(context.Background(), "t1", "u1")
+		if !errors.Is(err, ErrNotFollowingTag) {
+			t.Fatalf("expected ErrNotFollowingTag, got: %v", err)
+		}
+	})
+
+	t.Run("成功: フォローが削除される", func(t *testing.T) {
+		t.Parallel()
+		var gotTagID, gotUserID string
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id}, nil
+			}
+			d.tagFollowerRepo.IsFollowingFn = func(ctx context.Context, tagID, userID string) (bool, error) {
+				return true, nil
+			}
+			d.tagFollowerRepo.DeleteFn = func(ctx context.Context, tagID, userID string) error {
+				gotTagID = tagID
+				gotUserID = userID
+				return nil
+			}
+		})
+
+		err := svc.UnfollowTag(context.Background(), "t1", "u1")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if gotTagID != "t1" || gotUserID != "u1" {
+			t.Fatalf("unexpected args: tagID=%s userID=%s", gotTagID, gotUserID)
+		}
+	})
+}
+
+func TestTagService_IsFollowingTag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("入力バリデーション: tag_id が必須", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, nil)
+		_, err := svc.IsFollowingTag(context.Background(), "", "u1")
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("user_id が空の場合: false を返す", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, nil)
+		result, err := svc.IsFollowingTag(context.Background(), "t1", "")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if result {
+			t.Fatalf("expected false")
+		}
+	})
+
+	t.Run("フォローしている: true を返す", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagFollowerRepo.IsFollowingFn = func(ctx context.Context, tagID, userID string) (bool, error) {
+				return true, nil
+			}
+		})
+
+		result, err := svc.IsFollowingTag(context.Background(), "t1", "u1")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if !result {
+			t.Fatalf("expected true")
+		}
+	})
+
+	t.Run("フォローしていない: false を返す", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagFollowerRepo.IsFollowingFn = func(ctx context.Context, tagID, userID string) (bool, error) {
+				return false, nil
+			}
+		})
+
+		result, err := svc.IsFollowingTag(context.Background(), "t1", "u1")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if result {
+			t.Fatalf("expected false")
+		}
+	})
+}
+
+func TestTagService_ListTagFollowers(t *testing.T) {
+	t.Parallel()
+
+	t.Run("入力バリデーション: tag_id が必須", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, nil)
+		_, _, err := svc.ListTagFollowers(context.Background(), "", 1, 20)
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("タグが存在しない: ErrTagNotFound", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return nil, gorm.ErrRecordNotFound
+			}
+		})
+
+		_, _, err := svc.ListTagFollowers(context.Background(), "t1", 1, 20)
+		if !errors.Is(err, ErrTagNotFound) {
+			t.Fatalf("expected ErrTagNotFound, got: %v", err)
+		}
+	})
+
+	t.Run("ページング正規化: page < 1 はデフォルト 1", func(t *testing.T) {
+		t.Parallel()
+		var gotPage int
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id}, nil
+			}
+			d.tagFollowerRepo.ListFollowersFn = func(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error) {
+				gotPage = page
+				return []*model.User{}, 0, nil
+			}
+		})
+
+		_, _, err := svc.ListTagFollowers(context.Background(), "t1", 0, 10)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if gotPage != 1 {
+			t.Fatalf("expected page=1, got %d", gotPage)
+		}
+	})
+
+	t.Run("ページング正規化: pageSize > 100 は 100", func(t *testing.T) {
+		t.Parallel()
+		var gotPageSize int
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id}, nil
+			}
+			d.tagFollowerRepo.ListFollowersFn = func(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error) {
+				gotPageSize = pageSize
+				return []*model.User{}, 0, nil
+			}
+		})
+
+		_, _, err := svc.ListTagFollowers(context.Background(), "t1", 2, 1000)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if gotPageSize != 100 {
+			t.Fatalf("expected pageSize=100, got %d", gotPageSize)
+		}
+	})
+
+	t.Run("成功: フォロワー一覧を返す", func(t *testing.T) {
+		t.Parallel()
+		expected := []*model.User{
+			{ID: "u1", DisplayName: "User1"},
+			{ID: "u2", DisplayName: "User2"},
+		}
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id}, nil
+			}
+			d.tagFollowerRepo.ListFollowersFn = func(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error) {
+				return expected, 2, nil
+			}
+		})
+
+		users, total, err := svc.ListTagFollowers(context.Background(), "t1", 1, 20)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if total != 2 || len(users) != 2 {
+			t.Fatalf("unexpected result: total=%d len=%d", total, len(users))
+		}
+	})
+}
+
+func TestTagService_ListFollowingTags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("入力バリデーション: user_id が必須", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, nil)
+		_, _, err := svc.ListFollowingTags(context.Background(), "", 1, 20)
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("ページング正規化が反映される", func(t *testing.T) {
+		t.Parallel()
+		var gotPage, gotPageSize int
+		svc := newTagService(t, func(d *deps) {
+			d.tagFollowerRepo.ListFollowingTagsFn = func(ctx context.Context, userID string, page, pageSize int) ([]*model.Tag, int64, error) {
+				gotPage = page
+				gotPageSize = pageSize
+				return []*model.Tag{}, 0, nil
+			}
+		})
+
+		_, _, err := svc.ListFollowingTags(context.Background(), "u1", 0, 0)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if gotPage != 1 || gotPageSize != 20 {
+			t.Fatalf("expected (1,20), got (%d,%d)", gotPage, gotPageSize)
+		}
+	})
+
+	t.Run("total=0 の場合は空配列を返す", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagFollowerRepo.ListFollowingTagsFn = func(ctx context.Context, userID string, page, pageSize int) ([]*model.Tag, int64, error) {
+				return []*model.Tag{}, 0, nil
+			}
+		})
+
+		items, total, err := svc.ListFollowingTags(context.Background(), "u1", 1, 20)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if total != 0 {
+			t.Fatalf("expected total=0, got %d", total)
+		}
+		if items == nil || len(items) != 0 {
+			t.Fatalf("expected empty slice, got %#v", items)
+		}
+	})
+
+	t.Run("成功: フォロー中のタグ一覧を返す", func(t *testing.T) {
+		t.Parallel()
+		now := time.Now()
+		svc := newTagService(t, func(d *deps) {
+			d.tagFollowerRepo.ListFollowingTagsFn = func(ctx context.Context, userID string, page, pageSize int) ([]*model.Tag, int64, error) {
+				return []*model.Tag{
+					{
+						ID:            "t1",
+						Title:         "Tag1",
+						IsPublic:      true,
+						MovieCount:    5,
+						FollowerCount: 10,
+						CreatedAt:     now,
+					},
+				}, 1, nil
+			}
+			d.tagRepo.FindDetailByIDFn = func(ctx context.Context, id string) (*repository.TagDetailRow, error) {
+				return &repository.TagDetailRow{
+					ID:               id,
+					OwnerDisplayName: "owner1",
+					OwnerDisplayID:   "owner1_id",
+				}, nil
+			}
+		})
+
+		items, total, err := svc.ListFollowingTags(context.Background(), "u1", 1, 20)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if total != 1 || len(items) != 1 {
+			t.Fatalf("unexpected result: total=%d len=%d", total, len(items))
+		}
+		if items[0].ID != "t1" || items[0].Author != "owner1" {
+			t.Fatalf("unexpected item: %+v", items[0])
+		}
+	})
+}
+
+func TestTagService_ListTagsByUserID(t *testing.T) {
+	t.Parallel()
+
+	t.Run("入力バリデーション: user_id が必須", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, nil)
+		_, _, err := svc.ListTagsByUserID(context.Background(), "", true, 1, 20)
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("ページング正規化が反映される", func(t *testing.T) {
+		t.Parallel()
+		var gotFilter repository.UserTagListFilter
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.ListTagsByUserIDFn = func(ctx context.Context, filter repository.UserTagListFilter) ([]repository.TagSummary, int64, error) {
+				gotFilter = filter
+				return []repository.TagSummary{}, 0, nil
+			}
+		})
+
+		_, _, err := svc.ListTagsByUserID(context.Background(), "u1", true, 0, 0)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if gotFilter.Offset != 0 || gotFilter.Limit != 20 {
+			t.Fatalf("expected Offset=0 Limit=20, got Offset=%d Limit=%d", gotFilter.Offset, gotFilter.Limit)
+		}
+	})
+
+	t.Run("publicOnly フラグが正しく渡される", func(t *testing.T) {
+		t.Parallel()
+		var gotFilter repository.UserTagListFilter
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.ListTagsByUserIDFn = func(ctx context.Context, filter repository.UserTagListFilter) ([]repository.TagSummary, int64, error) {
+				gotFilter = filter
+				return []repository.TagSummary{}, 0, nil
+			}
+		})
+
+		_, _, err := svc.ListTagsByUserID(context.Background(), "u1", true, 1, 20)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if !gotFilter.IncludePublic {
+			t.Fatalf("expected IncludePublic=true, got %v", gotFilter.IncludePublic)
+		}
+	})
+
+	t.Run("total=0 の場合は空配列を返す", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.ListTagsByUserIDFn = func(ctx context.Context, filter repository.UserTagListFilter) ([]repository.TagSummary, int64, error) {
+				return []repository.TagSummary{}, 0, nil
+			}
+		})
+
+		items, total, err := svc.ListTagsByUserID(context.Background(), "u1", false, 1, 20)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if total != 0 {
+			t.Fatalf("expected total=0, got %d", total)
+		}
+		if items == nil || len(items) != 0 {
+			t.Fatalf("expected empty slice, got %#v", items)
+		}
+	})
+
+	t.Run("成功: ユーザーのタグ一覧を返す", func(t *testing.T) {
+		t.Parallel()
+		now := time.Now()
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.ListTagsByUserIDFn = func(ctx context.Context, filter repository.UserTagListFilter) ([]repository.TagSummary, int64, error) {
+				return []repository.TagSummary{
+					{
+						ID:            "t1",
+						Title:         "MyTag",
+						IsPublic:      true,
+						MovieCount:    3,
+						FollowerCount: 7,
+						CreatedAt:     now,
+						Author:        "user1",
+					},
+				}, 1, nil
+			}
+		})
+
+		items, total, err := svc.ListTagsByUserID(context.Background(), "u1", false, 1, 20)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if total != 1 || len(items) != 1 {
+			t.Fatalf("unexpected result: total=%d len=%d", total, len(items))
+		}
+		if items[0].ID != "t1" || items[0].Author != "user1" {
+			t.Fatalf("unexpected item: %+v", items[0])
 		}
 	})
 }

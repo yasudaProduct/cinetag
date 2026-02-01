@@ -132,16 +132,19 @@ func newTagHandlerRouter(t *testing.T, tagSvc service.TagService, user *model.Us
 	api := r.Group("/api/v1")
 	api.GET("/tags", h.ListPublicTags)
 
-	// GetTagDetailはOptionalAuthなので、userが設定されている場合のみ設定
-	getTagDetailGroup := api.Group("/")
+	// Optional Auth (認証なしでもアクセス可能)
+	optionalAuth := api.Group("/")
 	if user != nil {
-		getTagDetailGroup.Use(func(c *gin.Context) {
+		optionalAuth.Use(func(c *gin.Context) {
 			c.Set("user", user)
 			c.Next()
 		})
 	}
-	getTagDetailGroup.GET("/tags/:tagId", h.GetTagDetail)
+	optionalAuth.GET("/tags/:tagId", h.GetTagDetail)
+	optionalAuth.GET("/tags/:tagId/movies", h.ListTagMovies)
+	optionalAuth.GET("/tags/:tagId/followers", h.ListTagFollowers)
 
+	// 認証が必要なエンドポイント
 	auth := api.Group("/")
 	if user != nil {
 		auth.Use(func(c *gin.Context) {
@@ -153,6 +156,10 @@ func newTagHandlerRouter(t *testing.T, tagSvc service.TagService, user *model.Us
 	auth.PATCH("/tags/:tagId", h.UpdateTag)
 	auth.POST("/tags/:tagId/movies", h.AddMovieToTag)
 	auth.DELETE("/tags/:tagId/movies/:tagMovieId", h.RemoveMovieFromTag)
+	auth.POST("/tags/:tagId/follow", h.FollowTag)
+	auth.DELETE("/tags/:tagId/follow", h.UnfollowTag)
+	auth.GET("/tags/:tagId/follow-status", h.GetTagFollowStatus)
+	auth.GET("/me/following-tags", h.ListFollowingTags)
 
 	return r
 }
@@ -195,6 +202,29 @@ func TestTagHandler_CreateTag(t *testing.T) {
 		})
 		if rw.Code != http.StatusUnauthorized {
 			t.Fatalf("expected 401, got %d", rw.Code)
+		}
+	})
+
+	t.Run("user が無効な型: 500", func(t *testing.T) {
+		t.Parallel()
+
+		r := testutil.NewTestRouter()
+		logger := testutil.NewTestLogger()
+		h := NewTagHandler(logger, &fakeTagService{})
+
+		r.Use(func(c *gin.Context) {
+			// 無効な型をセット
+			c.Set("user", "invalid-user-type")
+			c.Next()
+		})
+		r.POST("/api/v1/tags", h.CreateTag)
+
+		body := testutil.MustMarshalJSON(t, map[string]any{"title": "t"})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags", body, map[string]string{
+			"Content-Type": "application/json",
+		})
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
 		}
 	})
 
@@ -422,6 +452,29 @@ func TestTagHandler_AddMovieToTag(t *testing.T) {
 		})
 		if rw.Code != http.StatusUnauthorized {
 			t.Fatalf("expected 401, got %d", rw.Code)
+		}
+	})
+
+	t.Run("user が無効な型: 500", func(t *testing.T) {
+		t.Parallel()
+
+		r := testutil.NewTestRouter()
+		logger := testutil.NewTestLogger()
+		h := NewTagHandler(logger, &fakeTagService{})
+
+		r.Use(func(c *gin.Context) {
+			// 無効な型をセット
+			c.Set("user", "invalid-user-type")
+			c.Next()
+		})
+		r.POST("/api/v1/tags/:tagId/movies", h.AddMovieToTag)
+
+		body := testutil.MustMarshalJSON(t, map[string]any{"tmdb_movie_id": 1, "position": 0})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/movies", body, map[string]string{
+			"Content-Type": "application/json",
+		})
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
 		}
 	})
 
@@ -865,6 +918,483 @@ func TestTagHandler_RemoveMovieFromTag(t *testing.T) {
 		}
 		if gotTagMovieID != "tm1" || gotUserID != "u1" {
 			t.Fatalf("unexpected input: tagMovieID=%s userID=%s", gotTagMovieID, gotUserID)
+		}
+	})
+}
+
+func TestTagHandler_ListTagMovies(t *testing.T) {
+	t.Parallel()
+
+	t.Run("タグが見つからない: 404", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			ListTagMoviesFn: func(ctx context.Context, tagID string, viewerUserID *string, page, pageSize int) ([]service.TagMovieItem, int64, error) {
+				return nil, 0, service.ErrTagNotFound
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, nil)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/t1/movies", nil, nil)
+		if rw.Code != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d", rw.Code)
+		}
+	})
+
+	t.Run("権限なし: 403", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			ListTagMoviesFn: func(ctx context.Context, tagID string, viewerUserID *string, page, pageSize int) ([]service.TagMovieItem, int64, error) {
+				return nil, 0, service.ErrTagPermissionDenied
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, nil)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/t1/movies", nil, nil)
+		if rw.Code != http.StatusForbidden {
+			t.Fatalf("expected 403, got %d", rw.Code)
+		}
+	})
+
+	t.Run("サービスが失敗: 500", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			ListTagMoviesFn: func(ctx context.Context, tagID string, viewerUserID *string, page, pageSize int) ([]service.TagMovieItem, int64, error) {
+				return nil, 0, errors.New("db error")
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, nil)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/t1/movies", nil, nil)
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+	})
+
+	t.Run("成功: 200", func(t *testing.T) {
+		t.Parallel()
+
+		var gotTagID string
+		var gotPage, gotPageSize int
+		svc := &fakeTagService{
+			ListTagMoviesFn: func(ctx context.Context, tagID string, viewerUserID *string, page, pageSize int) ([]service.TagMovieItem, int64, error) {
+				gotTagID = tagID
+				gotPage = page
+				gotPageSize = pageSize
+				return []service.TagMovieItem{
+					{ID: "tm1", TmdbMovieID: 123, TagID: "t1"},
+				}, 1, nil
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, nil)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/t1/movies?page=2&page_size=10", nil, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+		if gotTagID != "t1" {
+			t.Fatalf("expected tagID=t1, got %s", gotTagID)
+		}
+		if gotPage != 2 {
+			t.Fatalf("expected page=2, got %d", gotPage)
+		}
+		if gotPageSize != 10 {
+			t.Fatalf("expected pageSize=10, got %d", gotPageSize)
+		}
+
+		resp := map[string]any{}
+		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
+		if resp["total_count"] != float64(1) {
+			t.Fatalf("expected total_count=1, got %v", resp["total_count"])
+		}
+	})
+}
+
+func TestTagHandler_FollowTag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("未認証(user無し): 401", func(t *testing.T) {
+		t.Parallel()
+
+		r := newTagHandlerRouter(t, &fakeTagService{}, nil)
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/follow", nil, nil)
+		if rw.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", rw.Code)
+		}
+	})
+
+	t.Run("タグが見つからない: 404", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			FollowTagFn: func(ctx context.Context, tagID, userID string) error {
+				return service.ErrTagNotFound
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/follow", nil, nil)
+		if rw.Code != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d", rw.Code)
+		}
+	})
+
+	t.Run("権限なし(非公開タグ): 403", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			FollowTagFn: func(ctx context.Context, tagID, userID string) error {
+				return service.ErrTagPermissionDenied
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/follow", nil, nil)
+		if rw.Code != http.StatusForbidden {
+			t.Fatalf("expected 403, got %d", rw.Code)
+		}
+	})
+
+	t.Run("既にフォロー済み: 409", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			FollowTagFn: func(ctx context.Context, tagID, userID string) error {
+				return service.ErrAlreadyFollowingTag
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/follow", nil, nil)
+		if rw.Code != http.StatusConflict {
+			t.Fatalf("expected 409, got %d", rw.Code)
+		}
+	})
+
+	t.Run("サービスが失敗: 500", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			FollowTagFn: func(ctx context.Context, tagID, userID string) error {
+				return errors.New("db error")
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/follow", nil, nil)
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+	})
+
+	t.Run("成功: 200", func(t *testing.T) {
+		t.Parallel()
+
+		var gotTagID, gotUserID string
+		svc := &fakeTagService{
+			FollowTagFn: func(ctx context.Context, tagID, userID string) error {
+				gotTagID = tagID
+				gotUserID = userID
+				return nil
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/follow", nil, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+		if gotTagID != "t1" || gotUserID != "u1" {
+			t.Fatalf("unexpected args: tagID=%s userID=%s", gotTagID, gotUserID)
+		}
+	})
+}
+
+func TestTagHandler_UnfollowTag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("未認証(user無し): 401", func(t *testing.T) {
+		t.Parallel()
+
+		r := newTagHandlerRouter(t, &fakeTagService{}, nil)
+		rw := testutil.PerformRequest(r, http.MethodDelete, "/api/v1/tags/t1/follow", nil, nil)
+		if rw.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", rw.Code)
+		}
+	})
+
+	t.Run("タグが見つからない: 404", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			UnfollowTagFn: func(ctx context.Context, tagID, userID string) error {
+				return service.ErrTagNotFound
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodDelete, "/api/v1/tags/t1/follow", nil, nil)
+		if rw.Code != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d", rw.Code)
+		}
+	})
+
+	t.Run("フォローしていない: 409", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			UnfollowTagFn: func(ctx context.Context, tagID, userID string) error {
+				return service.ErrNotFollowingTag
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodDelete, "/api/v1/tags/t1/follow", nil, nil)
+		if rw.Code != http.StatusConflict {
+			t.Fatalf("expected 409, got %d", rw.Code)
+		}
+	})
+
+	t.Run("サービスが失敗: 500", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			UnfollowTagFn: func(ctx context.Context, tagID, userID string) error {
+				return errors.New("db error")
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodDelete, "/api/v1/tags/t1/follow", nil, nil)
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+	})
+
+	t.Run("成功: 200", func(t *testing.T) {
+		t.Parallel()
+
+		var gotTagID, gotUserID string
+		svc := &fakeTagService{
+			UnfollowTagFn: func(ctx context.Context, tagID, userID string) error {
+				gotTagID = tagID
+				gotUserID = userID
+				return nil
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodDelete, "/api/v1/tags/t1/follow", nil, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+		if gotTagID != "t1" || gotUserID != "u1" {
+			t.Fatalf("unexpected args: tagID=%s userID=%s", gotTagID, gotUserID)
+		}
+	})
+}
+
+func TestTagHandler_GetTagFollowStatus(t *testing.T) {
+	t.Parallel()
+
+	t.Run("未認証(user無し): 401", func(t *testing.T) {
+		t.Parallel()
+
+		r := newTagHandlerRouter(t, &fakeTagService{}, nil)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/t1/follow-status", nil, nil)
+		if rw.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", rw.Code)
+		}
+	})
+
+	t.Run("サービスが失敗: 500", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			IsFollowingTagFn: func(ctx context.Context, tagID, userID string) (bool, error) {
+				return false, errors.New("db error")
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/t1/follow-status", nil, nil)
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+	})
+
+	t.Run("成功(フォロー中): 200", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			IsFollowingTagFn: func(ctx context.Context, tagID, userID string) (bool, error) {
+				return true, nil
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/t1/follow-status", nil, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+
+		resp := map[string]any{}
+		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
+		if resp["is_following"] != true {
+			t.Fatalf("expected is_following=true, got %v", resp["is_following"])
+		}
+	})
+
+	t.Run("成功(フォローしていない): 200", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			IsFollowingTagFn: func(ctx context.Context, tagID, userID string) (bool, error) {
+				return false, nil
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/t1/follow-status", nil, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+
+		resp := map[string]any{}
+		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
+		if resp["is_following"] != false {
+			t.Fatalf("expected is_following=false, got %v", resp["is_following"])
+		}
+	})
+}
+
+func TestTagHandler_ListTagFollowers(t *testing.T) {
+	t.Parallel()
+
+	t.Run("タグが見つからない: 404", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			ListTagFollowersFn: func(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error) {
+				return nil, 0, service.ErrTagNotFound
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, nil)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/t1/followers", nil, nil)
+		if rw.Code != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d", rw.Code)
+		}
+	})
+
+	t.Run("サービスが失敗: 500", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			ListTagFollowersFn: func(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error) {
+				return nil, 0, errors.New("db error")
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, nil)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/t1/followers", nil, nil)
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+	})
+
+	t.Run("成功: 200", func(t *testing.T) {
+		t.Parallel()
+
+		avatarURL := "https://example.com/avatar.png"
+		svc := &fakeTagService{
+			ListTagFollowersFn: func(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error) {
+				return []*model.User{
+					{ID: "u1", DisplayID: "user1", DisplayName: "User 1", AvatarURL: &avatarURL},
+				}, 1, nil
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, nil)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/t1/followers", nil, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+
+		resp := map[string]any{}
+		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
+		if resp["total_count"] != float64(1) {
+			t.Fatalf("expected total_count=1, got %v", resp["total_count"])
+		}
+	})
+}
+
+func TestTagHandler_ListFollowingTags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("未認証(user無し): 401", func(t *testing.T) {
+		t.Parallel()
+
+		r := newTagHandlerRouter(t, &fakeTagService{}, nil)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/me/following-tags", nil, nil)
+		if rw.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", rw.Code)
+		}
+	})
+
+	t.Run("サービスが失敗: 500", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			ListFollowingTagsFn: func(ctx context.Context, userID string, page, pageSize int) ([]service.TagListItem, int64, error) {
+				return nil, 0, errors.New("db error")
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/me/following-tags", nil, nil)
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+	})
+
+	t.Run("成功: 200", func(t *testing.T) {
+		t.Parallel()
+
+		var gotUserID string
+		var gotPage, gotPageSize int
+		svc := &fakeTagService{
+			ListFollowingTagsFn: func(ctx context.Context, userID string, page, pageSize int) ([]service.TagListItem, int64, error) {
+				gotUserID = userID
+				gotPage = page
+				gotPageSize = pageSize
+				return []service.TagListItem{
+					{ID: "t1", Title: "Tag 1", Author: "User 1", AuthorDisplayID: "user1"},
+				}, 1, nil
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/me/following-tags?page=2&page_size=10", nil, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+		if gotUserID != "u1" {
+			t.Fatalf("expected userID=u1, got %s", gotUserID)
+		}
+		if gotPage != 2 {
+			t.Fatalf("expected page=2, got %d", gotPage)
+		}
+		if gotPageSize != 10 {
+			t.Fatalf("expected pageSize=10, got %d", gotPageSize)
+		}
+
+		resp := map[string]any{}
+		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
+		if resp["total_count"] != float64(1) {
+			t.Fatalf("expected total_count=1, got %v", resp["total_count"])
 		}
 	})
 }
