@@ -28,14 +28,27 @@ const nextConfig: NextConfig = {
   },
 
   async headers() {
-    // 開発環境では緩い設定、本番環境では厳格な設定
+    const backendApiBase = process.env.NEXT_PUBLIC_BACKEND_API_BASE;
+    const backendOrigin = (() => {
+      if (!backendApiBase) return undefined;
+      try {
+        return new URL(backendApiBase).origin;
+      } catch {
+        return undefined;
+      }
+    })();
+
     const scriptSrc = isDev
       ? "'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.com"
       : "'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.com"; // TODO: 将来的にNonceベースに移行
 
-    const connectSrc = isDev
-      ? "'self' https://clerk.com https://*.clerk.accounts.dev http://localhost:8080"
-      : "'self' https://clerk.com https://*.clerk.accounts.dev";
+    const connectSrc = [
+      "'self'",
+      "https://clerk.com",
+      "https://*.clerk.accounts.dev",
+      ...(isDev ? ["http://localhost:8080"] : []),
+      ...(backendOrigin ? [backendOrigin] : []),
+    ].join(" ");
 
     return [
       {
