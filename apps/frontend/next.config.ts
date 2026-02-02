@@ -38,21 +38,29 @@ const nextConfig: NextConfig = {
       }
     })();
 
-    // Clerk は開発/本番で accounts のドメインが変わる
-    // - Dev:  *.clerk.accounts.dev
-    // - Prod: *.clerk.accounts.com
-    const clerkAccountsHost = isDev
-      ? "https://*.clerk.accounts.dev"
-      : "https://*.clerk.accounts.com";
+    const clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    const clerkAccountsHosts = (() => {
+      if (clerkPublishableKey?.startsWith("pk_live_")) {
+        return ["https://*.clerk.accounts.com"];
+      }
+      if (clerkPublishableKey?.startsWith("pk_test_")) {
+        return ["https://*.clerk.accounts.dev"];
+      }
+
+      return isDev
+        ? ["https://*.clerk.accounts.dev"]
+        : ["https://*.clerk.accounts.com", "https://*.clerk.accounts.dev"];
+    })();
+    const clerkAccountsSrc = clerkAccountsHosts.join(" ");
 
     const scriptSrc = isDev
-      ? `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsHost} https://clerk.com`
-      : `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsHost} https://clerk.com`; // TODO: 将来的にNonceベースに移行
+      ? `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsSrc} https://clerk.com`
+      : `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsSrc} https://clerk.com`; // TODO: 将来的にNonceベースに移行
 
     const connectSrc = [
       "'self'",
       "https://clerk.com",
-      clerkAccountsHost,
+      ...clerkAccountsHosts,
       ...(isDev ? ["http://localhost:8080"] : []),
       ...(backendOrigin ? [backendOrigin] : []),
     ].join(" ");
@@ -89,7 +97,7 @@ const nextConfig: NextConfig = {
               `worker-src ${workerSrc}`,
 
               // フレーム: 自サイト + Clerk（認証モーダル用）
-              `frame-src 'self' https://clerk.com ${clerkAccountsHost}`,
+              `frame-src 'self' https://clerk.com ${clerkAccountsSrc}`,
 
               // オブジェクト: 禁止（Flash等のプラグイン対策）
               "object-src 'none'",
