@@ -38,17 +38,26 @@ const nextConfig: NextConfig = {
       }
     })();
 
+    // Clerk は開発/本番で accounts のドメインが変わる
+    // - Dev:  *.clerk.accounts.dev
+    // - Prod: *.clerk.accounts.com
+    const clerkAccountsHost = isDev
+      ? "https://*.clerk.accounts.dev"
+      : "https://*.clerk.accounts.com";
+
     const scriptSrc = isDev
-      ? "'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.com"
-      : "'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.com"; // TODO: 将来的にNonceベースに移行
+      ? `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsHost} https://clerk.com`
+      : `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsHost} https://clerk.com`; // TODO: 将来的にNonceベースに移行
 
     const connectSrc = [
       "'self'",
       "https://clerk.com",
-      "https://*.clerk.accounts.dev",
+      clerkAccountsHost,
       ...(isDev ? ["http://localhost:8080"] : []),
       ...(backendOrigin ? [backendOrigin] : []),
     ].join(" ");
+
+    const workerSrc = ["'self'", "blob:"].join(" ");
 
     return [
       {
@@ -76,8 +85,11 @@ const nextConfig: NextConfig = {
               // 接続: 自サイト + Clerk + バックエンドAPI
               `connect-src ${connectSrc}`,
 
+              // Worker: 自サイト + blob URL（Web Worker生成用）
+              `worker-src ${workerSrc}`,
+
               // フレーム: 自サイト + Clerk（認証モーダル用）
-              "frame-src 'self' https://clerk.com https://*.clerk.accounts.dev",
+              `frame-src 'self' https://clerk.com ${clerkAccountsHost}`,
 
               // オブジェクト: 禁止（Flash等のプラグイン対策）
               "object-src 'none'",
@@ -123,7 +135,7 @@ const nextConfig: NextConfig = {
           // Permissions-Policy: 不要な機能の無効化
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+            value: "camera=(), microphone=(), geolocation=()",
           },
         ],
       },
