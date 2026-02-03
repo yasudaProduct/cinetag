@@ -1,0 +1,16 @@
+[
+  {
+    "ref": "creator",
+    "clerk_user_id": "user_376ohwfbOYMZnEyFXrIpZpRzU0h",
+    "display_id": "demo01",
+    "display_name": "デモ01",
+    "email": "demo01@example.com"
+  },
+  {
+    "ref": "follower",
+    "clerk_user_id": "user_376ozoBYiBZiFipgkEerZGXCjMm",
+    "display_id": "demo02",
+    "display_name": "デモ02",
+    "email": "demo02@example.com"
+  }
+]
