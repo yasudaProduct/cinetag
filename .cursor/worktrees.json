@@ -1,0 +1,7 @@
+{
+  "setup-worktree": [
+    "npm install",
+    "cp $ROOT_WORKTREE_PATH/apps/backend/.env apps/backend/.env",
+    "cp $ROOT_WORKTREE_PATH/apps/frontend/.env.local apps/frontend/.env.local"
+  ]
+}
