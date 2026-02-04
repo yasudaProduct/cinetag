@@ -1,12 +1,6 @@
 "use client";
 
-type TabType =
-  | "created"
-  | "registered"
-  | "favorite"
-  | "following"
-  | "followers"
-  | "followingTags";
+type TabType = "created" | "registered" | "favorite";
 
 type UserPageTabsProps = {
   activeTab: TabType;
@@ -20,10 +14,10 @@ export function UserPageTabs({
   isOwnPage,
 }: UserPageTabsProps) {
   return (
-    <div className="flex items-center justify-center gap-2 mb-8 border-b border-gray-200 overflow-x-auto">
+    <div className="flex items-center justify-start md:justify-center gap-2 mb-8 border-b border-gray-200 overflow-x-auto pb-1 md:pb-0">
       <button
         onClick={() => onTabChange("created")}
-        className={`px-6 py-3 font-medium transition-colors relative whitespace-nowrap ${
+        className={`px-4 py-2 md:px-6 md:py-3 font-medium transition-colors relative whitespace-nowrap text-sm md:text-base ${
           activeTab === "created"
             ? "text-pink-600"
             : "text-gray-600 hover:text-gray-900"
@@ -36,7 +30,7 @@ export function UserPageTabs({
       </button>
       <button
         onClick={() => onTabChange("registered")}
-        className={`px-6 py-3 font-medium transition-colors relative whitespace-nowrap ${
+        className={`px-4 py-2 md:px-6 md:py-3 font-medium transition-colors relative whitespace-nowrap text-sm md:text-base ${
           activeTab === "registered"
             ? "text-pink-600"
             : "text-gray-600 hover:text-gray-900"
@@ -49,7 +43,7 @@ export function UserPageTabs({
       </button>
       <button
         onClick={() => onTabChange("favorite")}
-        className={`px-6 py-3 font-medium transition-colors relative whitespace-nowrap ${
+        className={`px-4 py-2 md:px-6 md:py-3 font-medium transition-colors relative whitespace-nowrap text-sm md:text-base ${
           activeTab === "favorite"
             ? "text-pink-600"
             : "text-gray-600 hover:text-gray-900"
@@ -57,32 +51,6 @@ export function UserPageTabs({
       >
         いいねしたタグ
         {activeTab === "favorite" && (
-          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-600" />
-        )}
-      </button>
-      <button
-        onClick={() => onTabChange("following")}
-        className={`px-6 py-3 font-medium transition-colors relative whitespace-nowrap ${
-          activeTab === "following"
-            ? "text-pink-600"
-            : "text-gray-600 hover:text-gray-900"
-        }`}
-      >
-        フォロー中のユーザー
-        {activeTab === "following" && (
-          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-600" />
-        )}
-      </button>
-      <button
-        onClick={() => onTabChange("followers")}
-        className={`px-6 py-3 font-medium transition-colors relative whitespace-nowrap ${
-          activeTab === "followers"
-            ? "text-pink-600"
-            : "text-gray-600 hover:text-gray-900"
-        }`}
-      >
-        フォロワーのユーザー
-        {activeTab === "followers" && (
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-600" />
         )}
       </button>
