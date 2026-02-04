@@ -1,7 +1,8 @@
 "use client";
 
 import { TagsGrid } from "@/components/TagsGrid";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { TagsList } from "@/components/TagsList";
+import { Search, ChevronLeft, ChevronRight, LayoutGrid, List } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { TagModal, CreatedTagForList } from "@/components/TagModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,6 +19,7 @@ export default function HomeClient() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [sort, setSort] = useState<SortOption>("popular");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const queryClient = useQueryClient();
 
   // デバウンス処理: 500ms後に検索クエリを更新
@@ -112,54 +114,90 @@ export default function HomeClient() {
             />
           </div>
 
-          {/* Filter Tabs */}
-          <div className="flex items-center bg-white rounded-full p-1 border border-gray-900">
-            <button
-              onClick={() => handleSortChange("popular")}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
-                sort === "popular"
-                  ? "bg-[#FFD75E] text-gray-900 font-bold"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              人気
-            </button>
-            <button
-              onClick={() => handleSortChange("recent")}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
-                sort === "recent"
-                  ? "bg-[#FFD75E] text-gray-900 font-bold"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              新着
-            </button>
-            <button
-              onClick={() => handleSortChange("movie_count")}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
-                sort === "movie_count"
-                  ? "bg-[#FFD75E] text-gray-900 font-bold"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              映画数
-            </button>
+          {/* Filter Tabs & View Toggle */}
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="flex items-center bg-white rounded-full p-1 border border-gray-900">
+              <button
+                onClick={() => handleSortChange("popular")}
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+                  sort === "popular"
+                    ? "bg-[#FFD75E] text-gray-900 font-bold"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                人気
+              </button>
+              <button
+                onClick={() => handleSortChange("recent")}
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+                  sort === "recent"
+                    ? "bg-[#FFD75E] text-gray-900 font-bold"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                新着
+              </button>
+              <button
+                onClick={() => handleSortChange("movie_count")}
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
+                  sort === "movie_count"
+                    ? "bg-[#FFD75E] text-gray-900 font-bold"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                映画数
+              </button>
+            </div>
+
+            {/* View Toggle */}
+            <div className="flex items-center bg-white rounded-lg p-1 border border-gray-900">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === "grid"
+                    ? "bg-gray-100 text-gray-900"
+                    : "text-gray-500 hover:text-gray-900"
+                }`}
+                aria-label="Grid view"
+              >
+                <LayoutGrid className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === "list"
+                    ? "bg-gray-100 text-gray-900"
+                    : "text-gray-500 hover:text-gray-900"
+                }`}
+                aria-label="List view"
+              >
+                <List className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Category Grid */}
+        {/* Category Grid/List */}
         {tagsQuery.isError ? (
           <div className="text-center py-12 text-red-600">
             タグ一覧の取得に失敗しました
           </div>
         ) : (
           <div className="mb-12">
-            <TagsGrid
-              tags={tags}
-              isLoading={tagsQuery.isLoading}
-              emptyMessage="タグがありません"
-              columns="4"
-            />
+            {viewMode === "grid" ? (
+              <TagsGrid
+                tags={tags}
+                isLoading={tagsQuery.isLoading}
+                emptyMessage="タグがありません"
+                columns="4"
+              />
+            ) : (
+              <TagsList
+                tags={tags}
+                isLoading={tagsQuery.isLoading}
+                emptyMessage="タグがありません"
+              />
+            )}
           </div>
         )}
 
