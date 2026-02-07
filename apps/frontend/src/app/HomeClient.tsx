@@ -2,7 +2,7 @@
 
 import { TagsGrid } from "@/components/TagsGrid";
 import { TagsList } from "@/components/TagsList";
-import { Search, ChevronLeft, ChevronRight, LayoutGrid, List } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { TagModal, CreatedTagForList } from "@/components/TagModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,7 +19,6 @@ export default function HomeClient() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [sort, setSort] = useState<SortOption>("popular");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const queryClient = useQueryClient();
 
   // デバウンス処理: 500ms後に検索クエリを更新
@@ -114,7 +113,7 @@ export default function HomeClient() {
             />
           </div>
 
-          {/* Filter Tabs & View Toggle */}
+          {/* Filter Tabs */}
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <div className="flex items-center bg-white rounded-full p-1 border border-gray-900">
               <button
@@ -148,32 +147,6 @@ export default function HomeClient() {
                 映画数
               </button>
             </div>
-
-            {/* View Toggle */}
-            <div className="flex items-center bg-white rounded-lg p-1 border border-gray-900">
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`p-2 rounded-md transition-colors ${
-                  viewMode === "grid"
-                    ? "bg-gray-100 text-gray-900"
-                    : "text-gray-500 hover:text-gray-900"
-                }`}
-                aria-label="Grid view"
-              >
-                <LayoutGrid className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setViewMode("list")}
-                className={`p-2 rounded-md transition-colors ${
-                  viewMode === "list"
-                    ? "bg-gray-100 text-gray-900"
-                    : "text-gray-500 hover:text-gray-900"
-                }`}
-                aria-label="List view"
-              >
-                <List className="w-5 h-5" />
-              </button>
-            </div>
           </div>
         </div>
 
@@ -184,20 +157,23 @@ export default function HomeClient() {
           </div>
         ) : (
           <div className="mb-12">
-            {viewMode === "grid" ? (
+            {/* Mobile: List View */}
+            <div className="block md:hidden">
+              <TagsList
+                tags={tags}
+                isLoading={tagsQuery.isLoading}
+                emptyMessage="タグがありません"
+              />
+            </div>
+            {/* Desktop: Grid View */}
+            <div className="hidden md:block">
               <TagsGrid
                 tags={tags}
                 isLoading={tagsQuery.isLoading}
                 emptyMessage="タグがありません"
                 columns="4"
               />
-            ) : (
-              <TagsList
-                tags={tags}
-                isLoading={tagsQuery.isLoading}
-                emptyMessage="タグがありません"
-              />
-            )}
+            </div>
           </div>
         )}
 
