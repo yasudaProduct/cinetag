@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AvatarCircle } from "@/components/AvatarCircle";
 import { UserPlus, UserMinus, Settings } from "lucide-react";
 import type { UserProfile as UserProfileType } from "@/lib/api/users/getUser";
@@ -33,14 +34,14 @@ export function UserProfile({
 
   return (
     <div className="w-full">
-      <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
-        <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-8 shadow-sm">
+        <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-8">
           {/* Avatar */}
           <div className="flex-shrink-0">
             <AvatarCircle
               name={displayName}
               avatarUrl={profileUser.avatar_url ?? undefined}
-              className="w-32 h-32 text-4xl"
+              className="w-24 h-24 md:w-32 md:h-32 text-2xl md:text-4xl"
               sizes="128px"
             />
           </div>
@@ -48,7 +49,7 @@ export function UserProfile({
           {/* User Info & Stats */}
           <div className="flex-1 text-center md:text-left">
             <div className="mb-4">
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
                 {displayName}
               </h1>
               <p className="text-sm text-gray-500 mb-4 max-w-2xl">
@@ -64,18 +65,24 @@ export function UserProfile({
                 </div>
                 <div className="text-xs text-gray-600">作成タグ</div>
               </div>
-              <div className="text-center md:text-left">
+              <Link
+                href={`/${profileUser.display_id}/following`}
+                className="text-center md:text-left hover:opacity-70 transition-opacity"
+              >
                 <div className="text-2xl font-bold text-blue-500 mb-1">
                   {followingCount}
                 </div>
                 <div className="text-xs text-gray-600">フォロー中</div>
-              </div>
-              <div className="text-center md:text-left">
+              </Link>
+              <Link
+                href={`/${profileUser.display_id}/followers`}
+                className="text-center md:text-left hover:opacity-70 transition-opacity"
+              >
                 <div className="text-2xl font-bold text-purple-500 mb-1">
                   {followersCount}
                 </div>
                 <div className="text-xs text-gray-600">フォロワー</div>
-              </div>
+              </Link>
             </div>
 
             {/* Actions */}

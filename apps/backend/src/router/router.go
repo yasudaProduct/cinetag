@@ -119,6 +119,7 @@ func setupAuthRoutes(api *gin.RouterGroup, deps *Dependencies) {
 // setupUserRoutes はユーザー関連の認証必須ルートを設定します。
 func setupUserRoutes(authGroup *gin.RouterGroup, deps *Dependencies) {
 	authGroup.GET("/users/me", deps.UserHandler.GetMe)
+	authGroup.PATCH("/users/me", deps.UserHandler.UpdateMe)
 	authGroup.POST("/users/:displayId/follow", deps.UserHandler.FollowUser)
 	authGroup.DELETE("/users/:displayId/follow", deps.UserHandler.UnfollowUser)
 }

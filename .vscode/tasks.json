@@ -1,0 +1,48 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Open Worktree Terminal (fzf)",
+      "type": "shell",
+      "command": "cd \"$(git worktree list | fzf --height 40% --reverse | awk '{print $1}')\" && exec $SHELL",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Create Worktree from Branch (fzf)",
+      "type": "shell",
+      "command": "branch=$(/usr/bin/git branch -a | fzf --height 40% --reverse | sed 's/^[* ]*//' | sed 's/remotes\\/origin\\///') && repo=$(basename \"$PWD\") && clean_branch=$(echo \"$branch\" | tr '/' '-') && path=\"../${repo}-${clean_branch}\" && /usr/bin/git worktree add \"$path\" \"$branch\" && /usr/bin/git worktree list",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Remove Worktree (fzf)",
+      "type": "shell",
+      "command": "path=$(/usr/bin/git worktree list | fzf --height 40% --reverse | awk '{print $1}') && echo \"Removing: $path\" && /usr/bin/git worktree remove \"$path\" && echo '\\nRemoved successfully!' && /usr/bin/git worktree list",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "List Worktrees",
+      "type": "shell",
+      "command": "git worktree list",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

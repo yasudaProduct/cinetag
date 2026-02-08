@@ -32,7 +32,7 @@ export function FollowersList({ username }: FollowersListProps) {
   }
 
   return (
-    <div className="space-y-4 w-[40%] mx-auto">
+    <div className="space-y-4 w-full md:w-[60%] lg:w-[40%] mx-auto">
       {(followersData?.items ?? []).map((user) => (
         <Link
           key={user.id}

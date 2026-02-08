@@ -1,0 +1,162 @@
+[
+  {
+    "id": "154c44ab-3ba9-4c26-9642-49d11d3d1ff5",
+    "user_ref": "creator",
+    "title": "開発用シードタグ",
+    "description": "開発用seedタグです。migrate実行で自動投入されます。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "7936b886-043c-4713-94d6-2bb8f84d3e0d",
+    "user_ref": "creator",
+    "title": "SFの名作",
+    "description": "SFの定番・必見作品を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "ef2ef5f3-447f-464d-ae28-2b71d59768d1",
+    "user_ref": "creator",
+    "title": "受賞作・名作",
+    "description": "受賞歴のある名作を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "8b447d3c-d857-4cf0-8a74-79533238eecc",
+    "user_ref": "creator",
+    "title": "アニメ映画の傑作",
+    "description": "アニメーション映画の傑作を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "4a97b0b9-d69d-431f-b5ed-02bf8f2773ed",
+    "user_ref": "creator",
+    "title": "犯罪・ギャング映画",
+    "description": "犯罪映画・ギャング映画の名作を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "3a7e2ea1-1a38-47ac-a256-fc2b7806d95a",
+    "user_ref": "creator",
+    "title": "考察・謎解き系",
+    "description": "考察したくなる映画（どんでん返し/謎解き/多層構造）を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "404e2f99-a549-4215-84d9-1c293a7562cc",
+    "user_ref": "creator",
+    "title": "アクション定番",
+    "description": "アクションの定番・入門にちょうど良い作品を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "32dfcf89-c018-4ab1-a443-5ed4b018eb47",
+    "user_ref": "creator",
+    "title": "ほっこり・癒し系",
+    "description": "観終わったあとに温かい気持ちになれる作品を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "0545ddd7-718e-478f-8267-b4f422a93dc1",
+    "user_ref": "creator",
+    "title": "現代クラシック（2000年代以降）",
+    "description": "2000年代以降の現代クラシックを集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "2e0a0180-4c78-422b-8b54-f376ec834097",
+    "user_ref": "creator",
+    "title": "みんなで楽しめる",
+    "description": "みんなで観ても盛り上がる、万人受けしやすい作品を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "1aad443c-5262-4054-8ba7-afefa449e312",
+    "user_ref": "creator",
+    "title": "ホラー入門",
+    "description": "ホラー初心者でも観やすい作品を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "c807f6cf-cf7b-45fe-8bea-e489f96b3e0d",
+    "user_ref": "creator",
+    "title": "泣ける映画",
+    "description": "涙腺にくる感動作を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "ef78ad75-470b-4c05-b965-8785373e964c",
+    "user_ref": "creator",
+    "title": "ミステリー・サスペンス",
+    "description": "先が読めないミステリー/サスペンスを集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "94fa6040-217f-42d4-9a38-a6ddf49a39fb",
+    "user_ref": "creator",
+    "title": "コメディ",
+    "description": "気軽に笑えるコメディ作品を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "f6d3f594-ccd9-4175-9ccf-3e1e0a40d4a8",
+    "user_ref": "creator",
+    "title": "音楽・ライブ系",
+    "description": "音楽が主役の作品を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "301f81a2-4fcc-4646-a728-a6d28e1cffd0",
+    "user_ref": "creator",
+    "title": "家族で観たい",
+    "description": "家族みんなで観られる作品を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "a5bfee75-85f4-4e87-a198-4997dbe84a48",
+    "user_ref": "creator",
+    "title": "ラブストーリー",
+    "description": "恋愛映画の定番を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "37def831-3d02-4b57-b232-99df4c12d9f7",
+    "user_ref": "creator",
+    "title": "ドキュメンタリー",
+    "description": "学びや発見のあるドキュメンタリーを集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "dced6620-2fa0-43ca-97d1-81011748edde",
+    "user_ref": "creator",
+    "title": "じっくり観たい長編",
+    "description": "腰を据えて観たい長編作品を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  },
+  {
+    "id": "150970d1-8c2f-4377-84a5-debe33aaa010",
+    "user_ref": "creator",
+    "title": "週末に一気見",
+    "description": "週末にまとめて観たくなる作品を集めたタグです。",
+    "is_public": true,
+    "add_movie_policy": "everyone"
+  }
+]

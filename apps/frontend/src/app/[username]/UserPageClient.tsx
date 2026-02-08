@@ -16,8 +16,6 @@ import {
   CreatedTagsList,
   FollowingTagsList,
   LikedTagsList,
-  FollowingUsersList,
-  FollowersList,
   type TabType,
 } from "./_components";
 
@@ -125,8 +123,8 @@ export default function UserPageClient(props: {
 
   return (
     <div className="min-h-screen">
-      <main className="container mx-auto px-4 md:px-6 py-12">
-        <div className="flex flex-col gap-8">
+      <main className="container mx-auto px-4 md:px-6 py-8 md:py-12">
+        <div className="flex flex-col gap-6 md:gap-8">
           {/* User Profile */}
           <UserProfileComponent
             profileUser={profileUser}
@@ -160,10 +158,6 @@ export default function UserPageClient(props: {
               />
             )}
             {activeTab === "favorite" && <LikedTagsList />}
-            {activeTab === "following" && (
-              <FollowingUsersList username={username} />
-            )}
-            {activeTab === "followers" && <FollowersList username={username} />}
           </div>
         </div>
       </main>
