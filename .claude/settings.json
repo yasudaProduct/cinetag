@@ -30,7 +30,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "file_path=$(jq -r '.tool_input.file_path') && if [[ \"$file_path\" == *.go ]]; then go fmt \"$file_path\" 2>/dev/null; fi"
+            "command": "file_path=$(jq -r '.tool_input.file_path') && if [[ \"$file_path\" == *.go ]]; then gofmt -w \"$file_path\" && backend_root=$(echo \"$file_path\" | grep -oE '.*/apps/backend') && if [ -n \"$backend_root\" ]; then cd \"$backend_root\" && pkg_dir=\"./$(dirname \"${file_path#$backend_root/}\")\" && go vet \"$pkg_dir\" 2>&1; fi; fi"
+          },
+          {
+            "type": "command",
+            "command": "file_path=$(jq -r '.tool_input.file_path') && if [[ \"$file_path\" =~ \\.(ts|tsx|js|jsx)$ ]]; then frontend_root=$(echo \"$file_path\" | grep -oE '.*/apps/frontend') && if [ -n \"$frontend_root\" ]; then cd \"$frontend_root\" && npx eslint --fix \"$file_path\" 2>&1; fi; fi"
           }
         ]
       },
@@ -39,7 +43,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "file_path=$(jq -r '.tool_input.file_path') && if [[ \"$file_path\" == *.go ]]; then go fmt \"$file_path\" 2>/dev/null; fi"
+            "command": "file_path=$(jq -r '.tool_input.file_path') && if [[ \"$file_path\" == *.go ]]; then gofmt -w \"$file_path\" && backend_root=$(echo \"$file_path\" | grep -oE '.*/apps/backend') && if [ -n \"$backend_root\" ]; then cd \"$backend_root\" && pkg_dir=\"./$(dirname \"${file_path#$backend_root/}\")\" && go vet \"$pkg_dir\" 2>&1; fi; fi"
+          },
+          {
+            "type": "command",
+            "command": "file_path=$(jq -r '.tool_input.file_path') && if [[ \"$file_path\" =~ \\.(ts|tsx|js|jsx)$ ]]; then frontend_root=$(echo \"$file_path\" | grep -oE '.*/apps/frontend') && if [ -n \"$frontend_root\" ]; then cd \"$frontend_root\" && npx eslint --fix \"$file_path\" 2>&1; fi; fi"
           }
         ]
       }
