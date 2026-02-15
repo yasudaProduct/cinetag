@@ -210,45 +210,14 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 		}
 	})
 
-	t.Run("タグの movie_count 更新で失敗: IncrementMovieCount のエラーはそのまま返る", func(t *testing.T) {
+	t.Run("成功: tag_movie を作成する", func(t *testing.T) {
 		t.Parallel()
 
-		expected := errors.New("increment failed")
-		svc := newTagService(t, func(d *deps) {
-			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
-				return &model.Tag{ID: id}, nil
-			}
-			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
-				return expected
-			}
-		})
-
-		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "t1",
-			UserID:      "u1",
-			TmdbMovieID: 1,
-			Position:    0,
-		})
-		if !errors.Is(err, expected) {
-			t.Fatalf("expected propagated error, got: %v", err)
-		}
-	})
-
-	t.Run("成功: tag_movie を作成し movie_count を +1 する", func(t *testing.T) {
-		t.Parallel()
-
-		var gotTagID string
-		var gotDelta int
 		var created *model.TagMovie
 
 		tagRepo := &testutil.FakeTagRepository{
 			FindByIDFn: func(ctx context.Context, id string) (*model.Tag, error) {
 				return &model.Tag{ID: id}, nil
-			},
-			IncrementMovieCountFn: func(ctx context.Context, id string, delta int) error {
-				gotTagID = id
-				gotDelta = delta
-				return nil
 			},
 		}
 		tagMovieRepo := &testutil.FakeTagMovieRepository{
@@ -294,10 +263,6 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 		if created.Note == nil || *created.Note != note {
 			t.Fatalf("expected note to be set")
 		}
-
-		if gotTagID != "t1" || gotDelta != 1 {
-			t.Fatalf("expected IncrementMovieCount(t1, 1), got (%s, %d)", gotTagID, gotDelta)
-		}
 	})
 
 	t.Run("権限チェック: add_movie_policy=owner_only の場合、作成者以外は ErrTagPermissionDenied", func(t *testing.T) {
@@ -340,9 +305,6 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 				created = tagMovie
 				return nil
 			}
-			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
-				return nil
-			}
 		})
 
 		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
@@ -373,9 +335,6 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 			}
 			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
 				created = tagMovie
-				return nil
-			}
-			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
 				return nil
 			}
 		})
@@ -412,9 +371,6 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 				return &model.Tag{ID: id}, nil
 			}
 			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
-				return nil
-			}
-			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
 				return nil
 			}
 			d.movieService = movieSvc
@@ -458,9 +414,6 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 				return &model.Tag{ID: id}, nil
 			}
 			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
-				return nil
-			}
-			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
 				return nil
 			}
 			d.movieService = movieSvc
@@ -538,12 +491,6 @@ func TestTagService_CreateTag(t *testing.T) {
 		}
 		if created.AddMoviePolicy != "everyone" {
 			t.Fatalf("expected AddMoviePolicy=everyone, got %v", created.AddMoviePolicy)
-		}
-		if created.MovieCount != 0 {
-			t.Fatalf("expected MovieCount=0, got %v", created.MovieCount)
-		}
-		if created.FollowerCount != 0 {
-			t.Fatalf("expected FollowerCount=0, got %v", created.FollowerCount)
 		}
 		if out.ID != "tag1" {
 			t.Fatalf("expected out.ID=tag1, got %q", out.ID)
@@ -988,9 +935,6 @@ func TestTagService_RemoveMovieFromTag(t *testing.T) {
 				deletedID = tagMovieID
 				return nil
 			}
-			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
-				return nil
-			}
 		})
 
 		err := svc.RemoveMovieFromTag(context.Background(), "tm1", "owner1")
@@ -1021,9 +965,6 @@ func TestTagService_RemoveMovieFromTag(t *testing.T) {
 				deletedID = tagMovieID
 				return nil
 			}
-			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
-				return nil
-			}
 		})
 
 		err := svc.RemoveMovieFromTag(context.Background(), "tm1", "owner1")
@@ -1052,9 +993,6 @@ func TestTagService_RemoveMovieFromTag(t *testing.T) {
 			}
 			d.tagMovieRepo.DeleteFn = func(ctx context.Context, tagMovieID string) error {
 				deletedID = tagMovieID
-				return nil
-			}
-			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
 				return nil
 			}
 		})
@@ -1090,11 +1028,9 @@ func TestTagService_RemoveMovieFromTag(t *testing.T) {
 		}
 	})
 
-	t.Run("削除に成功: movie_count が -1 される", func(t *testing.T) {
+	t.Run("削除に成功", func(t *testing.T) {
 		t.Parallel()
 
-		var gotTagID string
-		var gotDelta int
 		var deletedID string
 
 		svc := newTagService(t, func(d *deps) {
@@ -1112,11 +1048,6 @@ func TestTagService_RemoveMovieFromTag(t *testing.T) {
 				deletedID = tagMovieID
 				return nil
 			}
-			d.tagRepo.IncrementMovieCountFn = func(ctx context.Context, id string, delta int) error {
-				gotTagID = id
-				gotDelta = delta
-				return nil
-			}
 		})
 
 		err := svc.RemoveMovieFromTag(context.Background(), "tm1", "u1")
@@ -1125,9 +1056,6 @@ func TestTagService_RemoveMovieFromTag(t *testing.T) {
 		}
 		if deletedID != "tm1" {
 			t.Fatalf("expected delete to be called with tm1, got %s", deletedID)
-		}
-		if gotTagID != "t1" || gotDelta != -1 {
-			t.Fatalf("expected IncrementMovieCount(t1, -1), got (%s, %d)", gotTagID, gotDelta)
 		}
 	})
 }
@@ -1589,10 +1517,10 @@ func TestTagService_ListFollowingTags(t *testing.T) {
 		t.Parallel()
 		var gotPage, gotPageSize int
 		svc := newTagService(t, func(d *deps) {
-			d.tagFollowerRepo.ListFollowingTagsFn = func(ctx context.Context, userID string, page, pageSize int) ([]*model.Tag, int64, error) {
+			d.tagFollowerRepo.ListFollowingTagsFn = func(ctx context.Context, userID string, page, pageSize int) ([]repository.TagSummary, int64, error) {
 				gotPage = page
 				gotPageSize = pageSize
-				return []*model.Tag{}, 0, nil
+				return []repository.TagSummary{}, 0, nil
 			}
 		})
 
@@ -1608,8 +1536,8 @@ func TestTagService_ListFollowingTags(t *testing.T) {
 	t.Run("total=0 の場合は空配列を返す", func(t *testing.T) {
 		t.Parallel()
 		svc := newTagService(t, func(d *deps) {
-			d.tagFollowerRepo.ListFollowingTagsFn = func(ctx context.Context, userID string, page, pageSize int) ([]*model.Tag, int64, error) {
-				return []*model.Tag{}, 0, nil
+			d.tagFollowerRepo.ListFollowingTagsFn = func(ctx context.Context, userID string, page, pageSize int) ([]repository.TagSummary, int64, error) {
+				return []repository.TagSummary{}, 0, nil
 			}
 		})
 
@@ -1629,24 +1557,19 @@ func TestTagService_ListFollowingTags(t *testing.T) {
 		t.Parallel()
 		now := time.Now()
 		svc := newTagService(t, func(d *deps) {
-			d.tagFollowerRepo.ListFollowingTagsFn = func(ctx context.Context, userID string, page, pageSize int) ([]*model.Tag, int64, error) {
-				return []*model.Tag{
+			d.tagFollowerRepo.ListFollowingTagsFn = func(ctx context.Context, userID string, page, pageSize int) ([]repository.TagSummary, int64, error) {
+				return []repository.TagSummary{
 					{
-						ID:            "t1",
-						Title:         "Tag1",
-						IsPublic:      true,
-						MovieCount:    5,
-						FollowerCount: 10,
-						CreatedAt:     now,
+						ID:              "t1",
+						Title:           "Tag1",
+						IsPublic:        true,
+						MovieCount:      5,
+						FollowerCount:   10,
+						CreatedAt:       now,
+						Author:          "owner1",
+						AuthorDisplayID: "owner1_id",
 					},
 				}, 1, nil
-			}
-			d.tagRepo.FindDetailByIDFn = func(ctx context.Context, id string) (*repository.TagDetailRow, error) {
-				return &repository.TagDetailRow{
-					ID:               id,
-					OwnerDisplayName: "owner1",
-					OwnerDisplayID:   "owner1_id",
-				}, nil
 			}
 		})
 
