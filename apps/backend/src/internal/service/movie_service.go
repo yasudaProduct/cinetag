@@ -29,6 +29,12 @@ type MovieService interface {
 
 	// TMDB の検索APIで映画を検索し、候補一覧を返す。
 	SearchMovies(ctx context.Context, query string, page int) ([]TMDBSearchResult, int, error)
+
+	// 指定した TMDB 映画 ID の詳細情報を取得する。
+	GetMovieDetail(ctx context.Context, tmdbMovieID int) (*MovieDetailResponse, error)
+
+	// 指定した TMDB 映画 ID が含まれるタグの一覧を取得する。
+	GetMovieRelatedTags(ctx context.Context, tmdbMovieID int, limit int) ([]MovieRelatedTagItem, error)
 }
 
 // TMDB 連携に必要な設定値。
@@ -104,7 +110,25 @@ type tmdbMovieResponse struct {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
 	} `json:"genres"`
-	Runtime *int `json:"runtime"`
+	Runtime             *int `json:"runtime"`
+	ProductionCountries []struct {
+		ISO31661 string `json:"iso_3166_1"`
+		Name     string `json:"name"`
+	} `json:"production_countries"`
+	Credits *tmdbCreditsResponse `json:"credits,omitempty"`
+}
+
+// TMDB の credits レスポンスを表す構造体。
+type tmdbCreditsResponse struct {
+	Cast []struct {
+		Name      string `json:"name"`
+		Character string `json:"character"`
+		Order     int    `json:"order"`
+	} `json:"cast"`
+	Crew []struct {
+		Name string `json:"name"`
+		Job  string `json:"job"`
+	} `json:"crew"`
 }
 
 // TMDB の /search/movie の必要最小限のレスポンスを表す構造体。
@@ -285,6 +309,7 @@ func (s *movieService) fetchMovieFromTMDB(ctx context.Context, tmdbMovieID int) 
 	if s.cfg.DefaultLanguage != "" {
 		q.Set("language", s.cfg.DefaultLanguage)
 	}
+	q.Set("append_to_response", "credits")
 	base.RawQuery = q.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base.String(), nil)
@@ -389,7 +414,166 @@ func (s *movieService) buildMovieCacheFromTMDB(movie *tmdbMovieResponse, now tim
 
 	cache.Runtime = movie.Runtime
 
+	if len(movie.ProductionCountries) > 0 {
+		b, err := json.Marshal(movie.ProductionCountries)
+		if err != nil {
+			return model.MovieCache{}, fmt.Errorf("failed to marshal production_countries: %w", err)
+		}
+		cache.ProductionCountries = datatypes.JSON(b)
+	}
+
+	if movie.Credits != nil {
+		b, err := json.Marshal(movie.Credits)
+		if err != nil {
+			return model.MovieCache{}, fmt.Errorf("failed to marshal credits: %w", err)
+		}
+		cache.Credits = datatypes.JSON(b)
+	}
+
 	return cache, nil
+}
+
+// 映画詳細レスポンスの型定義。
+type MovieDetailResponse struct {
+	TmdbMovieID         int                 `json:"tmdb_movie_id"`
+	Title               string              `json:"title"`
+	OriginalTitle       *string             `json:"original_title,omitempty"`
+	PosterPath          *string             `json:"poster_path,omitempty"`
+	ReleaseDate         *string             `json:"release_date,omitempty"`
+	VoteAverage         *float64            `json:"vote_average,omitempty"`
+	Overview            *string             `json:"overview,omitempty"`
+	Genres              []GenreItem         `json:"genres"`
+	Runtime             *int                `json:"runtime,omitempty"`
+	ProductionCountries []ProductionCountry `json:"production_countries"`
+	Directors           []string            `json:"directors"`
+	Cast                []CastMember        `json:"cast"`
+}
+
+type GenreItem struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+type ProductionCountry struct {
+	ISO31661 string `json:"iso_3166_1"`
+	Name     string `json:"name"`
+}
+
+type CastMember struct {
+	Name      string `json:"name"`
+	Character string `json:"character"`
+}
+
+// この映画が含まれる公開タグの情報。
+type MovieRelatedTagItem struct {
+	TagID         string `json:"tag_id"`
+	Title         string `json:"title"`
+	FollowerCount int    `json:"follower_count"`
+	MovieCount    int    `json:"movie_count"`
+}
+
+// 指定した TMDB 映画 ID の詳細情報を取得する。
+func (s *movieService) GetMovieDetail(ctx context.Context, tmdbMovieID int) (*MovieDetailResponse, error) {
+	cache, err := s.EnsureMovieCache(ctx, tmdbMovieID)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &MovieDetailResponse{
+		TmdbMovieID:   cache.TmdbMovieID,
+		Title:         cache.Title,
+		OriginalTitle: cache.OriginalTitle,
+		PosterPath:    cache.PosterPath,
+		VoteAverage:   cache.VoteAverage,
+		Overview:      cache.Overview,
+		Runtime:       cache.Runtime,
+	}
+
+	if cache.ReleaseDate != nil {
+		s := cache.ReleaseDate.Format("2006-01-02")
+		resp.ReleaseDate = &s
+	}
+
+	// Genres の復元
+	if len(cache.Genres) > 0 {
+		var genres []GenreItem
+		if err := json.Unmarshal(cache.Genres, &genres); err == nil {
+			resp.Genres = genres
+		}
+	}
+	if resp.Genres == nil {
+		resp.Genres = []GenreItem{}
+	}
+
+	// ProductionCountries の復元
+	if len(cache.ProductionCountries) > 0 {
+		var countries []ProductionCountry
+		if err := json.Unmarshal(cache.ProductionCountries, &countries); err == nil {
+			resp.ProductionCountries = countries
+		}
+	}
+	if resp.ProductionCountries == nil {
+		resp.ProductionCountries = []ProductionCountry{}
+	}
+
+	// Credits の復元（監督・キャスト抽出）
+	if len(cache.Credits) > 0 {
+		var credits tmdbCreditsResponse
+		if err := json.Unmarshal(cache.Credits, &credits); err == nil {
+			// 監督を抽出
+			for _, c := range credits.Crew {
+				if c.Job == "Director" {
+					resp.Directors = append(resp.Directors, c.Name)
+				}
+			}
+			// キャストを order 順で上位10名
+			limit := 10
+			if len(credits.Cast) < limit {
+				limit = len(credits.Cast)
+			}
+			for i := 0; i < limit; i++ {
+				resp.Cast = append(resp.Cast, CastMember{
+					Name:      credits.Cast[i].Name,
+					Character: credits.Cast[i].Character,
+				})
+			}
+		}
+	}
+	if resp.Directors == nil {
+		resp.Directors = []string{}
+	}
+	if resp.Cast == nil {
+		resp.Cast = []CastMember{}
+	}
+
+	return resp, nil
+}
+
+// 指定した TMDB 映画 ID が含まれる公開タグの一覧を取得する。
+func (s *movieService) GetMovieRelatedTags(ctx context.Context, tmdbMovieID int, limit int) ([]MovieRelatedTagItem, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+
+	var results []MovieRelatedTagItem
+	err := s.db.WithContext(ctx).
+		Table("tag_movies tm").
+		Select(`t.id AS tag_id, t.title,
+			(SELECT COUNT(*) FROM tag_followers WHERE tag_id = t.id) AS follower_count,
+			(SELECT COUNT(*) FROM tag_movies WHERE tag_id = t.id) AS movie_count`).
+		Joins("JOIN tags t ON t.id = tm.tag_id AND t.is_public = true").
+		Where("tm.tmdb_movie_id = ?", tmdbMovieID).
+		Order("follower_count DESC").
+		Limit(limit).
+		Find(&results).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get related tags: %w", err)
+	}
+	if results == nil {
+		results = []MovieRelatedTagItem{}
+	}
+	return results, nil
 }
 
 // movie_cache テーブルに対して UPSERT を行う。

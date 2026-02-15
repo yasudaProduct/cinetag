@@ -58,8 +58,12 @@ export async function listTagMovies(tagId: string, options?: { token?: string })
 
     const posterUrl = item.poster_url ?? buildTmdbPosterUrl(item.movie?.poster_path);
 
+    const tmdbMovieIdRaw = item.tmdb_movie_id;
+    const tmdbMovieId = tmdbMovieIdRaw != null ? Number(tmdbMovieIdRaw) : undefined;
+
     return {
       id,
+      tmdbMovieId: Number.isFinite(tmdbMovieId) ? tmdbMovieId : undefined,
       title,
       year,
       posterUrl: posterUrl ?? undefined,
