@@ -76,7 +76,50 @@ Host: localhost:8080
 }
 ```
 
-#### 4.2 GET `/api/v1/users/:displayId`
+#### 4.2 PATCH `/api/v1/users/me`
+
+- **概要**: 認証済みユーザー自身のプロフィール情報を更新する（部分更新）。
+- **認証**: 必須
+- **リクエストボディ**
+
+```json
+{
+  "display_name": "新しい表示名"
+}
+```
+
+- **備考**
+  - `display_name` は任意。省略した場合は更新されない。
+
+- **レスポンス例（200）**: 更新後のユーザープロフィール。
+
+```json
+{
+  "id": "b1e4f0e8-1234-5678-9012-abcdefabcdef",
+  "display_id": "cinephile_jane",
+  "display_name": "新しい表示名",
+  "avatar_url": "https://images.example.com/avatar.jpg",
+  "bio": "映画が好きです"
+}
+```
+
+- **レスポンス例（400）**
+
+```json
+{
+  "error": "invalid request body"
+}
+```
+
+- **レスポンス例（401）**
+
+```json
+{
+  "error": "unauthorized"
+}
+```
+
+#### 4.3 GET `/api/v1/users/:displayId`
 
 - **概要**: 指定ユーザー（`displayId`）のユーザー情報を取得する。
 - **認証**: 不要
@@ -106,7 +149,7 @@ Host: localhost:8080
 }
 ```
 
-#### 4.3 GET `/api/v1/users/:displayId/tags`
+#### 4.4 GET `/api/v1/users/:displayId/tags`
 
 - **概要**: 指定ユーザー（`displayId`）が作成したタグの一覧を取得する。
 - **認証**: 任意（公開/非公開タグの扱いに応じて将来変更の可能性あり）
@@ -151,7 +194,7 @@ Host: localhost:8080
 }
 ```
 
-#### 4.4 POST `/api/v1/users/:displayId/follow`
+#### 4.5 POST `/api/v1/users/:displayId/follow`
 
 - **概要**: 指定ユーザー（`displayId`）をフォローする。
 - **認証**: 必須
@@ -193,7 +236,7 @@ Host: localhost:8080
 }
 ```
 
-#### 4.5 DELETE `/api/v1/users/:displayId/follow`
+#### 4.6 DELETE `/api/v1/users/:displayId/follow`
 
 - **概要**: 指定ユーザー（`displayId`）のフォローを解除する。
 - **認証**: 必須
@@ -227,7 +270,7 @@ Host: localhost:8080
 }
 ```
 
-#### 4.6 GET `/api/v1/users/:displayId/following`
+#### 4.7 GET `/api/v1/users/:displayId/following`
 
 - **概要**: 指定ユーザー（`displayId`）がフォローしているユーザー一覧を取得する。
 - **認証**: 不要
@@ -263,7 +306,7 @@ Host: localhost:8080
 }
 ```
 
-#### 4.7 GET `/api/v1/users/:displayId/followers`
+#### 4.8 GET `/api/v1/users/:displayId/followers`
 
 - **概要**: 指定ユーザー（`displayId`）をフォローしているユーザー一覧を取得する。
 - **認証**: 不要
@@ -299,7 +342,7 @@ Host: localhost:8080
 }
 ```
 
-#### 4.8 GET `/api/v1/users/:displayId/follow-stats`
+#### 4.9 GET `/api/v1/users/:displayId/follow-stats`
 
 - **概要**: 指定ユーザー（`displayId`）のフォロー数・フォロワー数を取得する。
 - **認証**: 任意
@@ -322,7 +365,7 @@ Host: localhost:8080
 }
 ```
 
-#### 4.9 GET `/api/v1/me/tags` **[未実装]**
+#### 4.10 GET `/api/v1/me/tags` **[未実装]**
 
 - **概要**: ログインユーザーが作成したタグの一覧を取得する。
 - **認証**: 必須
@@ -356,7 +399,7 @@ Host: localhost:8080
 }
 ```
 
-#### 4.10 GET `/api/v1/me/following-tags`
+#### 4.11 GET `/api/v1/me/following-tags`
 
 - **概要**: ログインユーザーがフォローしているタグ一覧を取得する。
 - **認証**: 必須
@@ -397,7 +440,7 @@ Host: localhost:8080
 }
 ```
 
-#### 4.11 POST `/api/v1/clerk/webhook`
+#### 4.12 POST `/api/v1/clerk/webhook`
 
 - **概要**: Clerk Webhook を受信し、`user.created` および `user.deleted` イベントをローカル `users` テーブルに同期する。
 - **認証**: 不要
@@ -877,6 +920,105 @@ Host: localhost:8080
 ```json
 {
   "error": "failed to search movies"
+}
+```
+
+#### 8.2 GET `/api/v1/movies/:tmdbMovieId`
+
+- **概要**: 指定した TMDB 映画IDの詳細情報を取得する（キャッシュを内部で確保する）。
+- **認証**: 不要
+- **パスパラメータ**
+
+| 名前           | 型  | 説明            |
+|----------------|-----|-----------------|
+| `tmdbMovieId`  | int | TMDB の映画ID   |
+
+- **レスポンス例（200）**
+
+```json
+{
+  "tmdb_movie_id": 129,
+  "title": "千と千尋の神隠し",
+  "original_title": "Spirited Away",
+  "poster_path": "/path/to/poster.jpg",
+  "release_date": "2001-07-20",
+  "vote_average": 8.5,
+  "overview": "不思議な世界に迷い込んだ少女の物語。",
+  "genres": [
+    { "id": 16, "name": "Animation" },
+    { "id": 14, "name": "Fantasy" }
+  ],
+  "runtime": 125,
+  "production_countries": [
+    { "iso_3166_1": "JP", "name": "Japan" }
+  ],
+  "directors": ["Hayao Miyazaki"],
+  "cast": [
+    { "name": "Rumi Hiiragi", "character": "Chihiro Ogino" }
+  ]
+}
+```
+
+- **レスポンス例（400）**
+
+```json
+{
+  "error": "invalid tmdb_movie_id"
+}
+```
+
+- **レスポンス例（500）**
+
+```json
+{
+  "error": "failed to get movie detail"
+}
+```
+
+#### 8.3 GET `/api/v1/movies/:tmdbMovieId/tags`
+
+- **概要**: 指定した映画が含まれる **公開タグ** の一覧を取得する（フォロワー数順）。
+- **認証**: 不要
+- **パスパラメータ**
+
+| 名前           | 型  | 説明          |
+|----------------|-----|---------------|
+| `tmdbMovieId`  | int | TMDB の映画ID |
+
+- **クエリパラメータ**
+
+| 名前     | 型  | 必須 | 説明 |
+|----------|-----|------|------|
+| `limit`  | int | 任意 | 返却件数（デフォルト: 10、0以下の場合も 10 として扱う） |
+
+- **レスポンス例（200）**
+
+```json
+{
+  "items": [
+    {
+      "tag_id": "tag-uuid-1",
+      "title": "ジブリの名作",
+      "follower_count": 120,
+      "movie_count": 32
+    }
+  ]
+}
+```
+
+- **レスポンス例（400）**
+
+```json
+{
+  "error": "invalid tmdb_movie_id"
+}
+```
+
+- **レスポンス例（500）**
+
+```json
+{
+  "error": "failed to get movie tags"
 }
 ```
 

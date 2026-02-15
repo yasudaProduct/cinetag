@@ -5,13 +5,11 @@ type TabType = "created" | "registered" | "favorite";
 type UserPageTabsProps = {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
-  isOwnPage: boolean;
 };
 
 export function UserPageTabs({
   activeTab,
   onTabChange,
-  isOwnPage,
 }: UserPageTabsProps) {
   return (
     <div className="flex items-center justify-start md:justify-center gap-2 mb-8 border-b border-gray-200 overflow-x-auto pb-1 md:pb-0">

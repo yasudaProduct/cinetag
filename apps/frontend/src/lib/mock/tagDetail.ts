@@ -29,6 +29,7 @@ export type TagDetail = {
 
 export type TagMovie = {
   id: string;
+  tmdbMovieId?: number;
   title: string;
   year: number;
   posterUrl?: string;

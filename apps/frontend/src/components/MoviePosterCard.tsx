@@ -1,18 +1,21 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Trash2 } from "lucide-react";
 
 export type MoviePosterCardProps = {
   title: string;
   year?: number;
   posterUrl?: string;
+  href?: string;
   onDelete?: () => void;
   isDeleting?: boolean;
 };
 
-export const MoviePosterCard = ({ title, year, posterUrl, onDelete, isDeleting }: MoviePosterCardProps) => {
+export const MoviePosterCard = ({ title, year, posterUrl, href, onDelete, isDeleting }: MoviePosterCardProps) => {
   const src = posterUrl || `https://placehold.co/360x540/png?text=${encodeURIComponent(title)}`;
-  return (
-    <div className="group relative">
+
+  const content = (
+    <>
       <div className="relative w-full aspect-[2/3] rounded-2xl overflow-hidden shadow-sm bg-white border border-gray-200 group-hover:shadow-md transition-shadow">
         <Image
           src={src}
@@ -24,7 +27,11 @@ export const MoviePosterCard = ({ title, year, posterUrl, onDelete, isDeleting }
         {onDelete && (
           <button
             type="button"
-            onClick={onDelete}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete();
+            }}
             disabled={isDeleting}
             className="absolute top-2 right-2 p-2 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md"
             aria-label="映画を削除"
@@ -39,8 +46,16 @@ export const MoviePosterCard = ({ title, year, posterUrl, onDelete, isDeleting }
           <div className="text-xs text-gray-500 mt-0.5">{year}</div>
         )}
       </div>
+    </>
+  );
+
+  return href ? (
+    <Link href={href} className="group relative">
+      {content}
+    </Link>
+  ) : (
+    <div className="group relative">
+      {content}
     </div>
   );
 };
-
-

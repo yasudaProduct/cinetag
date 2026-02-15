@@ -3,6 +3,7 @@ package handler
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"cinetag-backend/src/internal/service"
@@ -40,4 +41,50 @@ func (h *MovieHandler) SearchMovies(c *gin.Context) {
 		"page":        page,
 		"total_count": total,
 	})
+}
+
+// 映画詳細を返します。
+// GET /api/v1/movies/:tmdbMovieId
+func (h *MovieHandler) GetMovieDetail(c *gin.Context) {
+	tmdbMovieID, err := strconv.Atoi(c.Param("tmdbMovieId"))
+	if err != nil || tmdbMovieID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tmdb_movie_id"})
+		return
+	}
+
+	detail, err := h.movieService.GetMovieDetail(c.Request.Context(), tmdbMovieID)
+	if err != nil {
+		h.logger.Error("handler.GetMovieDetail failed",
+			"tmdb_movie_id", tmdbMovieID,
+			"error", err,
+		)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get movie detail"})
+		return
+	}
+
+	c.JSON(http.StatusOK, detail)
+}
+
+// この映画が含まれるタグ一覧を返します。
+// GET /api/v1/movies/:tmdbMovieId/tags
+func (h *MovieHandler) GetMovieTags(c *gin.Context) {
+	tmdbMovieID, err := strconv.Atoi(c.Param("tmdbMovieId"))
+	if err != nil || tmdbMovieID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tmdb_movie_id"})
+		return
+	}
+
+	limit := parseIntDefault(c.Query("limit"), 10)
+
+	tags, err := h.movieService.GetMovieRelatedTags(c.Request.Context(), tmdbMovieID, limit)
+	if err != nil {
+		h.logger.Error("handler.GetMovieTags failed",
+			"tmdb_movie_id", tmdbMovieID,
+			"error", err,
+		)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get movie tags"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"items": tags})
 }

@@ -146,7 +146,6 @@ export default function UserPageClient(props: {
             <UserPageTabs
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              isOwnPage={isOwnPage ?? false}
             />
 
             {/* Tab Content */}

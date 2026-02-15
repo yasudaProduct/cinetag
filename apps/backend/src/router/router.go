@@ -93,8 +93,10 @@ func setupPublicRoutes(api *gin.RouterGroup, deps *Dependencies) {
 	api.GET("/users/:displayId/followers", deps.UserHandler.ListFollowers)
 	api.GET("/users/:displayId/follow-stats", deps.OptionalAuthMiddleware, deps.UserHandler.GetUserFollowStats)
 
-	// 映画検索（公開）
+	// 映画（公開）
 	api.GET("/movies/search", deps.MovieHandler.SearchMovies)
+	api.GET("/movies/:tmdbMovieId", deps.MovieHandler.GetMovieDetail)
+	api.GET("/movies/:tmdbMovieId/tags", deps.MovieHandler.GetMovieTags)
 }
 
 // setupAuthRoutes は認証必須のルートを設定します。
