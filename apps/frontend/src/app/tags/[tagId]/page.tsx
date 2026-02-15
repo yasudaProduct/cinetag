@@ -10,7 +10,7 @@ import { deleteMovieFromTag } from "@/lib/api/tags/deleteMovie";
 import { followTag } from "@/lib/api/tags/follow";
 import { unfollowTag } from "@/lib/api/tags/unfollow";
 import { getTagFollowStatus } from "@/lib/api/tags/getFollowStatus";
-import { Search, Plus, Pencil, Heart, Film } from "lucide-react";
+import { Search, Plus, Pencil, Bookmark, Film } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { Spinner } from "@/components/ui/spinner";
@@ -139,7 +139,7 @@ export default function TagDetailPage({
               {/* Stats: フォロー数 & 映画数 */}
               <div className="mt-5 flex items-center gap-4">
                 <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                  <Heart className="w-4 h-4 text-pink-500" />
+                  <Bookmark className="w-4 h-4 text-pink-500" />
                   <span className="font-bold text-gray-900">{detail?.followerCount ?? 0}</span>
                   <span>フォロー</span>
                 </div>
@@ -225,7 +225,7 @@ export default function TagDetailPage({
                     }`}
                     onClick={() => followMutation.mutate()}
                   >
-                    <Heart
+                    <Bookmark
                       className={`w-5 h-5 ${isFollowing ? "fill-current" : ""}`}
                     />
                     {followMutation.isPending ? (
