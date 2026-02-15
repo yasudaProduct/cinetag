@@ -34,6 +34,14 @@ func (f *fakeMovieService) SearchMovies(ctx context.Context, query string, page 
 	return f.SearchMoviesFn(ctx, query, page)
 }
 
+func (f *fakeMovieService) GetMovieDetail(_ context.Context, _ int) (*MovieDetailResponse, error) {
+	return nil, nil
+}
+
+func (f *fakeMovieService) GetMovieRelatedTags(_ context.Context, _ int, _ int) ([]MovieRelatedTagItem, error) {
+	return nil, nil
+}
+
 type deps struct {
 	tagRepo         *testutil.FakeTagRepository
 	tagMovieRepo    *testutil.FakeTagMovieRepository

@@ -32,6 +32,14 @@ func (f *fakeMovieService) EnsureMovieCache(ctx context.Context, tmdbMovieID int
 	return f.EnsureMovieCacheFn(ctx, tmdbMovieID)
 }
 
+func (f *fakeMovieService) GetMovieDetail(_ context.Context, _ int) (*service.MovieDetailResponse, error) {
+	return nil, nil
+}
+
+func (f *fakeMovieService) GetMovieRelatedTags(_ context.Context, _ int, _ int) ([]service.MovieRelatedTagItem, error) {
+	return nil, nil
+}
+
 func newMovieHandlerRouter(t *testing.T, movieSvc service.MovieService) *gin.Engine {
 	t.Helper()
 
