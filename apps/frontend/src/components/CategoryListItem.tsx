@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Film, Heart } from "lucide-react";
+import { Film, Bookmark } from "lucide-react";
 
 interface CategoryListItemProps {
   title: string;
@@ -117,7 +117,7 @@ export const CategoryListItem = ({
                 <span>{movieCount}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Heart className="w-3.5 h-3.5 text-pink-500" />
+                <Bookmark className="w-3.5 h-3.5 text-pink-500" />
                 <span>{likes}</span>
               </div>
             </div>

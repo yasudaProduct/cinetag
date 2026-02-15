@@ -149,6 +149,8 @@ export const TagDetailResponseSchema = z
         can_edit: z.boolean().optional(),
         can_add_movie: z.boolean().optional(),
         add_movie_policy: AddMoviePolicySchema.optional(),
+        movie_count: z.number().int().nonnegative().optional(),
+        follower_count: z.number().int().nonnegative().optional(),
         participant_count: z.number().int().nonnegative().optional(),
         participants: z.array(TagDetailParticipantSchema).optional(),
     })
@@ -166,6 +168,8 @@ export const TagDetailResponseSchema = z
             canEdit: data.can_edit ?? false,
             canAddMovie: data.can_add_movie ?? false,
             addMoviePolicy: data.add_movie_policy ?? "everyone",
+            movieCount: data.movie_count ?? 0,
+            followerCount: data.follower_count ?? 0,
             participantCount: data.participant_count ?? 0,
             participants,
         };

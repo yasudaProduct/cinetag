@@ -554,11 +554,6 @@ func (s *tagService) AddMovieToTag(ctx context.Context, in AddMovieToTagInput) (
 		return nil, err
 	}
 
-	// タグの movie_count を加算（一覧の表示用）
-	if err := s.tagRepo.IncrementMovieCount(ctx, in.TagID, 1); err != nil {
-		return nil, err
-	}
-
 	// 可能であれば、作成時にベストエフォートでキャッシュを温める（失敗してもAPIは成功扱い）
 	if s.movieService != nil {
 		logger := s.logger // goroutine内で使用するためキャプチャ
@@ -795,16 +790,7 @@ func (s *tagService) RemoveMovieFromTag(ctx context.Context, tagMovieID string, 
 	}
 
 	// 映画を削除
-	if err := s.tagMovieRepo.Delete(ctx, tagMovieID); err != nil {
-		return err
-	}
-
-	// タグの movie_count を減算
-	if err := s.tagRepo.IncrementMovieCount(ctx, tag.ID, -1); err != nil {
-		return err
-	}
-
-	return nil
+	return s.tagMovieRepo.Delete(ctx, tagMovieID)
 }
 
 // タグをフォローする。
@@ -928,7 +914,7 @@ func (s *tagService) ListFollowingTags(ctx context.Context, userID string, page,
 		pageSize = 100
 	}
 
-	tags, total, err := s.tagFollowerRepo.ListFollowingTags(ctx, userID, page, pageSize)
+	rows, total, err := s.tagFollowerRepo.ListFollowingTags(ctx, userID, page, pageSize)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -937,16 +923,16 @@ func (s *tagService) ListFollowingTags(ctx context.Context, userID string, page,
 	}
 
 	// 映画ポスター画像の取得
-	imagesByTag := make(map[string][]string, len(tags))
+	imagesByTag := make(map[string][]string, len(rows))
 	if s.movieService != nil {
-		for _, tag := range tags {
-			tagMovies, err := s.tagMovieRepo.ListRecentByTag(ctx, tag.ID, 4)
+		for _, r := range rows {
+			tagMovies, err := s.tagMovieRepo.ListRecentByTag(ctx, r.ID, 4)
 			if err != nil {
 				continue
 			}
 
 			for _, tm := range tagMovies {
-				if len(imagesByTag[tag.ID]) >= 4 {
+				if len(imagesByTag[r.ID]) >= 4 {
 					break
 				}
 				cache, err := s.movieService.EnsureMovieCache(ctx, tm.TmdbMovieID)
@@ -960,34 +946,25 @@ func (s *tagService) ListFollowingTags(ctx context.Context, userID string, page,
 				if s.imageBaseURL != "" {
 					poster = s.imageBaseURL + poster
 				}
-				imagesByTag[tag.ID] = append(imagesByTag[tag.ID], poster)
+				imagesByTag[r.ID] = append(imagesByTag[r.ID], poster)
 			}
 		}
 	}
 
-	// タグ作成者の情報を取得するため、リポジトリからユーザー情報を取得
-	items := make([]TagListItem, 0, len(tags))
-	for _, tag := range tags {
-		// タグ作成者の情報を取得
-		author := ""
-		authorDisplayID := ""
-		if tagDetail, err := s.tagRepo.FindDetailByID(ctx, tag.ID); err == nil {
-			author = tagDetail.OwnerDisplayName
-			authorDisplayID = tagDetail.OwnerDisplayID
-		}
-
+	items := make([]TagListItem, 0, len(rows))
+	for _, r := range rows {
 		item := TagListItem{
-			ID:              tag.ID,
-			Title:           tag.Title,
-			Description:     tag.Description,
-			Author:          author,
-			AuthorDisplayID: authorDisplayID,
-			CoverImageURL:   tag.CoverImageURL,
-			IsPublic:        tag.IsPublic,
-			MovieCount:      tag.MovieCount,
-			FollowerCount:   tag.FollowerCount,
-			Images:          imagesByTag[tag.ID],
-			CreatedAt:       tag.CreatedAt,
+			ID:              r.ID,
+			Title:           r.Title,
+			Description:     r.Description,
+			Author:          r.Author,
+			AuthorDisplayID: r.AuthorDisplayID,
+			CoverImageURL:   r.CoverImageURL,
+			IsPublic:        r.IsPublic,
+			MovieCount:      r.MovieCount,
+			FollowerCount:   r.FollowerCount,
+			Images:          imagesByTag[r.ID],
+			CreatedAt:       r.CreatedAt,
 		}
 		items = append(items, item)
 	}

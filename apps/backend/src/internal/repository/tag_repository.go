@@ -66,7 +66,6 @@ type TagRepository interface {
 	FindByID(ctx context.Context, id string) (*model.Tag, error)
 	FindDetailByID(ctx context.Context, id string) (*TagDetailRow, error)
 	UpdateByID(ctx context.Context, id string, patch TagUpdatePatch) error
-	IncrementMovieCount(ctx context.Context, id string, delta int) error
 	ListPublicTags(ctx context.Context, filter TagListFilter) ([]TagSummary, int64, error)
 	ListTagsByUserID(ctx context.Context, filter UserTagListFilter) ([]TagSummary, int64, error)
 }
@@ -114,7 +113,9 @@ func (r *tagRepository) FindDetailByID(ctx context.Context, id string) (*TagDeta
 	err := r.db.WithContext(ctx).
 		Table((model.Tag{}).TableName()+" AS t").
 		Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public, t.add_movie_policy,
-				t.movie_count, t.follower_count, t.created_at, t.updated_at,
+				(SELECT COUNT(*) FROM tag_movies WHERE tag_id = t.id) AS movie_count,
+				(SELECT COUNT(*) FROM tag_followers WHERE tag_id = t.id) AS follower_count,
+				t.created_at, t.updated_at,
 				u.id AS owner_id, u.display_id AS owner_display_id,
 				u.display_name AS owner_display_name, u.avatar_url AS owner_avatar_url`).
 		Joins("JOIN "+(model.User{}).TableName()+" AS u ON u.id = t.user_id").
@@ -160,18 +161,6 @@ func (r *tagRepository) UpdateByID(ctx context.Context, id string, patch TagUpda
 		Error
 }
 
-// 指定IDのタグの映画数を増やす。
-func (r *tagRepository) IncrementMovieCount(ctx context.Context, id string, delta int) error {
-	if delta == 0 {
-		return nil
-	}
-	return r.db.WithContext(ctx).
-		Model(&model.Tag{}).
-		Where("id = ?", id).
-		UpdateColumn("movie_count", gorm.Expr("movie_count + ?", delta)).
-		Error
-}
-
 // 公開タグ一覧を取得する。
 func (r *tagRepository) ListPublicTags(ctx context.Context, filter TagListFilter) ([]TagSummary, int64, error) {
 	if filter.Limit <= 0 {
@@ -197,16 +186,18 @@ func (r *tagRepository) ListPublicTags(ctx context.Context, filter TagListFilter
 
 	// Count()はSELECTをCOUNT(*)に置き換えるため、Select句を再指定
 	qb := baseQuery.Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
-				t.movie_count, t.follower_count, t.created_at,
+				(SELECT COUNT(*) FROM tag_movies WHERE tag_id = t.id) AS movie_count,
+				(SELECT COUNT(*) FROM tag_followers WHERE tag_id = t.id) AS follower_count,
+				t.created_at,
 				u.display_name AS author, u.display_id AS author_display_id`)
 
 	switch filter.Sort {
 	case "recent":
 		qb = qb.Order("t.created_at DESC")
 	case "movie_count":
-		qb = qb.Order("t.movie_count DESC")
+		qb = qb.Order("movie_count DESC")
 	default:
-		qb = qb.Order("t.follower_count DESC")
+		qb = qb.Order("follower_count DESC")
 	}
 
 	var rows []TagSummary
@@ -243,7 +234,9 @@ func (r *tagRepository) ListTagsByUserID(ctx context.Context, filter UserTagList
 
 	// Count()はSELECTをCOUNT(*)に置き換えるため、Select句を再指定
 	qb := baseQuery.Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
-				t.movie_count, t.follower_count, t.created_at,
+				(SELECT COUNT(*) FROM tag_movies WHERE tag_id = t.id) AS movie_count,
+				(SELECT COUNT(*) FROM tag_followers WHERE tag_id = t.id) AS follower_count,
+				t.created_at,
 				u.display_name AS author, u.display_id AS author_display_id`).
 		Order("t.created_at DESC")
 

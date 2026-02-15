@@ -276,8 +276,8 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 		"cover_image_url":  tag.CoverImageURL,
 		"is_public":        tag.IsPublic,
 		"add_movie_policy": tag.AddMoviePolicy,
-		"movie_count":      tag.MovieCount,
-		"follower_count":   tag.FollowerCount,
+		"movie_count":      0,
+		"follower_count":   0,
 		"created_at":       tag.CreatedAt,
 		"updated_at":       tag.UpdatedAt,
 	})

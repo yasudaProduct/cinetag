@@ -10,13 +10,12 @@ import (
 // FakeTagRepository は repository.TagRepository の手書き fake です。
 // 必要なテストで Fn を差し替えて使います。
 type FakeTagRepository struct {
-	CreateFn              func(ctx context.Context, tag *model.Tag) error
-	FindByIDFn            func(ctx context.Context, id string) (*model.Tag, error)
-	FindDetailByIDFn      func(ctx context.Context, id string) (*repository.TagDetailRow, error)
-	UpdateByIDFn          func(ctx context.Context, id string, patch repository.TagUpdatePatch) error
-	IncrementMovieCountFn func(ctx context.Context, id string, delta int) error
-	ListPublicTagsFn      func(ctx context.Context, filter repository.TagListFilter) ([]repository.TagSummary, int64, error)
-	ListTagsByUserIDFn    func(ctx context.Context, filter repository.UserTagListFilter) ([]repository.TagSummary, int64, error)
+	CreateFn           func(ctx context.Context, tag *model.Tag) error
+	FindByIDFn         func(ctx context.Context, id string) (*model.Tag, error)
+	FindDetailByIDFn   func(ctx context.Context, id string) (*repository.TagDetailRow, error)
+	UpdateByIDFn       func(ctx context.Context, id string, patch repository.TagUpdatePatch) error
+	ListPublicTagsFn   func(ctx context.Context, filter repository.TagListFilter) ([]repository.TagSummary, int64, error)
+	ListTagsByUserIDFn func(ctx context.Context, filter repository.UserTagListFilter) ([]repository.TagSummary, int64, error)
 }
 
 func (f *FakeTagRepository) Create(ctx context.Context, tag *model.Tag) error {
@@ -45,13 +44,6 @@ func (f *FakeTagRepository) UpdateByID(ctx context.Context, id string, patch rep
 		return nil
 	}
 	return f.UpdateByIDFn(ctx, id, patch)
-}
-
-func (f *FakeTagRepository) IncrementMovieCount(ctx context.Context, id string, delta int) error {
-	if f.IncrementMovieCountFn == nil {
-		return nil
-	}
-	return f.IncrementMovieCountFn(ctx, id, delta)
 }
 
 func (f *FakeTagRepository) ListPublicTags(ctx context.Context, filter repository.TagListFilter) ([]repository.TagSummary, int64, error) {
@@ -128,7 +120,7 @@ type FakeTagFollowerRepository struct {
 	IsFollowingFn       func(ctx context.Context, tagID, userID string) (bool, error)
 	ListFollowersFn     func(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error)
 	CountFollowersFn    func(ctx context.Context, tagID string) (int64, error)
-	ListFollowingTagsFn func(ctx context.Context, userID string, page, pageSize int) ([]*model.Tag, int64, error)
+	ListFollowingTagsFn func(ctx context.Context, userID string, page, pageSize int) ([]repository.TagSummary, int64, error)
 }
 
 func (f *FakeTagFollowerRepository) Create(ctx context.Context, tagID, userID string) error {
@@ -173,9 +165,9 @@ func (f *FakeTagFollowerRepository) CountFollowers(ctx context.Context, tagID st
 	return f.CountFollowersFn(ctx, tagID)
 }
 
-func (f *FakeTagFollowerRepository) ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]*model.Tag, int64, error) {
+func (f *FakeTagFollowerRepository) ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]repository.TagSummary, int64, error) {
 	if f.ListFollowingTagsFn == nil {
-		return []*model.Tag{}, 0, nil
+		return []repository.TagSummary{}, 0, nil
 	}
 	return f.ListFollowingTagsFn(ctx, userID, page, pageSize)
 }

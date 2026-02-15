@@ -33,13 +33,13 @@ func openIntegrationDB(t *testing.T) *gorm.DB {
 		t.Fatalf("pgcrypto extension の有効化に失敗: %v", err)
 	}
 
-	if err := db.AutoMigrate(&model.User{}, &model.Tag{}, &model.TagMovie{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Tag{}, &model.TagMovie{}, &model.TagFollower{}); err != nil {
 		t.Fatalf("AutoMigrate に失敗: %v", err)
 	}
 
 	// 各テストの独立性を担保するため、対象テーブルをクリーンにする。
 	// NOTE: integration テスト専用DBで実行すること（開発用DBでは実行しない）。
-	if err := db.Exec(`TRUNCATE TABLE tag_movies, tags, users RESTART IDENTITY CASCADE;`).Error; err != nil {
+	if err := db.Exec(`TRUNCATE TABLE tag_followers, tag_movies, tags, users RESTART IDENTITY CASCADE;`).Error; err != nil {
 		t.Fatalf("テスト用DBの初期化（TRUNCATE）に失敗: %v", err)
 	}
 
@@ -76,14 +76,13 @@ func createUser(t *testing.T, db *gorm.DB, clerkID, displayName string) *model.U
 	return u
 }
 
-func createTag(t *testing.T, db *gorm.DB, userID, title string, isPublic bool, followerCount int) *model.Tag {
+func createTag(t *testing.T, db *gorm.DB, userID, title string, isPublic bool) *model.Tag {
 	t.Helper()
 
 	tag := &model.Tag{
-		UserID:        userID,
-		Title:         title,
-		IsPublic:      isPublic,
-		FollowerCount: followerCount,
+		UserID:   userID,
+		Title:    title,
+		IsPublic: isPublic,
 	}
 	if err := db.Create(tag).Error; err != nil {
 		t.Fatalf("タグ作成に失敗: %v", err)
@@ -100,7 +99,7 @@ func TestTagMovieRepository_Create_Duplicate(t *testing.T) {
 	tx := beginTx(t, db)
 
 	u := createUser(t, tx, "clerk_u1", "user1")
-	tag := createTag(t, tx, u.ID, "tag1", true, 0)
+	tag := createTag(t, tx, u.ID, "tag1", true)
 
 	repo := NewTagMovieRepository(tx)
 	ctx := context.Background()
@@ -143,7 +142,7 @@ func TestTagMovieRepository_ListRecentByTag_NewestFirst(t *testing.T) {
 	tx := beginTx(t, db)
 
 	u := createUser(t, tx, "clerk_u1", "user1")
-	tag := createTag(t, tx, u.ID, "tag1", true, 0)
+	tag := createTag(t, tx, u.ID, "tag1", true)
 
 	now := time.Now().UTC()
 	rows := []*model.TagMovie{
@@ -170,29 +169,6 @@ func TestTagMovieRepository_ListRecentByTag_NewestFirst(t *testing.T) {
 	}
 }
 
-func TestTagRepository_IncrementMovieCount_Increment(t *testing.T) {
-	db := openIntegrationDB(t)
-	tx := beginTx(t, db)
-
-	u := createUser(t, tx, "clerk_u1", "user1")
-	tag := createTag(t, tx, u.ID, "tag1", true, 0)
-
-	repo := NewTagRepository(tx)
-	ctx := context.Background()
-
-	if err := repo.IncrementMovieCount(ctx, tag.ID, 2); err != nil {
-		t.Fatalf("IncrementMovieCount に失敗: %v", err)
-	}
-
-	again, err := repo.FindByID(ctx, tag.ID)
-	if err != nil {
-		t.Fatalf("FindByID に失敗: %v", err)
-	}
-	if again.MovieCount != 2 {
-		t.Fatalf("expected movie_count=2, got %d", again.MovieCount)
-	}
-}
-
 // follower_count の降順になるように設定
 func TestTagRepository_ListPublicTags_FollowerCountDesc(t *testing.T) {
 	db := openIntegrationDB(t)
@@ -200,11 +176,22 @@ func TestTagRepository_ListPublicTags_FollowerCountDesc(t *testing.T) {
 
 	u1 := createUser(t, tx, "clerk_u1", "alice")
 	u2 := createUser(t, tx, "clerk_u2", "bob")
+	u3 := createUser(t, tx, "clerk_u3", "charlie")
 
-	// follower_count の降順になるように設定
-	_ = createTag(t, tx, u1.ID, "非公開タグ", false, 999)
-	t1 := createTag(t, tx, u1.ID, "公開タグA", true, 10)
-	t2 := createTag(t, tx, u2.ID, "公開タグB", true, 20)
+	// 非公開タグは一覧に含まれない
+	_ = createTag(t, tx, u1.ID, "非公開タグ", false)
+	t1 := createTag(t, tx, u1.ID, "公開タグA", true)
+	t2 := createTag(t, tx, u2.ID, "公開タグB", true)
+
+	// t2 にフォロワーを2人追加、t1 にはフォロワー1人
+	for _, uid := range []string{u1.ID, u3.ID} {
+		if err := tx.Create(&model.TagFollower{TagID: t2.ID, UserID: uid}).Error; err != nil {
+			t.Fatalf("tag_followers INSERT に失敗: %v", err)
+		}
+	}
+	if err := tx.Create(&model.TagFollower{TagID: t1.ID, UserID: u2.ID}).Error; err != nil {
+		t.Fatalf("tag_followers INSERT に失敗: %v", err)
+	}
 
 	repo := NewTagRepository(tx)
 	ctx := context.Background()
@@ -220,12 +207,18 @@ func TestTagRepository_ListPublicTags_FollowerCountDesc(t *testing.T) {
 		t.Fatalf("expected 2 rows, got %d", len(rows))
 	}
 
-	// デフォルトは follower_count DESC
+	// デフォルトは follower_count DESC — t2(2) > t1(1)
 	if rows[0].ID != t2.ID || rows[1].ID != t1.ID {
 		t.Fatalf("expected order [B,A], got [%s,%s]", rows[0].ID, rows[1].ID)
 	}
 	if rows[0].Author != "bob" {
 		t.Fatalf("expected author=bob, got %q", rows[0].Author)
+	}
+	if rows[0].FollowerCount != 2 {
+		t.Fatalf("expected follower_count=2, got %d", rows[0].FollowerCount)
+	}
+	if rows[1].FollowerCount != 1 {
+		t.Fatalf("expected follower_count=1, got %d", rows[1].FollowerCount)
 	}
 }
 
@@ -234,8 +227,8 @@ func TestTagRepository_ListPublicTags_TitleSearch(t *testing.T) {
 	tx := beginTx(t, db)
 
 	u := createUser(t, tx, "clerk_u1", "alice")
-	_ = createTag(t, tx, u.ID, "ドラマ特集", true, 0)
-	_ = createTag(t, tx, u.ID, "アクション特集", true, 0)
+	_ = createTag(t, tx, u.ID, "ドラマ特集", true)
+	_ = createTag(t, tx, u.ID, "アクション特集", true)
 
 	repo := NewTagRepository(tx)
 	ctx := context.Background()
