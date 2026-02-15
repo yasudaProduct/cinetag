@@ -14,18 +14,8 @@ export type MoviePosterCardProps = {
 export const MoviePosterCard = ({ title, year, posterUrl, href, onDelete, isDeleting }: MoviePosterCardProps) => {
   const src = posterUrl || `https://placehold.co/360x540/png?text=${encodeURIComponent(title)}`;
 
-  const Wrapper = href
-    ? ({ children, className }: { children: React.ReactNode; className?: string }) => (
-        <Link href={href} className={className}>
-          {children}
-        </Link>
-      )
-    : ({ children, className }: { children: React.ReactNode; className?: string }) => (
-        <div className={className}>{children}</div>
-      );
-
-  return (
-    <Wrapper className="group relative">
+  const content = (
+    <>
       <div className="relative w-full aspect-[2/3] rounded-2xl overflow-hidden shadow-sm bg-white border border-gray-200 group-hover:shadow-md transition-shadow">
         <Image
           src={src}
@@ -56,6 +46,16 @@ export const MoviePosterCard = ({ title, year, posterUrl, href, onDelete, isDele
           <div className="text-xs text-gray-500 mt-0.5">{year}</div>
         )}
       </div>
-    </Wrapper>
+    </>
+  );
+
+  return href ? (
+    <Link href={href} className="group relative">
+      {content}
+    </Link>
+  ) : (
+    <div className="group relative">
+      {content}
+    </div>
   );
 };

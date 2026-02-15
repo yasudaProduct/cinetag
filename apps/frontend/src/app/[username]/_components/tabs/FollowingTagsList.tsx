@@ -11,7 +11,6 @@ type FollowingTagsListProps = {
 };
 
 export function FollowingTagsList({
-  username,
   isOwnPage,
 }: FollowingTagsListProps) {
   const { getToken, isSignedIn, isLoaded } = useAuth();
