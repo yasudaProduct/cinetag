@@ -34,8 +34,6 @@ erDiagram
         text cover_image_url "カバー画像URL"
         boolean is_public "公開フラグ"
         text add_movie_policy "映画追加ポリシー"
-        integer movie_count "映画数"
-        integer follower_count "フォロワー数"
         timestamptz created_at
         timestamptz updated_at
     }
@@ -121,8 +119,6 @@ erDiagram
 | `description` | TEXT | YES | - | 説明（最大500文字） |
 | `cover_image_url` | TEXT | YES | - | カバー画像URL |
 | `is_public` | BOOLEAN | NO | `true` | 公開フラグ |
-| `movie_count` | INTEGER | NO | `0` | 映画数（非正規化） |
-| `follower_count` | INTEGER | NO | `0` | フォロワー数（非正規化） |
 | `created_at` | TIMESTAMPTZ | NO | `CURRENT_TIMESTAMP` | 作成日時 |
 | `updated_at` | TIMESTAMPTZ | NO | `CURRENT_TIMESTAMP` | 更新日時 |
 
@@ -179,8 +175,6 @@ erDiagram
 |-----------|---------|---------|------|
 | `update_users_updated_at` | users | BEFORE UPDATE | updated_at自動更新 |
 | `update_tags_updated_at` | tags | BEFORE UPDATE | updated_at自動更新 |
-| `trigger_update_tag_movie_count` | tag_movies | AFTER INSERT/DELETE | movie_count更新 |
-| `trigger_update_tag_follower_count` | tag_followers | AFTER INSERT/DELETE | follower_count更新 |
 
 ---
 
@@ -192,8 +186,6 @@ erDiagram
 | users | `users_display_id_key` | UNIQUE | display_idの一意性 |
 | tags | `tags_title_length` | CHECK | タイトル1-100文字 |
 | tags | `tags_description_length` | CHECK | 説明500文字以下 |
-| tags | `tags_movie_count_positive` | CHECK | movie_count >= 0 |
-| tags | `tags_follower_count_positive` | CHECK | follower_count >= 0 |
 | tag_movies | `tag_movies_unique` | UNIQUE | (tag_id, tmdb_movie_id)の一意性 |
 | tag_movies | `tag_movies_note_length` | CHECK | メモ280文字以下 |
 | tag_movies | `tag_movies_position_positive` | CHECK | position >= 0 |

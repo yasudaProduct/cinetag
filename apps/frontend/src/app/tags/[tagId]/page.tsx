@@ -10,7 +10,7 @@ import { deleteMovieFromTag } from "@/lib/api/tags/deleteMovie";
 import { followTag } from "@/lib/api/tags/follow";
 import { unfollowTag } from "@/lib/api/tags/unfollow";
 import { getTagFollowStatus } from "@/lib/api/tags/getFollowStatus";
-import { Search, Plus, Pencil, Heart } from "lucide-react";
+import { Search, Plus, Pencil, Bookmark, Film } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { Spinner } from "@/components/ui/spinner";
@@ -18,18 +18,18 @@ import { Spinner } from "@/components/ui/spinner";
 // 動的インポート: モーダルは初期表示に不要なため遅延ロード
 const MovieAddModal = dynamic(
   () => import("@/components/MovieAddModal").then((mod) => mod.MovieAddModal),
-  { ssr: false }
+  { ssr: false },
 );
 const TagModal = dynamic(
   () => import("@/components/TagModal").then((mod) => mod.TagModal),
-  { ssr: false }
+  { ssr: false },
 );
 const TagFollowersModal = dynamic(
   () =>
     import("@/components/TagFollowersModal").then(
-      (mod) => mod.TagFollowersModal
+      (mod) => mod.TagFollowersModal,
     ),
-  { ssr: false }
+  { ssr: false },
 );
 
 export default function TagDetailPage({
@@ -50,7 +50,7 @@ export default function TagDetailPage({
     queryKey: ["tagDetail", tagId],
     queryFn: async () => {
       const token = await getToken({ template: "cinetag-backend" }).catch(
-        () => null
+        () => null,
       );
       return await getTagDetail(tagId, { token: token ?? undefined });
     },
@@ -60,7 +60,7 @@ export default function TagDetailPage({
     queryKey: ["tagMovies", tagId],
     queryFn: async () => {
       const token = await getToken({ template: "cinetag-backend" }).catch(
-        () => null
+        () => null,
       );
       return await listTagMovies(tagId, { token: token ?? undefined });
     },
@@ -118,7 +118,7 @@ export default function TagDetailPage({
     const q = query.trim().toLowerCase();
     if (!q) return movies;
     return movies.filter((m) =>
-      `${m.title} ${m.year}`.toLowerCase().includes(q)
+      `${m.title} ${m.year}`.toLowerCase().includes(q),
     );
   })();
 
@@ -135,6 +135,20 @@ export default function TagDetailPage({
               <p className="mt-3 text-sm md:text-base text-gray-600 leading-relaxed">
                 {detail?.description}
               </p>
+
+              {/* Stats: フォロー数 & 映画数 */}
+              <div className="mt-5 flex items-center gap-4">
+                <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                  <Bookmark className="w-4 h-4 text-pink-500" />
+                  <span className="font-bold text-gray-900">{detail?.followerCount ?? 0}</span>
+                  <span>フォロー</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                  <Film className="w-4 h-4 text-blue-500" />
+                  <span className="font-bold text-gray-900">{detail?.movieCount ?? 0}</span>
+                  <span>本の映画</span>
+                </div>
+              </div>
 
               {/* Author */}
               <div className="mt-6 flex items-center gap-3">
@@ -157,7 +171,7 @@ export default function TagDetailPage({
                         {detail?.author?.name ?? "-"}
                       </a>
                     ) : (
-                      detail?.author?.name ?? "-"
+                      (detail?.author?.name ?? "-")
                     )}
                   </div>
                 </div>
@@ -211,7 +225,7 @@ export default function TagDetailPage({
                     }`}
                     onClick={() => followMutation.mutate()}
                   >
-                    <Heart
+                    <Bookmark
                       className={`w-5 h-5 ${isFollowing ? "fill-current" : ""}`}
                     />
                     {followMutation.isPending ? (
@@ -290,7 +304,7 @@ export default function TagDetailPage({
                       ? () => {
                           if (
                             confirm(
-                              `「${m.title}」をこのタグから削除しますか？`
+                              `「${m.title}」をこのタグから削除しますか？`,
                             )
                           ) {
                             deleteMutation.mutate(m.id);

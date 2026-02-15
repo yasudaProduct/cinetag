@@ -298,8 +298,6 @@ func TestTagHandler_CreateTag(t *testing.T) {
 					Description:   in.Description,
 					CoverImageURL: in.CoverImageURL,
 					IsPublic:      true,
-					MovieCount:    0,
-					FollowerCount: 0,
 					CreatedAt:     now,
 					UpdatedAt:     now,
 				}, nil
@@ -366,8 +364,6 @@ func TestTagHandler_CreateTag(t *testing.T) {
 					Title:          in.Title,
 					AddMoviePolicy: "owner_only",
 					IsPublic:       true,
-					MovieCount:     0,
-					FollowerCount:  0,
 					CreatedAt:      now,
 					UpdatedAt:      now,
 				}, nil

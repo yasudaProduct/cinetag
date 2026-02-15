@@ -23,7 +23,7 @@ type TagFollowerRepository interface {
 	// タグのフォロワー数を取得する。
 	CountFollowers(ctx context.Context, tagID string) (int64, error)
 	// ユーザーがフォローしているタグ一覧を取得する。
-	ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]*model.Tag, int64, error)
+	ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]TagSummary, int64, error)
 }
 
 type tagFollowerRepository struct {
@@ -115,34 +115,43 @@ func (r *tagFollowerRepository) CountFollowers(ctx context.Context, tagID string
 }
 
 // ユーザーがフォローしているタグ一覧を取得する。
-func (r *tagFollowerRepository) ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]*model.Tag, int64, error) {
-	var tags []*model.Tag
+func (r *tagFollowerRepository) ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]TagSummary, int64, error) {
 	var total int64
 
 	offset := (page - 1) * pageSize
 
-	// フォロー中のタグ数をカウント
+	// フォロー中の公開タグ数をカウント
 	if err := r.db.WithContext(ctx).
-		Model(&model.TagFollower{}).
-		Where("user_id = ?", userID).
+		Table("tag_followers AS tf").
+		Joins("INNER JOIN tags AS t ON t.id = tf.tag_id").
+		Where("tf.user_id = ? AND t.is_public = ?", userID, true).
 		Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
+	if total == 0 {
+		return []TagSummary{}, 0, nil
+	}
 
-	// フォロー中のタグ一覧を取得（公開タグのみ）
+	// フォロー中のタグ一覧を取得（公開タグのみ、サブクエリで movie_count / follower_count を計算）
+	var rows []TagSummary
 	err := r.db.WithContext(ctx).
-		Table("tags").
-		Select("tags.*").
-		Joins("INNER JOIN tag_followers ON tags.id = tag_followers.tag_id").
-		Where("tag_followers.user_id = ? AND tags.is_public = ?", userID, true).
-		Order("tag_followers.created_at DESC").
+		Table("tags AS t").
+		Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
+				(SELECT COUNT(*) FROM tag_movies WHERE tag_id = t.id) AS movie_count,
+				(SELECT COUNT(*) FROM tag_followers WHERE tag_id = t.id) AS follower_count,
+				t.created_at,
+				u.display_name AS author, u.display_id AS author_display_id`).
+		Joins("INNER JOIN tag_followers AS tf ON t.id = tf.tag_id").
+		Joins("JOIN users AS u ON u.id = t.user_id").
+		Where("tf.user_id = ? AND t.is_public = ?", userID, true).
+		Order("tf.created_at DESC").
 		Limit(pageSize).
 		Offset(offset).
-		Find(&tags).Error
+		Scan(&rows).Error
 
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return tags, total, nil
+	return rows, total, nil
 }
