@@ -1,6 +1,6 @@
 "use client";
 
-import { FollowingTagsList } from "@/app/[username]/_components/tabs/FollowingTagsList";
+import { FollowingTagsList } from "@/app/(app)/[username]/_components/tabs/FollowingTagsList";
 
 export function FollowingTagsPageClient() {
   return (
