@@ -48,7 +48,7 @@ export default function RootLayout({
     >
       <html lang="ja">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased flex min-h-screen bg-[#FFF5F5] text-gray-900`}
+          className={`${geistSans.variable} ${geistMono.variable} antialiased flex min-h-screen bg-[#FFF9F3] text-gray-900`}
         >
           <Providers>
             <Sidebar />
