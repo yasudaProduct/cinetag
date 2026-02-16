@@ -299,6 +299,7 @@ export default function TagDetailPage({
                   title={m.title}
                   year={m.year}
                   posterUrl={m.posterUrl}
+                  href={m.tmdbMovieId ? `/movies/${m.tmdbMovieId}` : undefined}
                   onDelete={
                     m.canDelete
                       ? () => {
