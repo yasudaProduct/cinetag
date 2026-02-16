@@ -54,7 +54,8 @@ export default function MovieDetailPage({
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 text-lg font-bold">
-            {(movieQuery.error as Error | null)?.message ?? "映画情報の取得に失敗しました"}
+            {(movieQuery.error as Error | null)?.message ??
+              "映画情報の取得に失敗しました"}
           </p>
         </div>
       </div>
@@ -173,7 +174,9 @@ export default function MovieDetailPage({
               {/* キャスト */}
               {movie.cast.length > 0 && (
                 <div className="mt-5">
-                  <h2 className="text-base font-bold text-gray-900">キャスト</h2>
+                  <h2 className="text-base font-bold text-gray-900">
+                    キャスト
+                  </h2>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {movie.cast.map((member) => (
                       <span
@@ -186,17 +189,6 @@ export default function MovieDetailPage({
                   </div>
                 </div>
               )}
-
-              {/* アクションボタン */}
-              <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                <button
-                  type="button"
-                  className="flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold text-white bg-[#2b7fff] rounded-2xl hover:bg-blue-600 transition-colors"
-                >
-                  <Plus className="w-5 h-5" />
-                  タグに追加
-                </button>
-              </div>
             </div>
           </div>
         </div>

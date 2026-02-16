@@ -140,12 +140,16 @@ export default function TagDetailPage({
               <div className="mt-5 flex items-center gap-4">
                 <div className="flex items-center gap-1.5 text-sm text-gray-600">
                   <Bookmark className="w-4 h-4 text-pink-500" />
-                  <span className="font-bold text-gray-900">{detail?.followerCount ?? 0}</span>
+                  <span className="font-bold text-gray-900">
+                    {detail?.followerCount ?? 0}
+                  </span>
                   <span>フォロー</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-sm text-gray-600">
                   <Film className="w-4 h-4 text-blue-500" />
-                  <span className="font-bold text-gray-900">{detail?.movieCount ?? 0}</span>
+                  <span className="font-bold text-gray-900">
+                    {detail?.movieCount ?? 0}
+                  </span>
                   <span>本の映画</span>
                 </div>
               </div>
@@ -181,8 +185,16 @@ export default function TagDetailPage({
               <div className="mt-6">
                 <button
                   type="button"
-                  onClick={() => setFollowersOpen(true)}
-                  className="w-full text-left hover:bg-gray-50 rounded-xl p-2 -m-2 transition-colors"
+                  onClick={() =>
+                    detail?.participantCount && detail.participantCount > 0
+                      ? setFollowersOpen(true)
+                      : undefined
+                  }
+                  className={`w-full text-left rounded-xl p-2 -m-2 transition-colors ${
+                    detail?.participantCount && detail.participantCount > 0
+                      ? "cursor-pointer hover:bg-gray-50"
+                      : "cursor-default"
+                  }`}
                 >
                   <div className="text-xs text-gray-500 font-semibold">
                     {detail?.participantCount ?? 0}人の参加者
