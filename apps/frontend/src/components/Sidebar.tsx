@@ -18,6 +18,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMe } from "@/lib/api/users/getMe";
 import { cn } from "@/lib/utils";
 import { TagModal } from "@/components/TagModal";
+import { LoginModal } from "@/components/LoginModal";
 
 export const Sidebar = () => {
   const pathname = usePathname();
@@ -25,6 +26,7 @@ export const Sidebar = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
 
@@ -157,7 +159,7 @@ export const Sidebar = () => {
                 setIsCreateModalOpen(true);
                 return;
               }
-              router.push("/sign-in"); // 未ログイン時はサインインを促す
+              setIsLoginModalOpen(true);
             }}
             className={cn(
               "w-full flex items-center justify-center gap-2 mt-4 px-4 py-3 bg-[#FFD75E] text-gray-900 text-sm font-bold rounded-2xl transition-all shadow-sm hover:shadow active:scale-[0.98]",
@@ -267,7 +269,7 @@ export const Sidebar = () => {
               setIsCreateModalOpen(true);
               return;
             }
-            router.push("/sign-in");
+            setIsLoginModalOpen(true);
           }}
           className={cn(
             "flex items-center justify-center p-3 rounded-full bg-[#FFD75E] text-gray-900 shadow-lg active:scale-95 transition-transform",
@@ -322,6 +324,13 @@ export const Sidebar = () => {
           }}
         />
       </SignedIn>
+
+      <SignedOut>
+        <LoginModal
+          open={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+        />
+      </SignedOut>
     </>
   );
 };
