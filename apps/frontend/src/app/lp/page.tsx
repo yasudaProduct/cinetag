@@ -1,6 +1,208 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Tag, Users, Search } from "lucide-react";
+import { ArrowRight, Tag, Users, Search, Film } from "lucide-react";
+
+type SampleTag = {
+  name: string;
+  count: number;
+  color: string;
+  movies: { title: string; bg: string }[];
+};
+
+const SAMPLE_TAGS_ROW1: SampleTag[] = [
+  {
+    name: "雨の日に観たい映画",
+    count: 24,
+    color: "bg-blue-400",
+    movies: [
+      { title: "雨に唄えば", bg: "from-blue-700 to-blue-950" },
+      { title: "天気の子", bg: "from-sky-600 to-sky-900" },
+      { title: "ブレードランナー", bg: "from-indigo-700 to-indigo-950" },
+    ],
+  },
+  {
+    name: "人生で一度は観るべき名作",
+    count: 89,
+    color: "bg-amber-400",
+    movies: [
+      { title: "ショーシャンクの空に", bg: "from-amber-700 to-amber-950" },
+      { title: "ゴッドファーザー", bg: "from-stone-700 to-stone-950" },
+      { title: "フォレスト・ガンプ", bg: "from-emerald-700 to-emerald-950" },
+    ],
+  },
+  {
+    name: "笑えるコメディ映画",
+    count: 156,
+    color: "bg-green-400",
+    movies: [
+      { title: "ホーム・アローン", bg: "from-green-600 to-green-900" },
+      { title: "テルマエ・ロマエ", bg: "from-yellow-700 to-yellow-950" },
+      { title: "翔んで埼玉", bg: "from-lime-700 to-lime-950" },
+    ],
+  },
+  {
+    name: "泣ける恋愛映画",
+    count: 67,
+    color: "bg-pink-400",
+    movies: [
+      { title: "タイタニック", bg: "from-pink-700 to-pink-950" },
+      { title: "君の名は。", bg: "from-sky-600 to-indigo-900" },
+      { title: "ノッティングヒルの恋人", bg: "from-rose-600 to-rose-900" },
+    ],
+  },
+  {
+    name: "夜更かしにぴったり",
+    count: 31,
+    color: "bg-indigo-400",
+    movies: [
+      { title: "ファイト・クラブ", bg: "from-indigo-800 to-gray-950" },
+      { title: "マトリックス", bg: "from-green-800 to-gray-950" },
+      { title: "インセプション", bg: "from-slate-700 to-slate-950" },
+    ],
+  },
+  {
+    name: "友達と観たい映画",
+    count: 43,
+    color: "bg-teal-400",
+    movies: [
+      { title: "ジュラシック・パーク", bg: "from-teal-700 to-teal-950" },
+      { title: "バック・トゥ・ザ・フューチャー", bg: "from-blue-600 to-blue-900" },
+      { title: "ミッション:インポッシブル", bg: "from-red-800 to-red-950" },
+    ],
+  },
+  {
+    name: "頭を使うサスペンス",
+    count: 71,
+    color: "bg-purple-400",
+    movies: [
+      { title: "シャッター アイランド", bg: "from-purple-800 to-purple-950" },
+      { title: "メメント", bg: "from-gray-700 to-gray-950" },
+      { title: "ゴーン・ガール", bg: "from-zinc-700 to-zinc-950" },
+    ],
+  },
+  {
+    name: "音楽が最高な映画",
+    count: 33,
+    color: "bg-rose-400",
+    movies: [
+      { title: "ラ・ラ・ランド", bg: "from-violet-700 to-indigo-950" },
+      { title: "ボヘミアン・ラプソディ", bg: "from-rose-700 to-rose-950" },
+      { title: "SING", bg: "from-fuchsia-600 to-fuchsia-900" },
+    ],
+  },
+];
+
+const SAMPLE_TAGS_ROW2: SampleTag[] = [
+  {
+    name: "旅に出たくなる映画",
+    count: 45,
+    color: "bg-emerald-400",
+    movies: [
+      { title: "LIFE!", bg: "from-emerald-600 to-emerald-900" },
+      { title: "食べて、祈って、恋をして", bg: "from-orange-600 to-orange-900" },
+      { title: "イントゥ・ザ・ワイルド", bg: "from-green-700 to-green-950" },
+    ],
+  },
+  {
+    name: "家族で観たい映画",
+    count: 62,
+    color: "bg-orange-400",
+    movies: [
+      { title: "となりのトトロ", bg: "from-green-600 to-green-900" },
+      { title: "トイ・ストーリー", bg: "from-sky-500 to-sky-800" },
+      { title: "サマーウォーズ", bg: "from-blue-500 to-blue-800" },
+    ],
+  },
+  {
+    name: "夏に観たい爽快映画",
+    count: 52,
+    color: "bg-cyan-400",
+    movies: [
+      { title: "サマータイムマシン・ブルース", bg: "from-cyan-600 to-cyan-900" },
+      { title: "菊次郎の夏", bg: "from-sky-600 to-sky-900" },
+      { title: "ウォーターボーイズ", bg: "from-blue-500 to-blue-800" },
+    ],
+  },
+  {
+    name: "クリスマスに観たい映画",
+    count: 38,
+    color: "bg-red-400",
+    movies: [
+      { title: "ホーム・アローン", bg: "from-red-600 to-red-900" },
+      { title: "ラブ・アクチュアリー", bg: "from-rose-700 to-rose-950" },
+      { title: "素晴らしき哉、人生!", bg: "from-amber-700 to-amber-950" },
+    ],
+  },
+  {
+    name: "元気が出る映画",
+    count: 94,
+    color: "bg-yellow-400",
+    movies: [
+      { title: "グレイテスト・ショーマン", bg: "from-yellow-600 to-yellow-900" },
+      { title: "リトル・ミス・サンシャイン", bg: "from-amber-600 to-amber-900" },
+      { title: "ROOKIES", bg: "from-orange-600 to-orange-900" },
+    ],
+  },
+  {
+    name: "一人で静かに観たい映画",
+    count: 57,
+    color: "bg-slate-400",
+    movies: [
+      { title: "ドライブ・マイ・カー", bg: "from-slate-700 to-slate-950" },
+      { title: "パターソン", bg: "from-gray-600 to-gray-900" },
+      { title: "万引き家族", bg: "from-stone-700 to-stone-950" },
+    ],
+  },
+  {
+    name: "SF好きにおすすめ",
+    count: 83,
+    color: "bg-violet-400",
+    movies: [
+      { title: "インターステラー", bg: "from-violet-800 to-gray-950" },
+      { title: "ブレードランナー 2049", bg: "from-orange-800 to-gray-950" },
+      { title: "メッセージ", bg: "from-slate-600 to-slate-900" },
+    ],
+  },
+  {
+    name: "実話ベースの感動作",
+    count: 46,
+    color: "bg-lime-400",
+    movies: [
+      { title: "シンドラーのリスト", bg: "from-gray-700 to-gray-950" },
+      { title: "ビューティフル・マインド", bg: "from-blue-700 to-blue-950" },
+      { title: "ソーシャル・ネットワーク", bg: "from-sky-800 to-sky-950" },
+    ],
+  },
+];
+
+function TagCard({ tag }: { tag: SampleTag }) {
+  return (
+    <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl pl-5 pr-3 py-3 shadow-sm hover:shadow-md transition-shadow shrink-0 cursor-default">
+      <div className={`w-3 h-3 rounded-full ${tag.color} shrink-0`} />
+      <span className="text-sm font-bold text-gray-900 whitespace-nowrap">
+        {tag.name}
+      </span>
+      <span className="flex items-center gap-1 text-xs text-gray-400 whitespace-nowrap">
+        <Film className="w-3.5 h-3.5" />
+        {tag.count}本
+      </span>
+      {/* Poster stack */}
+      <div className="flex -space-x-2 ml-1">
+        {tag.movies.map((movie, j) => (
+          <div
+            key={j}
+            className={`w-8 h-12 rounded-md bg-gradient-to-br ${movie.bg} shadow-sm border border-white/30 flex items-end overflow-hidden`}
+            title={movie.title}
+          >
+            <span className="text-[5px] leading-tight text-white/80 font-medium px-0.5 pb-0.5 line-clamp-2">
+              {movie.title}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export const metadata: Metadata = {
   title: "cinetag - 映画をタグでつながる、共有する",
@@ -112,6 +314,36 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Tag Marquee Section */}
+      <section className="py-16 md:py-20 bg-white overflow-hidden">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl md:text-4xl font-black tracking-tight text-gray-900">
+            みんなが作ったタグ
+          </h2>
+          <p className="mt-4 text-base md:text-lg text-gray-500">
+            ユーザーが自由に作成したタグの一部をご紹介
+          </p>
+        </div>
+
+        {/* Row 1 - scrolls left */}
+        <div className="marquee-track mb-4">
+          <div className="animate-marquee-left flex w-max gap-4 pl-4">
+            {[...SAMPLE_TAGS_ROW1, ...SAMPLE_TAGS_ROW1].map((tag, i) => (
+              <TagCard key={`r1-${i}`} tag={tag} />
+            ))}
+          </div>
+        </div>
+
+        {/* Row 2 - scrolls right */}
+        <div className="marquee-track">
+          <div className="animate-marquee-right flex w-max gap-4 pl-4">
+            {[...SAMPLE_TAGS_ROW2, ...SAMPLE_TAGS_ROW2].map((tag, i) => (
+              <TagCard key={`r2-${i}`} tag={tag} />
+            ))}
           </div>
         </div>
       </section>
