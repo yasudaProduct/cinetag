@@ -1,5 +1,5 @@
 import HomeClient from "./HomeClient";
 
-export default function Home() {
+export default function TagsPage() {
   return <HomeClient />;
 }

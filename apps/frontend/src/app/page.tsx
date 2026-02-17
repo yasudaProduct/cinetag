@@ -296,7 +296,7 @@ export default async function LandingPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 h-[78px] flex items-center justify-between">
-          <Link href="/lp" className="text-2xl font-black tracking-tight">
+          <Link href="/" className="text-2xl font-black tracking-tight">
             cinetag
           </Link>
           <div className="flex items-center gap-4">
@@ -335,10 +335,10 @@ export default async function LandingPage() {
               </p>
               <div className="flex flex-wrap gap-4 pt-2">
                 <Link
-                  href="/sign-up"
+                  href="/tags"
                   className="inline-flex items-center gap-2 px-7 py-3.5 bg-gray-900 text-white font-semibold rounded-full hover:bg-gray-800 transition-colors"
                 >
-                  今すぐ始める
+                  タグを探す
                   <ArrowRight className="w-5 h-5" />
                 </Link>
                 <a
@@ -541,7 +541,7 @@ export default async function LandingPage() {
             無料でアカウントを作成して、映画の新しい楽しみ方を体験してください
           </p>
           <Link
-            href="/sign-up"
+            href="/tags"
             className="inline-flex items-center gap-2 mt-8 px-8 py-4 bg-gray-900 text-white font-semibold rounded-full hover:bg-gray-800 transition-colors text-lg"
           >
             無料で始める
