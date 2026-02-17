@@ -3,8 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "../components/providers/query-client-provider";
+import { AppShell } from "../components/AppShell";
 import { jaJP } from "@clerk/localizations";
-import { Sidebar } from "../components/Sidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,13 +48,10 @@ export default function RootLayout({
     >
       <html lang="ja">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased flex min-h-screen bg-[#FFF9F3] text-gray-900`}
+          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#FFF9F3] text-gray-900`}
         >
           <Providers>
-            <Sidebar />
-            <main className="flex-1 md:ml-64 min-h-screen pb-20 md:pb-0">
-              {children}
-            </main>
+            <AppShell>{children}</AppShell>
           </Providers>
         </body>
       </html>
