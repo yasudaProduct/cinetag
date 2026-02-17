@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import {
   Search,
@@ -13,13 +13,7 @@ import {
   FileText,
   ShieldCheck,
 } from "lucide-react";
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  useAuth,
-  useClerk,
-} from "@clerk/nextjs";
+import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMe } from "@/lib/api/users/getMe";
 import { cn } from "@/lib/utils";
@@ -28,7 +22,7 @@ import { TagModal } from "@/components/TagModal";
 export const Sidebar = () => {
   const pathname = usePathname();
   const { isSignedIn, isLoaded, getToken } = useAuth();
-  const { openSignIn } = useClerk();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
@@ -163,7 +157,7 @@ export const Sidebar = () => {
                 setIsCreateModalOpen(true);
                 return;
               }
-              openSignIn({}); // 未ログイン時はサインインを促す
+              router.push("/sign-in"); // 未ログイン時はサインインを促す
             }}
             className={cn(
               "w-full flex items-center justify-center gap-2 mt-4 px-4 py-3 bg-[#FFD75E] text-gray-900 text-sm font-bold rounded-2xl transition-all shadow-sm hover:shadow active:scale-[0.98]",
@@ -229,12 +223,13 @@ export const Sidebar = () => {
               </div>
             </SignedIn> */}
             <SignedOut>
-              <SignInButton mode="modal">
-                <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#FFD75E] text-gray-900 text-sm font-bold rounded-2xl hover:bg-[#ffcf40] transition-all shadow-sm hover:shadow active:scale-[0.98]">
-                  <User className="w-4 h-4" />
-                  ログイン
-                </button>
-              </SignInButton>
+              <Link
+                href="/sign-in"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#FFD75E] text-gray-900 text-sm font-bold rounded-2xl hover:bg-[#ffcf40] transition-all shadow-sm hover:shadow active:scale-[0.98]"
+              >
+                <User className="w-4 h-4" />
+                ログイン
+              </Link>
             </SignedOut>
           </div>
         </div>
@@ -272,7 +267,7 @@ export const Sidebar = () => {
               setIsCreateModalOpen(true);
               return;
             }
-            openSignIn({});
+            router.push("/sign-in");
           }}
           className={cn(
             "flex items-center justify-center p-3 rounded-full bg-[#FFD75E] text-gray-900 shadow-lg active:scale-95 transition-transform",

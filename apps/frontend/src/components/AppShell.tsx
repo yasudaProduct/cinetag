@@ -7,7 +7,11 @@ const NO_SIDEBAR_PATHS = ["/"];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const hideSidebar = NO_SIDEBAR_PATHS.includes(pathname);
+  const hideSidebar =
+    NO_SIDEBAR_PATHS.includes(pathname) ||
+    pathname.startsWith("/sign-in") ||
+    pathname.startsWith("/sign-up") ||
+    pathname.startsWith("/sso-callback");
 
   if (hideSidebar) {
     return <>{children}</>;
