@@ -69,12 +69,12 @@ export const TagModal = (props: TagModalProps) => {
   const [formValues, setFormValues] = useState(getInitialFormValues);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(
-    isEditMode && tag ? tag.is_public : true
+    isEditMode && tag ? tag.is_public : true,
   ); // TODO デフォルトfalseに変更する
 
   const canSubmit = useMemo(
     () => formValues.title.trim().length > 0,
-    [formValues.title]
+    [formValues.title],
   );
 
   // Create mutation
@@ -119,7 +119,7 @@ export const TagModal = (props: TagModalProps) => {
     },
     onError: (err) => {
       setErrorMessage(
-        err instanceof Error ? err.message : "作成に失敗しました。"
+        err instanceof Error ? err.message : "作成に失敗しました。",
       );
     },
   });
@@ -153,7 +153,7 @@ export const TagModal = (props: TagModalProps) => {
     },
     onError: (err) => {
       setErrorMessage(
-        err instanceof Error ? err.message : "更新に失敗しました。"
+        err instanceof Error ? err.message : "更新に失敗しました。",
       );
     },
   });
@@ -198,7 +198,7 @@ export const TagModal = (props: TagModalProps) => {
   };
 
   const handleAddMoviePolicyChange = (
-    value: AddMoviePolicyForm | AddMoviePolicy
+    value: AddMoviePolicyForm | AddMoviePolicy,
   ) => {
     setFormValues({ ...formValues, addMoviePolicy: value });
   };
@@ -315,7 +315,8 @@ export const TagModal = (props: TagModalProps) => {
               />
             </div>
 
-            <div className="space-y-2">
+            {/* 未実装なので今はコメントアウト */}
+            {/* <div className="space-y-2">
               <label className="block text-xs font-semibold tracking-wide text-[#7C7288]">
                 カバー画像
               </label>
@@ -333,7 +334,7 @@ export const TagModal = (props: TagModalProps) => {
                   PNG, JPG, GIF up to 10MB
                 </p>
               </div>
-            </div>
+            </div> */}
 
             {/* Actions */}
             <div className="flex justify-end pt-2">
