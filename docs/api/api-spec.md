@@ -700,42 +700,66 @@ Host: localhost:8080
 
 #### 6.2 POST `/api/v1/tags/:tagId/movies`
 
-- **概要**: タグに映画を追加する。
+- **概要**: タグに映画を追加する（1〜N件対応、部分成功パターン）。
 - **認証**: 必須
 - **リクエストボディ**
 
 ```json
 {
-  "tmdb_movie_id": 12345,
-  "note": "子どもの頃に観た思い出の作品",
-  "position": 1
+  "movies": [
+    { "tmdb_movie_id": 550, "note": "名作", "position": 0 },
+    { "tmdb_movie_id": 680, "position": 1 }
+  ]
 }
 ```
 
 - **制約**
-  - `(tag_id, tmdb_movie_id)` は一意（`tag_movies_unique`）。
+  - `movies` は1件以上50件以下。
+  - 各映画の `tmdb_movie_id` は正の整数。
+  - 各映画の `position` は0以上（デフォルト: 0）。
+  - `(tag_id, tmdb_movie_id)` の一意制約は件ごとに判定。重複はエラーにせず `already_exists` として返す。
 
-- **レスポンス例（201）**
-
-```json
-{
-  "id": "tag-movie-uuid-1",
-  "tag_id": "tag-uuid-1",
-  "tmdb_movie_id": 12345,
-  "note": "子どもの頃に観た思い出の作品",
-  "position": 1,
-  "added_by_user_id": "user-uuid-1",
-  "created_at": "2025-01-01T12:00:00Z"
-}
-```
-
-- **レスポンス例（409）**
+- **レスポンス例（201 全件成功）**
 
 ```json
 {
-  "error": "movie already added to tag"
+  "results": [
+    {
+      "tmdb_movie_id": 550,
+      "status": "created",
+      "tag_movie": {
+        "id": "tag-movie-uuid-1",
+        "tag_id": "tag-uuid-1",
+        "tmdb_movie_id": 550,
+        "added_by_user_id": "user-uuid-1",
+        "note": "名作",
+        "position": 0,
+        "created_at": "2025-01-01T12:00:00Z"
+      }
+    },
+    {
+      "tmdb_movie_id": 680,
+      "status": "created",
+      "tag_movie": { "..." : "..." }
+    }
+  ],
+  "summary": { "created": 2, "already_exists": 0, "failed": 0 }
 }
 ```
+
+- **レスポンス例（207 部分成功）**
+
+```json
+{
+  "results": [
+    { "tmdb_movie_id": 550, "status": "created", "tag_movie": { "..." : "..." } },
+    { "tmdb_movie_id": 680, "status": "already_exists", "error": "movie already added to tag" }
+  ],
+  "summary": { "created": 1, "already_exists": 1, "failed": 0 }
+}
+```
+
+- **エラーレスポンス**: タグ不存在（404）、権限不足（403）、リクエスト不正（400）は通常のエラー形式。
 
 #### 6.3 PATCH `/api/v1/tags/:tagId/movies/:tagMovieId` **[未実装]**
 

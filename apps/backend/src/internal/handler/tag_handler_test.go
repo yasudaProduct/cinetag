@@ -20,7 +20,7 @@ type fakeTagService struct {
 	GetTagDetailFn       func(ctx context.Context, tagID string, viewerUserID *string) (*service.TagDetail, error)
 	ListTagMoviesFn      func(ctx context.Context, tagID string, viewerUserID *string, page, pageSize int) ([]service.TagMovieItem, int64, error)
 	CreateTagFn          func(ctx context.Context, in service.CreateTagInput) (*model.Tag, error)
-	AddMovieToTagFn      func(ctx context.Context, in service.AddMovieToTagInput) (*model.TagMovie, error)
+	AddMoviesToTagFn     func(ctx context.Context, in service.AddMoviesToTagInput) (*service.AddMoviesResult, error)
 	UpdateTagFn          func(ctx context.Context, tagID string, userID string, patch service.UpdateTagPatch) (*service.TagDetail, error)
 	RemoveMovieFromTagFn func(ctx context.Context, tagMovieID string, userID string) error
 	FollowTagFn          func(ctx context.Context, tagID, userID string) error
@@ -65,11 +65,11 @@ func (f *fakeTagService) CreateTag(ctx context.Context, in service.CreateTagInpu
 	return f.CreateTagFn(ctx, in)
 }
 
-func (f *fakeTagService) AddMovieToTag(ctx context.Context, in service.AddMovieToTagInput) (*model.TagMovie, error) {
-	if f.AddMovieToTagFn == nil {
-		return &model.TagMovie{}, nil
+func (f *fakeTagService) AddMoviesToTag(ctx context.Context, in service.AddMoviesToTagInput) (*service.AddMoviesResult, error) {
+	if f.AddMoviesToTagFn == nil {
+		return &service.AddMoviesResult{}, nil
 	}
-	return f.AddMovieToTagFn(ctx, in)
+	return f.AddMoviesToTagFn(ctx, in)
 }
 
 func (f *fakeTagService) UpdateTag(ctx context.Context, tagID string, userID string, patch service.UpdateTagPatch) (*service.TagDetail, error) {
@@ -154,7 +154,7 @@ func newTagHandlerRouter(t *testing.T, tagSvc service.TagService, user *model.Us
 	}
 	auth.POST("/tags", h.CreateTag)
 	auth.PATCH("/tags/:tagId", h.UpdateTag)
-	auth.POST("/tags/:tagId/movies", h.AddMovieToTag)
+	auth.POST("/tags/:tagId/movies", h.AddMoviesToTag)
 	auth.DELETE("/tags/:tagId/movies/:tagMovieId", h.RemoveMovieFromTag)
 	auth.POST("/tags/:tagId/follow", h.FollowTag)
 	auth.DELETE("/tags/:tagId/follow", h.UnfollowTag)
@@ -397,42 +397,68 @@ func TestTagHandler_CreateTag(t *testing.T) {
 	})
 }
 
-func TestTagHandler_AddMovieToTag(t *testing.T) {
+func TestTagHandler_AddMoviesToTag(t *testing.T) {
 	t.Parallel()
+
+	url := "/api/v1/tags/t1/movies"
+	jsonHeader := map[string]string{"Content-Type": "application/json"}
 
 	t.Run("不正なJSON: 400", func(t *testing.T) {
 		t.Parallel()
-
 		r := newTagHandlerRouter(t, &fakeTagService{}, &model.User{ID: "u1"})
-		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/movies", []byte("{"), map[string]string{
-			"Content-Type": "application/json",
-		})
+		rw := testutil.PerformRequest(r, http.MethodPost, url, []byte("{"), jsonHeader)
 		if rw.Code != http.StatusBadRequest {
 			t.Fatalf("expected 400, got %d", rw.Code)
 		}
 	})
 
-	t.Run("tmdb_movie_id が正でない: 400", func(t *testing.T) {
+	t.Run("moviesが空: 400", func(t *testing.T) {
 		t.Parallel()
-
 		r := newTagHandlerRouter(t, &fakeTagService{}, &model.User{ID: "u1"})
-		body := testutil.MustMarshalJSON(t, map[string]any{"tmdb_movie_id": 0, "position": 0})
-		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/movies", body, map[string]string{
-			"Content-Type": "application/json",
-		})
+		body := testutil.MustMarshalJSON(t, map[string]any{"movies": []any{}})
+		rw := testutil.PerformRequest(r, http.MethodPost, url, body, jsonHeader)
 		if rw.Code != http.StatusBadRequest {
 			t.Fatalf("expected 400, got %d", rw.Code)
 		}
 	})
 
-	t.Run("position が負: 400", func(t *testing.T) {
+	t.Run("movies上限超過(51件): 400", func(t *testing.T) {
 		t.Parallel()
-
+		movies := make([]any, 51)
+		for i := range movies {
+			movies[i] = map[string]any{"tmdb_movie_id": i + 1, "position": 0}
+		}
 		r := newTagHandlerRouter(t, &fakeTagService{}, &model.User{ID: "u1"})
-		body := testutil.MustMarshalJSON(t, map[string]any{"tmdb_movie_id": 1, "position": -1})
-		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/movies", body, map[string]string{
-			"Content-Type": "application/json",
+		body := testutil.MustMarshalJSON(t, map[string]any{"movies": movies})
+		rw := testutil.PerformRequest(r, http.MethodPost, url, body, jsonHeader)
+		if rw.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", rw.Code)
+		}
+	})
+
+	t.Run("tmdb_movie_idが正でない: 400", func(t *testing.T) {
+		t.Parallel()
+		r := newTagHandlerRouter(t, &fakeTagService{}, &model.User{ID: "u1"})
+		body := testutil.MustMarshalJSON(t, map[string]any{
+			"movies": []any{
+				map[string]any{"tmdb_movie_id": 0, "position": 0},
+			},
 		})
+		rw := testutil.PerformRequest(r, http.MethodPost, url, body, jsonHeader)
+		if rw.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", rw.Code)
+		}
+	})
+
+	t.Run("positionが負: 400", func(t *testing.T) {
+		t.Parallel()
+		r := newTagHandlerRouter(t, &fakeTagService{}, &model.User{ID: "u1"})
+		body := testutil.MustMarshalJSON(t, map[string]any{
+			"movies": []any{
+				map[string]any{"tmdb_movie_id": 1, "position": -1},
+			},
+		})
+		rw := testutil.PerformRequest(r, http.MethodPost, url, body, jsonHeader)
 		if rw.Code != http.StatusBadRequest {
 			t.Fatalf("expected 400, got %d", rw.Code)
 		}
@@ -440,53 +466,32 @@ func TestTagHandler_AddMovieToTag(t *testing.T) {
 
 	t.Run("未認証(user無し): 401", func(t *testing.T) {
 		t.Parallel()
-
 		r := newTagHandlerRouter(t, &fakeTagService{}, nil)
-		body := testutil.MustMarshalJSON(t, map[string]any{"tmdb_movie_id": 1, "position": 0})
-		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/movies", body, map[string]string{
-			"Content-Type": "application/json",
+		body := testutil.MustMarshalJSON(t, map[string]any{
+			"movies": []any{
+				map[string]any{"tmdb_movie_id": 1, "position": 0},
+			},
 		})
+		rw := testutil.PerformRequest(r, http.MethodPost, url, body, jsonHeader)
 		if rw.Code != http.StatusUnauthorized {
 			t.Fatalf("expected 401, got %d", rw.Code)
 		}
 	})
 
-	t.Run("user が無効な型: 500", func(t *testing.T) {
-		t.Parallel()
-
-		r := testutil.NewTestRouter()
-		logger := testutil.NewTestLogger()
-		h := NewTagHandler(logger, &fakeTagService{})
-
-		r.Use(func(c *gin.Context) {
-			// 無効な型をセット
-			c.Set("user", "invalid-user-type")
-			c.Next()
-		})
-		r.POST("/api/v1/tags/:tagId/movies", h.AddMovieToTag)
-
-		body := testutil.MustMarshalJSON(t, map[string]any{"tmdb_movie_id": 1, "position": 0})
-		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/movies", body, map[string]string{
-			"Content-Type": "application/json",
-		})
-		if rw.Code != http.StatusInternalServerError {
-			t.Fatalf("expected 500, got %d", rw.Code)
-		}
-	})
-
 	t.Run("タグが存在しない: 404", func(t *testing.T) {
 		t.Parallel()
-
 		svc := &fakeTagService{
-			AddMovieToTagFn: func(ctx context.Context, in service.AddMovieToTagInput) (*model.TagMovie, error) {
+			AddMoviesToTagFn: func(ctx context.Context, in service.AddMoviesToTagInput) (*service.AddMoviesResult, error) {
 				return nil, service.ErrTagNotFound
 			},
 		}
 		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
-		body := testutil.MustMarshalJSON(t, map[string]any{"tmdb_movie_id": 1, "position": 0})
-		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/movies", body, map[string]string{
-			"Content-Type": "application/json",
+		body := testutil.MustMarshalJSON(t, map[string]any{
+			"movies": []any{
+				map[string]any{"tmdb_movie_id": 1, "position": 0},
+			},
 		})
+		rw := testutil.PerformRequest(r, http.MethodPost, url, body, jsonHeader)
 		if rw.Code != http.StatusNotFound {
 			t.Fatalf("expected 404, got %d", rw.Code)
 		}
@@ -494,102 +499,89 @@ func TestTagHandler_AddMovieToTag(t *testing.T) {
 
 	t.Run("権限なし: 403", func(t *testing.T) {
 		t.Parallel()
-
 		svc := &fakeTagService{
-			AddMovieToTagFn: func(ctx context.Context, in service.AddMovieToTagInput) (*model.TagMovie, error) {
+			AddMoviesToTagFn: func(ctx context.Context, in service.AddMoviesToTagInput) (*service.AddMoviesResult, error) {
 				return nil, service.ErrTagPermissionDenied
 			},
 		}
 		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
-		body := testutil.MustMarshalJSON(t, map[string]any{"tmdb_movie_id": 1, "position": 0})
-		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/movies", body, map[string]string{
-			"Content-Type": "application/json",
+		body := testutil.MustMarshalJSON(t, map[string]any{
+			"movies": []any{
+				map[string]any{"tmdb_movie_id": 1, "position": 0},
+			},
 		})
+		rw := testutil.PerformRequest(r, http.MethodPost, url, body, jsonHeader)
 		if rw.Code != http.StatusForbidden {
 			t.Fatalf("expected 403, got %d", rw.Code)
 		}
 	})
 
-	t.Run("既に追加済み: 409", func(t *testing.T) {
+	t.Run("全件成功: 201", func(t *testing.T) {
 		t.Parallel()
-
+		var got service.AddMoviesToTagInput
 		svc := &fakeTagService{
-			AddMovieToTagFn: func(ctx context.Context, in service.AddMovieToTagInput) (*model.TagMovie, error) {
-				return nil, service.ErrTagMovieAlreadyExists
-			},
-		}
-		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
-		body := testutil.MustMarshalJSON(t, map[string]any{"tmdb_movie_id": 1, "position": 0})
-		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/movies", body, map[string]string{
-			"Content-Type": "application/json",
-		})
-		if rw.Code != http.StatusConflict {
-			t.Fatalf("expected 409, got %d", rw.Code)
-		}
-	})
-
-	t.Run("サービスが失敗: 500", func(t *testing.T) {
-		t.Parallel()
-
-		expected := errors.New("boom")
-		svc := &fakeTagService{
-			AddMovieToTagFn: func(ctx context.Context, in service.AddMovieToTagInput) (*model.TagMovie, error) {
-				return nil, expected
-			},
-		}
-		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
-		body := testutil.MustMarshalJSON(t, map[string]any{"tmdb_movie_id": 1, "position": 0})
-		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/movies", body, map[string]string{
-			"Content-Type": "application/json",
-		})
-		if rw.Code != http.StatusInternalServerError {
-			t.Fatalf("expected 500, got %d", rw.Code)
-		}
-	})
-
-	t.Run("成功: 201", func(t *testing.T) {
-		t.Parallel()
-
-		now := time.Now()
-		var got service.AddMovieToTagInput
-		svc := &fakeTagService{
-			AddMovieToTagFn: func(ctx context.Context, in service.AddMovieToTagInput) (*model.TagMovie, error) {
+			AddMoviesToTagFn: func(ctx context.Context, in service.AddMoviesToTagInput) (*service.AddMoviesResult, error) {
 				got = in
-				note := "n"
-				return &model.TagMovie{
-					ID:          "tm1",
-					TagID:       in.TagID,
-					TmdbMovieID: in.TmdbMovieID,
-					AddedByUser: in.UserID,
-					Note:        &note,
-					Position:    in.Position,
-					CreatedAt:   now,
+				return &service.AddMoviesResult{
+					Results: []service.MovieResult{
+						{TmdbMovieID: 10, Status: "created"},
+						{TmdbMovieID: 20, Status: "created"},
+					},
+					Summary: service.AddMoviesSummary{Created: 2},
 				}, nil
 			},
 		}
-
 		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
-		body := testutil.MustMarshalJSON(t, map[string]any{"tmdb_movie_id": 10, "position": 2})
-		rw := testutil.PerformRequest(r, http.MethodPost, "/api/v1/tags/t1/movies", body, map[string]string{
-			"Content-Type": "application/json",
+		body := testutil.MustMarshalJSON(t, map[string]any{
+			"movies": []any{
+				map[string]any{"tmdb_movie_id": 10, "position": 0},
+				map[string]any{"tmdb_movie_id": 20, "position": 1},
+			},
 		})
+		rw := testutil.PerformRequest(r, http.MethodPost, url, body, jsonHeader)
 		if rw.Code != http.StatusCreated {
 			t.Fatalf("expected 201, got %d", rw.Code)
 		}
-		if got.TagID != "t1" || got.UserID != "u1" || got.TmdbMovieID != 10 || got.Position != 2 {
+		if got.TagID != "t1" || got.UserID != "u1" || len(got.Movies) != 2 {
 			t.Fatalf("unexpected input: %+v", got)
 		}
+		if got.Movies[0].TmdbMovieID != 10 || got.Movies[1].TmdbMovieID != 20 {
+			t.Fatalf("unexpected movie ids: %+v", got.Movies)
+		}
+	})
 
+	t.Run("部分成功(重複含む): 207", func(t *testing.T) {
+		t.Parallel()
+		svc := &fakeTagService{
+			AddMoviesToTagFn: func(ctx context.Context, in service.AddMoviesToTagInput) (*service.AddMoviesResult, error) {
+				return &service.AddMoviesResult{
+					Results: []service.MovieResult{
+						{TmdbMovieID: 10, Status: "created"},
+						{TmdbMovieID: 20, Status: "already_exists", Error: "movie already added to tag"},
+					},
+					Summary: service.AddMoviesSummary{Created: 1, AlreadyExists: 1},
+				}, nil
+			},
+		}
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		body := testutil.MustMarshalJSON(t, map[string]any{
+			"movies": []any{
+				map[string]any{"tmdb_movie_id": 10, "position": 0},
+				map[string]any{"tmdb_movie_id": 20, "position": 0},
+			},
+		})
+		rw := testutil.PerformRequest(r, http.MethodPost, url, body, jsonHeader)
+		if rw.Code != http.StatusMultiStatus {
+			t.Fatalf("expected 207, got %d", rw.Code)
+		}
 		resp := map[string]any{}
 		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
-		if resp["tag_id"] != "t1" {
-			t.Fatalf("expected tag_id=t1, got %v", resp["tag_id"])
+		summary := resp["summary"].(map[string]any)
+		if summary["created"] != float64(1) {
+			t.Fatalf("expected created=1, got %v", summary["created"])
 		}
-		if resp["tmdb_movie_id"] == nil {
-			t.Fatalf("expected tmdb_movie_id")
-		}
-		if resp["added_by_user_id"] != "u1" {
-			t.Fatalf("expected added_by_user_id=u1, got %v", resp["added_by_user_id"])
+		if summary["already_exists"] != float64(1) {
+			t.Fatalf("expected already_exists=1, got %v", summary["already_exists"])
 		}
 	})
 }

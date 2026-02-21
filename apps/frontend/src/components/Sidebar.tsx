@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import {
   Search,
@@ -23,7 +23,6 @@ import { LoginModal } from "@/components/LoginModal";
 export const Sidebar = () => {
   const pathname = usePathname();
   const { isSignedIn, isLoaded, getToken } = useAuth();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);

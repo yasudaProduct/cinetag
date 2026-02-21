@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -37,8 +38,12 @@ type createTagRequest struct {
 	AddMoviePolicy *string `json:"add_movie_policy"`
 }
 
-// タグに映画を追加するリクエストボディの構造。
-type addTagMovieRequest struct {
+// タグに映画を追加するリクエストボディの構造（1〜N件）。
+type addTagMoviesRequest struct {
+	Movies []movieItem `json:"movies" binding:"required"`
+}
+
+type movieItem struct {
 	TmdbMovieID int     `json:"tmdb_movie_id" binding:"required"`
 	Note        *string `json:"note"`
 	Position    int     `json:"position"`
@@ -283,75 +288,70 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 	})
 }
 
-// @name AddMovieToTag
-// @Summary タグに映画を追加
-// @Description タグに映画を追加
-// @Tags tags
-// @Accept json
-// @Produce json
-// @Param tagId path string true "タグID"
-// @Param request body addTagMovieRequest true "映画追加リクエスト"
-func (h *TagHandler) AddMovieToTag(c *gin.Context) {
+// AddMoviesToTag はタグに映画を追加します（1〜N件、部分成功パターン）。
+// POST /api/v1/tags/:tagId/movies
+func (h *TagHandler) AddMoviesToTag(c *gin.Context) {
 	tagID := c.Param("tagId")
 	requestID := middleware.GetRequestID(c)
 
-	// 開始ログ（INFO）
-	attrs := []any{
+	h.logger.Info("handler.AddMoviesToTag started",
 		slog.String("request_id", requestID),
 		slog.String("tag_id", tagID),
-	}
+	)
 
-	// 認証済みの場合は user_id も含める
-	if userVal, ok := c.Get("user"); ok {
-		if user, ok2 := userVal.(*model.User); ok2 && user != nil {
-			attrs = append(attrs, slog.String("user_id", user.ID))
-		}
-	}
-
-	h.logger.Info("handler.AddMovieToTag started", attrs...)
-
-	var req addTagMovieRequest
+	var req addTagMoviesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid request body",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
-	if req.TmdbMovieID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "tmdb_movie_id must be a positive integer",
-		})
+	if len(req.Movies) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "movies must contain at least 1 item"})
 		return
 	}
-	if req.Position < 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "position must be 0 or greater",
-		})
+	if len(req.Movies) > 50 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "movies must contain at most 50 items"})
 		return
+	}
+
+	for i, m := range req.Movies {
+		if m.TmdbMovieID <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": fmt.Sprintf("movies[%d].tmdb_movie_id must be a positive integer", i),
+			})
+			return
+		}
+		if m.Position < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": fmt.Sprintf("movies[%d].position must be 0 or greater", i),
+			})
+			return
+		}
 	}
 
 	userVal, exists := c.Get("user")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 	user, ok := userVal.(*model.User)
 	if !ok || user == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "invalid user in context",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user in context"})
 		return
 	}
 
-	// タグに映画を追加する。
-	tagMovie, err := h.tagService.AddMovieToTag(c.Request.Context(), service.AddMovieToTagInput{
-		TagID:       tagID,
-		UserID:      user.ID,
-		TmdbMovieID: req.TmdbMovieID,
-		Note:        req.Note,
-		Position:    req.Position,
+	movies := make([]service.MovieItem, len(req.Movies))
+	for i, m := range req.Movies {
+		movies[i] = service.MovieItem{
+			TmdbMovieID: m.TmdbMovieID,
+			Note:        m.Note,
+			Position:    m.Position,
+		}
+	}
+
+	result, err := h.tagService.AddMoviesToTag(c.Request.Context(), service.AddMoviesToTagInput{
+		TagID:  tagID,
+		UserID: user.ID,
+		Movies: movies,
 	})
 	if err != nil {
 		switch {
@@ -359,15 +359,19 @@ func (h *TagHandler) AddMovieToTag(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
 		case errors.Is(err, service.ErrTagPermissionDenied):
 			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
-		case errors.Is(err, service.ErrTagMovieAlreadyExists):
-			c.JSON(http.StatusConflict, gin.H{"error": "movie already added to tag"})
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to add movie to tag"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to add movies to tag"})
 		}
 		return
 	}
 
-	c.JSON(http.StatusCreated, tagMovie)
+	// 全件成功: 201, 一部失敗あり: 207 Multi-Status
+	statusCode := http.StatusCreated
+	if result.Summary.AlreadyExists > 0 || result.Summary.Failed > 0 {
+		statusCode = http.StatusMultiStatus
+	}
+
+	c.JSON(statusCode, result)
 }
 
 // RemoveMovieFromTag はタグから映画を削除します。

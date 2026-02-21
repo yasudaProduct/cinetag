@@ -54,9 +54,9 @@ type TagService interface {
 	// - in は作成するタグの情報を指定する。
 	CreateTag(ctx context.Context, in CreateTagInput) (*model.Tag, error)
 
-	// タグに映画を追加して返す（作成者のみ）。
-	// - in は追加する映画の情報を指定する。
-	AddMovieToTag(ctx context.Context, in AddMovieToTagInput) (*model.TagMovie, error)
+	// タグに映画を追加する（1〜N件、部分成功パターン）。
+	// - 各映画ごとに成功/失敗を返す。タグ不存在・権限不足は全体エラー。
+	AddMoviesToTag(ctx context.Context, in AddMoviesToTagInput) (*AddMoviesResult, error)
 
 	// タグのメタ情報を更新して返す（作成者のみ）。
 	// - patch は更新するフィールドとその新しい値を指定する。
@@ -133,13 +133,39 @@ type CreateTagInput struct {
 	AddMoviePolicy *string
 }
 
-// タグへ映画を追加する際の入力値を表す構造体。
-type AddMovieToTagInput struct {
-	TagID       string
-	UserID      string
+// 映画追加の1件分の入力値。
+type MovieItem struct {
 	TmdbMovieID int
 	Note        *string
 	Position    int
+}
+
+// タグへ映画を追加する際の入力値を表す構造体（1〜N件）。
+type AddMoviesToTagInput struct {
+	TagID  string
+	UserID string
+	Movies []MovieItem
+}
+
+// 映画追加の1件分の結果。
+type MovieResult struct {
+	TmdbMovieID int             `json:"tmdb_movie_id"`
+	Status      string          `json:"status"` // "created" | "already_exists" | "error"
+	TagMovie    *model.TagMovie `json:"tag_movie,omitempty"`
+	Error       string          `json:"error,omitempty"`
+}
+
+// 映画追加の集計。
+type AddMoviesSummary struct {
+	Created       int `json:"created"`
+	AlreadyExists int `json:"already_exists"`
+	Failed        int `json:"failed"`
+}
+
+// 映画追加の全体結果。
+type AddMoviesResult struct {
+	Results []MovieResult    `json:"results"`
+	Summary AddMoviesSummary `json:"summary"`
 }
 
 // タグ詳細API向けのレスポンスモデルを表す構造体。
@@ -506,24 +532,20 @@ func (s *tagService) CreateTag(ctx context.Context, in CreateTagInput) (*model.T
 	return &tag, nil
 }
 
-// AddMovieToTag はタグに映画を追加します。
-func (s *tagService) AddMovieToTag(ctx context.Context, in AddMovieToTagInput) (*model.TagMovie, error) {
-
-	// バリデーション
+// AddMoviesToTag はタグに映画を追加します（1〜N件、部分成功パターン）。
+func (s *tagService) AddMoviesToTag(ctx context.Context, in AddMoviesToTagInput) (*AddMoviesResult, error) {
+	// 全体バリデーション
 	if in.TagID == "" {
 		return nil, fmt.Errorf("tag_id is required")
 	}
 	if in.UserID == "" {
 		return nil, fmt.Errorf("user_id is required")
 	}
-	if in.TmdbMovieID <= 0 {
-		return nil, fmt.Errorf("invalid tmdb_movie_id: %d", in.TmdbMovieID)
-	}
-	if in.Position < 0 {
-		return nil, fmt.Errorf("position must be 0 or greater")
+	if len(in.Movies) == 0 {
+		return nil, fmt.Errorf("movies must contain at least 1 item")
 	}
 
-	// タグの存在確認と権限チェック
+	// タグの存在確認（1回だけ）
 	tag, err := s.tagRepo.FindByID(ctx, in.TagID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -532,45 +554,90 @@ func (s *tagService) AddMovieToTag(ctx context.Context, in AddMovieToTagInput) (
 		return nil, err
 	}
 
-	// add_movie_policy に基づいて映画追加権限をチェック
+	// 権限チェック（1回だけ）
 	if tag.AddMoviePolicy == "owner_only" && tag.UserID != in.UserID {
 		return nil, ErrTagPermissionDenied
 	}
 
-	// タグ映画を作成する。
-	tm := model.TagMovie{
-		TagID:       in.TagID,
-		TmdbMovieID: in.TmdbMovieID,
-		AddedByUser: in.UserID,
-		Note:        in.Note,
-		Position:    in.Position,
-	}
+	// 各映画を個別に処理
+	results := make([]MovieResult, len(in.Movies))
+	var summary AddMoviesSummary
 
-	// タグ映画を作成する。
-	if err := s.tagMovieRepo.Create(ctx, &tm); err != nil {
-		if errors.Is(err, repository.ErrTagMovieAlreadyExists) {
-			return nil, ErrTagMovieAlreadyExists
-		}
-		return nil, err
-	}
-
-	// 可能であれば、作成時にベストエフォートでキャッシュを温める（失敗してもAPIは成功扱い）
-	if s.movieService != nil {
-		logger := s.logger // goroutine内で使用するためキャプチャ
-		go func(movieID int) {
-			ctx2, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if _, err := s.movieService.EnsureMovieCache(ctx2, movieID); err != nil {
-				// エラーログ（ERROR）
-				logger.Error("service.CreateTag failed to warm movie cache",
-					slog.Int("tmdb_movie_id", movieID),
-					slog.Any("error", err),
-				)
+	for i, movie := range in.Movies {
+		// 個別バリデーション
+		if movie.TmdbMovieID <= 0 {
+			results[i] = MovieResult{
+				TmdbMovieID: movie.TmdbMovieID,
+				Status:      "error",
+				Error:       "invalid tmdb_movie_id",
 			}
-		}(in.TmdbMovieID)
+			summary.Failed++
+			continue
+		}
+		if movie.Position < 0 {
+			results[i] = MovieResult{
+				TmdbMovieID: movie.TmdbMovieID,
+				Status:      "error",
+				Error:       "position must be 0 or greater",
+			}
+			summary.Failed++
+			continue
+		}
+
+		tm := model.TagMovie{
+			TagID:       in.TagID,
+			TmdbMovieID: movie.TmdbMovieID,
+			AddedByUser: in.UserID,
+			Note:        movie.Note,
+			Position:    movie.Position,
+		}
+
+		if err := s.tagMovieRepo.Create(ctx, &tm); err != nil {
+			if errors.Is(err, repository.ErrTagMovieAlreadyExists) {
+				results[i] = MovieResult{
+					TmdbMovieID: movie.TmdbMovieID,
+					Status:      "already_exists",
+					Error:       "movie already added to tag",
+				}
+				summary.AlreadyExists++
+			} else {
+				results[i] = MovieResult{
+					TmdbMovieID: movie.TmdbMovieID,
+					Status:      "error",
+					Error:       "failed to add movie",
+				}
+				summary.Failed++
+			}
+			continue
+		}
+
+		results[i] = MovieResult{
+			TmdbMovieID: movie.TmdbMovieID,
+			Status:      "created",
+			TagMovie:    &tm,
+		}
+		summary.Created++
+
+		// ベストエフォートでキャッシュウォーム（成功した映画のみ）
+		if s.movieService != nil {
+			logger := s.logger
+			go func(movieID int) {
+				ctx2, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if _, err := s.movieService.EnsureMovieCache(ctx2, movieID); err != nil {
+					logger.Error("service.AddMoviesToTag failed to warm movie cache",
+						slog.Int("tmdb_movie_id", movieID),
+						slog.Any("error", err),
+					)
+				}
+			}(movie.TmdbMovieID)
+		}
 	}
 
-	return &tm, nil
+	return &AddMoviesResult{
+		Results: results,
+		Summary: summary,
+	}, nil
 }
 
 // 公開タグ一覧を返す。
