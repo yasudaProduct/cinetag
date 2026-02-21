@@ -16,6 +16,7 @@ import { createTag } from "@/lib/api/tags/create";
 import { updateTag } from "@/lib/api/tags/update";
 import { getBackendTokenOrThrow } from "@/lib/api/_shared/auth";
 import { Modal } from "@/components/Modal";
+import { redirect } from "next/navigation";
 
 export interface CreatedTagForList extends Record<string, unknown> {
   id: string;
@@ -116,6 +117,8 @@ export const TagModal = (props: TagModalProps) => {
         addMoviePolicy: "everyone",
       });
       onClose();
+
+      redirect(`/tags/${created.id}`);
     },
     onError: (err) => {
       setErrorMessage(
