@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Film, X } from "lucide-react";
+import { Pencil, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Spinner } from "@/components/ui/spinner";
 import { useMemo, useState, type FormEvent } from "react";

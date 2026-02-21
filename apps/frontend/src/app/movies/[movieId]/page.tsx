@@ -8,7 +8,6 @@ import {
   Calendar,
   Clock,
   Globe,
-  Plus,
   Tag,
   Film,
   Heart,

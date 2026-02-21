@@ -20,7 +20,8 @@ export type RelatedTag = {
   movieCount: number;
 };
 
-export function getMockMovieDetail(_movieId: string): MovieDetail {
+export function getMockMovieDetail(movieId: string): MovieDetail {
+  void movieId;
   return {
     id: "godfather-1972",
     title: "ゴッドファーザー",
@@ -43,7 +44,8 @@ export function getMockMovieDetail(_movieId: string): MovieDetail {
   };
 }
 
-export function getMockRelatedTags(_movieId: string): RelatedTag[] {
+export function getMockRelatedTags(movieId: string): RelatedTag[] {
+  void movieId;
   return [
     { id: "tag-1", title: "クラシック名作集", followerCount: 156, movieCount: 24 },
     { id: "tag-2", title: "マフィア映画特集", followerCount: 89, movieCount: 12 },
