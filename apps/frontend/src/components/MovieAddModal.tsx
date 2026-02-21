@@ -7,7 +7,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { searchMovies, type MovieSearchItem } from "@/lib/api/movies/search";
 import { getMovieDetail } from "@/lib/api/movies/detail";
-import { addMovieToTag } from "@/lib/api/tags/addMovie";
+import { addMoviesToTag } from "@/lib/api/tags/addMovie";
 import { getBackendTokenOrThrow } from "@/lib/api/_shared/auth";
 import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/ui/spinner";
@@ -90,10 +90,6 @@ export const MovieAddModal = ({
   const [q, setQ] = useState("");
   const [selectedMovies, setSelectedMovies] = useState<SelectedMovie[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [addProgress, setAddProgress] = useState<{
-    done: number;
-    total: number;
-  } | null>(null);
 
   const trimmedQ = useMemo(() => q.trim(), [q]);
 
@@ -141,40 +137,48 @@ export const MovieAddModal = ({
         throw new Error("追加する映画を選択してください。");
       }
 
-      const errors: string[] = [];
-      setAddProgress({ done: 0, total: selectedMovies.length });
+      const result = await addMoviesToTag({
+        tagId,
+        token,
+        movies: selectedMovies.map((m) => ({
+          tmdb_movie_id: m.tmdb_movie_id,
+          position: 0,
+        })),
+      });
 
-      for (let i = 0; i < selectedMovies.length; i++) {
-        try {
-          await addMovieToTag({
-            tagId,
-            token,
-            input: {
-              tmdb_movie_id: selectedMovies[i].tmdb_movie_id,
-              position: 0,
-            },
+      // 一部失敗がある場合はエラーメッセージを構築
+      if (result.summary.already_exists > 0 || result.summary.failed > 0) {
+        const errorMessages = result.results
+          .filter((r) => r.status !== "created")
+          .map((r) => {
+            const movie = selectedMovies.find(
+              (m) => m.tmdb_movie_id === r.tmdb_movie_id,
+            );
+            const title = movie?.title ?? `TMDB ID: ${r.tmdb_movie_id}`;
+            return `${title}: ${r.error ?? "不明なエラー"}`;
           });
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "不明なエラー";
-          errors.push(`${selectedMovies[i].title}: ${msg}`);
+
+        if (result.summary.created > 0) {
+          throw new Error(
+            `${result.summary.created}件追加しました。以下は追加できませんでした:\n${errorMessages.join("\n")}`,
+          );
+        } else {
+          throw new Error(errorMessages.join("\n"));
         }
-        setAddProgress({ done: i + 1, total: selectedMovies.length });
       }
 
-      if (errors.length > 0) {
-        throw new Error(errors.join("\n"));
-      }
+      return result;
     },
     onSuccess: () => {
       setErrorMessage(null);
       setSelectedMovies([]);
       setQ("");
-      setAddProgress(null);
       onAdded();
       onClose();
     },
     onError: (err) => {
-      setAddProgress(null);
+      // 部分成功の場合もここに来る — 成功分を反映するため一覧リフレッシュ
+      onAdded();
       setErrorMessage(
         err instanceof Error ? err.message : "追加に失敗しました。",
       );
@@ -353,14 +357,6 @@ export const MovieAddModal = ({
           {errorMessage && (
             <div className="text-sm text-red-600 font-medium whitespace-pre-line">
               {errorMessage}
-            </div>
-          )}
-
-          {/* Progress */}
-          {addProgress && (
-            <div className="flex items-center gap-2 text-sm text-[#7C7288]">
-              <Spinner size="sm" />
-              追加中... ({addProgress.done}/{addProgress.total})
             </div>
           )}
 
