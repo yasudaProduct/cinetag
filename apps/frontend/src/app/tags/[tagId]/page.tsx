@@ -14,6 +14,7 @@ import { Search, Plus, Pencil, Bookmark, Film } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { Spinner } from "@/components/ui/spinner";
+import { ShareButton } from "@/components/ui/share/ShareButton";
 
 // 動的インポート: モーダルは初期表示に不要なため遅延ロード
 const MovieAddModal = dynamic(
@@ -272,6 +273,11 @@ export default function TagDetailPage({
                     タグを編集
                   </button>
                 ) : null}
+                <ShareButton
+                  variant="default"
+                  title={`${detail?.title ?? ""} | cinetag`}
+                  description={detail?.description}
+                />
               </div>
             </div>
           </aside>

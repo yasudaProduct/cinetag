@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getMovieDetail } from "@/lib/api/movies/detail";
 import { getMovieRelatedTags } from "@/lib/api/movies/tags";
 import { Spinner } from "@/components/ui/spinner";
+import { ShareButton } from "@/components/ui/share/ShareButton";
 
 export default function MovieDetailPage({
   params,
@@ -100,9 +101,16 @@ export default function MovieDetailPage({
             {/* 右: 映画情報 */}
             <div className="flex-1 min-w-0">
               {/* タイトル */}
-              <h1 className="text-2xl md:text-4xl font-bold text-gray-900 tracking-tight">
-                {movie.title}
-              </h1>
+              <div className="flex items-start gap-3">
+                <h1 className="text-2xl md:text-4xl font-bold text-gray-900 tracking-tight">
+                  {movie.title}
+                </h1>
+                <ShareButton
+                  variant="icon-only"
+                  title={`${movie.title} | cinetag`}
+                  description={movie.overview}
+                />
+              </div>
               {movie.originalTitle && (
                 <p className="mt-1 text-base md:text-lg text-gray-500">
                   {movie.originalTitle}
