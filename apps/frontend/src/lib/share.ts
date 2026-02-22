@@ -27,10 +27,11 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 export function canUseNativeShare(): boolean {
-  return (
-    typeof navigator !== "undefined" &&
-    typeof navigator.share === "function"
-  );
+  if (typeof navigator === "undefined" || typeof navigator.share !== "function") {
+    return false;
+  }
+  // モバイルデバイスのみネイティブ共有を使用
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
 export async function nativeShare(params: {
