@@ -24,9 +24,9 @@
 
 ### 1-3. **トリガー**:`main` ブランチへの push（`ci-main.yml`）
 - **ジョブ**
-  - **`backend-deploy`**: `apps/backend` を Cloud Run `cinetag-backend` 本番へデプロイ
+  - **`backend-db-migrate`**: `apps/backend` で `ENV=production` を付けて `go run ./src/cmd/migrate`（Neon 本番ブランチ向け）
+  - **`backend-deploy`**: `apps/backend` を Cloud Run `cinetag-backend` 本番へデプロイ（`backend-db-migrate` 完了後に実行）
   - **`frontend-deploy`**: `apps/frontend` で `opennextjs-cloudflare deploy`（Cloudflare Workers `cinetag-frontend` 本番へ）
-  - ※本番マイグレーションは自動実行しない（本ドキュメント6章参照）
 ---
 
 ## 2. 前提（構成とコマンド）
@@ -165,10 +165,10 @@
 
 バックエンドの migrate は **全テーブル削除 → 再作成** の方針です（`apps/backend/README.md` 参照）。
 
-- **開発/検証環境**: 自動実行してよい（ただしデータは消える）
-- **本番環境**: 原則 **自動実行しない**（データが消えるため）
+- **開発環境**（`ci-develop.yml`）: 自動実行（`NEON_DATABASE_URL` 向け）
+- **本番環境**（`ci-main.yml`）: 自動実行（`NEON_DATABASE_URL_PROD` 向け）
 
-本番でのスキーマ変更が必要になった場合は、差分マイグレーション戦略（DDLの段階適用）を別途設計してください。
+**注意**: 本番マイグレーションは全テーブル削除のため、実行のたびに本番データが消えます。スキーマ変更のみでデータを保持したい場合は、差分マイグレーション戦略（DDLの段階適用）を別途設計してください。
 
 ---
 
