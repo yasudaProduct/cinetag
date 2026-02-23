@@ -31,5 +31,16 @@
     // Enable image optimization
     // see https://opennext.js.org/cloudflare/howtos/image
     "binding": "IMAGES"
+  },
+  // develop 環境: wrangler deploy --env develop で cinetag-frontend-develop にデプロイ
+  "env": {
+    "develop": {
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "cinetag-frontend-develop"
+        }
+      ]
+    }
   }
 }

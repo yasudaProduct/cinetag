@@ -1,9 +1,9 @@
-name: CI (develop)
+name: CI (main)
 
 on:
   push:
     branches:
-      - develop
+      - main
     paths-ignore:
       - "docs/**"
       - "*.md"
@@ -11,38 +11,13 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-develop-${{ github.ref_name }}
+  group: ci-main-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
-  # backend-migrate は開発用Neonデータベースへのマイグレーションを実行するジョブ
-  backend-db-migrate:
-    name: backend / db migrate (Neon)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/backend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: apps/backend/go.mod
-          cache-dependency-path: apps/backend/go.sum
-
-      - name: Run migration
-        env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-          ENV: develop
-        run: go run ./src/cmd/migrate
-
-  # frontend-deploy は Next.js アプリケーションを Cloudflare Pages/Workers にデプロイするジョブ
+  # frontend-deploy は Next.js アプリケーションを Cloudflare Workers 本番環境にデプロイするジョブ
   frontend-deploy:
-    name: frontend / deploy (Cloudflare)
+    name: frontend / deploy (Cloudflare production)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -63,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Deploy to Cloudflare (develop)
+      - name: Deploy to Cloudflare (production)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           NEXT_PUBLIC_BACKEND_API_BASE: ${{ secrets.NEXT_PUBLIC_BACKEND_API_BASE }}
@@ -72,4 +47,4 @@ jobs:
           NEXT_PUBLIC_CLERK_SIGN_UP_URL: ${{ secrets.NEXT_PUBLIC_CLERK_SIGN_UP_URL }}
           NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: ${{ secrets.NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL }}
           NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: ${{ secrets.NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL }}
-        run: npx opennextjs-cloudflare build && npx opennextjs-cloudflare deploy --env develop
+        run: npx opennextjs-cloudflare build && npx opennextjs-cloudflare deploy
