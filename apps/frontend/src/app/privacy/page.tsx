@@ -1,4 +1,10 @@
-"use client";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "プライバシーポリシー | cinetag",
+  description:
+    "cinetagのプライバシーポリシーです。個人情報の取り扱いについてご確認ください。",
+};
 
 export default function PrivacyPage() {
   return (
