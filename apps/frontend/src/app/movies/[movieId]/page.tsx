@@ -52,5 +52,54 @@ export default async function MovieDetailPage({
   params: Promise<{ movieId: string }>;
 }) {
   const { movieId } = await params;
-  return <MovieDetailClient movieId={movieId} />;
+  const tmdbMovieId = Number(movieId);
+
+  let movieJsonLd = null;
+  if (!Number.isNaN(tmdbMovieId) && tmdbMovieId > 0) {
+    try {
+      const movie = await getMovieDetail(tmdbMovieId);
+      const posterUrl = movie.posterPath
+        ? `https://image.tmdb.org/t/p/w500${movie.posterPath}`
+        : undefined;
+
+      movieJsonLd = {
+        "@context": "https://schema.org",
+        "@type": "Movie",
+        name: movie.title,
+        ...(movie.overview && { description: movie.overview }),
+        ...(posterUrl && { image: posterUrl }),
+        ...(movie.releaseDate && { datePublished: movie.releaseDate }),
+        ...(movie.genres.length > 0 && {
+          genre: movie.genres.map((g) => g.name),
+        }),
+        ...(movie.directors.length > 0 && {
+          director: movie.directors.map((d) => ({
+            "@type": "Person",
+            name: d,
+          })),
+        }),
+        ...(movie.voteAverage != null && {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: movie.voteAverage,
+            bestRating: 10,
+          },
+        }),
+      };
+    } catch {
+      // ignore - client will handle loading
+    }
+  }
+
+  return (
+    <>
+      {movieJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(movieJsonLd) }}
+        />
+      )}
+      <MovieDetailClient movieId={movieId} />
+    </>
+  );
 }

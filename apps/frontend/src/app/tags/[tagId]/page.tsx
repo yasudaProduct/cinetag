@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { getTagDetail } from "@/lib/api/tags/detail";
 import { TagDetailClient } from "./_components/TagDetailClient";
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
 export async function generateMetadata({
   params,
 }: {
@@ -42,5 +45,51 @@ export default async function TagDetailPage({
   params: Promise<{ tagId: string }>;
 }) {
   const { tagId } = await params;
-  return <TagDetailClient tagId={tagId} />;
+
+  let tagTitle = "";
+  try {
+    const tag = await getTagDetail(tagId);
+    tagTitle = tag.title;
+  } catch {
+    // ignore - client will handle loading
+  }
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "ホーム",
+        item: siteUrl,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "タグ一覧",
+        item: `${siteUrl}/tags`,
+      },
+      ...(tagTitle
+        ? [
+            {
+              "@type": "ListItem",
+              position: 3,
+              name: tagTitle,
+              item: `${siteUrl}/tags/${tagId}`,
+            },
+          ]
+        : []),
+    ],
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <TagDetailClient tagId={tagId} />
+    </>
+  );
 }
