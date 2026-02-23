@@ -15,9 +15,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # backend-db-migrate は本番Neonデータベースへのマイグレーションを実行するジョブ
+  backend-db-migrate:
+    name: backend / db migrate (goose)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      - name: Run migration
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL_PROD }}
+        run: go run ./src/cmd/migrate up
+
   # backend-deploy は Go API を Cloud Run 本番環境にデプロイするジョブ
   backend-deploy:
     name: backend / deploy (Cloud Run production)
+    needs: backend-db-migrate
     runs-on: ubuntu-latest
     permissions:
       contents: "read"
@@ -42,7 +67,7 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           region: ${{ secrets.GCP_REGION }}
           env_vars: |
-            DATABASE_URL=${{ secrets.NEON_DATABASE_URL }}
+            DATABASE_URL=${{ secrets.NEON_DATABASE_URL_PROD }}
             CLERK_JWKS_URL=${{ secrets.CLERK_JWKS_URL }}
             TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}
             ENV=production

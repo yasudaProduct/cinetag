@@ -1,53 +1,142 @@
 package main
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
 	"log"
 	"os"
 	"strings"
 
-	"cinetag-backend/src/internal/db"
-	"cinetag-backend/src/internal/model"
-	"cinetag-backend/src/internal/seed"
+	"cinetag-backend/src/internal/migration"
 
-	"gorm.io/gorm"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
+	"github.com/pressly/goose/v3"
 )
 
-// resetSchemaIfEnabled は、開発環境でのみ「全テーブル削除（public スキーマ再作成）」を実行します。
-//
-// 本番での誤実行を防ぐため、ENV=develop の場合のみ実行します。
-func resetSchemaIfEnabled(database *gorm.DB) {
-	env := strings.TrimSpace(strings.ToLower(os.Getenv("ENV")))
-	if env != "develop" {
-		return
+func init() {
+	_ = godotenv.Load()
+}
+
+func main() {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		log.Fatal("DATABASE_URL is not set")
 	}
 
-	log.Println("ENV=develop: resetting schema (DROP SCHEMA public CASCADE; CREATE SCHEMA public;)")
-	if err := database.Exec(`DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;`).Error; err != nil {
-		log.Fatalf("failed to reset schema: %v", err)
+	// サブコマンドの解析
+	// 使い方: go run ./src/cmd/migrate [up|down|status|reset]
+	command := "up"
+	if len(os.Args) > 1 {
+		command = strings.ToLower(os.Args[1])
+	}
+
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		log.Fatalf("failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		log.Fatalf("failed to ping database: %v", err)
+	}
+
+	provider, err := goose.NewProvider(
+		goose.DialectPostgres,
+		db,
+		migration.Migrations,
+		goose.WithVerbose(true),
+	)
+	if err != nil {
+		log.Fatalf("failed to create goose provider: %v", err)
+	}
+
+	ctx := context.Background()
+
+	switch command {
+	case "up":
+		runUp(ctx, provider)
+	case "down":
+		runDown(ctx, provider)
+	case "status":
+		runStatus(ctx, provider)
+	case "reset":
+		runReset(ctx, provider)
+	default:
+		log.Fatalf("unknown command: %s (use: up, down, status, reset)", command)
+	}
+
+	log.Printf("migration '%s' completed successfully", command)
+}
+
+// runUp は未適用のマイグレーションを全て適用します。
+func runUp(ctx context.Context, provider *goose.Provider) {
+	results, err := provider.Up(ctx)
+	if err != nil {
+		log.Fatalf("migration up failed: %v", err)
+	}
+	for _, r := range results {
+		log.Printf("applied: %s (%s)", r.Source.Path, r.Duration)
+	}
+	if len(results) == 0 {
+		log.Println("no new migrations to apply")
 	}
 }
 
-// このコマンドはデータベースマイグレーション専用のエントリーポイントです。
-// アプリケーション本体とは別に実行し、スキーマ更新のみを行います。
-func main() {
-	database := db.NewDB()
+// runDown は最新のマイグレーション1つをロールバックします。
+func runDown(ctx context.Context, provider *goose.Provider) {
+	result, err := provider.Down(ctx)
+	if err != nil {
+		log.Fatalf("migration down failed: %v", err)
+	}
+	if result == nil {
+		log.Println("no migrations to roll back")
+		return
+	}
+	log.Printf("rolled back: %s (%s)", result.Source.Path, result.Duration)
+}
 
-	resetSchemaIfEnabled(database)
+// runStatus は全マイグレーションの適用状況を表示します。
+func runStatus(ctx context.Context, provider *goose.Provider) {
+	results, err := provider.Status(ctx)
+	if err != nil {
+		log.Fatalf("migration status failed: %v", err)
+	}
+	fmt.Printf("%-10s %-50s %s\n", "VERSION", "NAME", "STATUS")
+	fmt.Println(strings.Repeat("-", 80))
+	for _, r := range results {
+		state := "Pending"
+		if r.State == goose.StateApplied {
+			state = fmt.Sprintf("Applied at %s", r.AppliedAt.Format("2006-01-02 15:04:05"))
+		}
+		fmt.Printf("%-10d %-50s %s\n", r.Source.Version, r.Source.Path, state)
+	}
+}
 
-	if err := database.AutoMigrate(
-		&model.User{},
-		&model.Tag{},
-		&model.TagMovie{},
-		&model.TagFollower{},
-		&model.UserFollower{},
-		&model.MovieCache{},
-	); err != nil {
-		log.Fatalf("failed to migrate database: %v", err)
+// runReset は全マイグレーションをロールバックしてから再適用します。
+// ENV=develop の場合のみ実行可能です。
+func runReset(ctx context.Context, provider *goose.Provider) {
+	env := strings.TrimSpace(strings.ToLower(os.Getenv("ENV")))
+	if env != "develop" {
+		log.Fatal("reset is only allowed in develop environment (ENV=develop)")
 	}
 
-	if err := seed.SeedDevelop(database); err != nil {
-		log.Fatalf("failed to seed database: %v", err)
+	log.Println("ENV=develop: resetting all migrations...")
+
+	downResults, err := provider.DownTo(ctx, 0)
+	if err != nil {
+		log.Fatalf("migration down-to-0 failed: %v", err)
+	}
+	for _, r := range downResults {
+		log.Printf("rolled back: %s (%s)", r.Source.Path, r.Duration)
 	}
 
-	log.Println("migration completed successfully")
+	upResults, err := provider.Up(ctx)
+	if err != nil {
+		log.Fatalf("migration up failed: %v", err)
+	}
+	for _, r := range upResults {
+		log.Printf("applied: %s (%s)", r.Source.Path, r.Duration)
+	}
 }

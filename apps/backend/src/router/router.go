@@ -29,6 +29,9 @@ func NewRouter() *gin.Engine {
 
 // setupMiddleware はミドルウェアを設定します。
 func setupMiddleware(r *gin.Engine, deps *Dependencies) {
+	// メンテナンスモード（MAINTENANCE_MODE=true で /health 以外を503にする）
+	r.Use(deps.MaintenanceMiddleware)
+
 	// リカバリーミドルウェア（パニック時のログ出力）
 	r.Use(deps.RecoveryMiddleware)
 
