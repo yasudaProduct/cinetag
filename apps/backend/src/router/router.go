@@ -39,7 +39,7 @@ func setupMiddleware(r *gin.Engine, deps *Dependencies) {
 	r.Use(cors.New(cors.Config{
 		// 許可するオリジン（開発環境と本番環境のフロントエンドURL）
 		AllowOrigins: []string{
-			"http://localhost:3000",                                // ローカル開発環境
+			"http://localhost:3001",                                // ローカル開発環境
 			"http://localhost:8787",                                // ローカル開発環境（Cloudflare Pages プレビュー）
 			"https://cinetag-frontend.yuta-develop-ct.workers.dev", // 開発環境（Cloudflare Workers）
 		},

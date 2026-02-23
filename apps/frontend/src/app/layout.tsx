@@ -19,6 +19,22 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "cinetag",
   description: "cinetag",
+  openGraph: {
+    title: "cinetag - 映画をタグでつながる、共有する",
+    description:
+      "cinetagは、映画に自由にタグを作成し、他のユーザーと共有できる新しい映画プラットフォームです。",
+    images: ["/images/og-image.png"],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@cinetag",
+    creator: "@cinetag",
+    title: "cinetag - 映画をタグでつながる、共有する",
+    description:
+      "cinetagは、映画に自由にタグを作成し、他のユーザーと共有できる新しい映画プラットフォームです。",
+    images: ["/images/og-image.png"],
+  },
 };
 
 export default function RootLayout({

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import {
@@ -124,7 +125,7 @@ export const Sidebar = () => {
                     "absolute left-0 top-0 bottom-0 w-1.5 bg-[#FFD75E] transition-opacity",
                     isActive
                       ? "opacity-100"
-                      : "opacity-0 group-hover:opacity-100"
+                      : "opacity-0 group-hover:opacity-100",
                   )}
                 />
                 <Link
@@ -133,7 +134,7 @@ export const Sidebar = () => {
                     "relative flex items-center gap-3 px-4 py-3 rounded-r-2xl text-sm font-bold transition-all overflow-hidden",
                     isActive
                       ? "text-gray-900"
-                      : "text-gray-600 group-hover:text-gray-900"
+                      : "text-gray-600 group-hover:text-gray-900",
                   )}
                 >
                   <item.icon
@@ -141,7 +142,7 @@ export const Sidebar = () => {
                       "w-5 h-5 transition-colors",
                       isActive
                         ? "text-gray-900"
-                        : "text-gray-400 group-hover:text-gray-900"
+                        : "text-gray-400 group-hover:text-gray-900",
                     )}
                   />
                   {item.label}
@@ -164,7 +165,7 @@ export const Sidebar = () => {
               "w-full flex items-center justify-center gap-2 mt-4 px-4 py-3 bg-[#FFD75E] text-gray-900 text-sm font-bold rounded-2xl transition-all shadow-sm hover:shadow active:scale-[0.98]",
               isLoaded
                 ? "hover:bg-[#ffcf40]"
-                : "opacity-60 cursor-not-allowed hover:bg-[#FFD75E]"
+                : "opacity-60 cursor-not-allowed hover:bg-[#FFD75E]",
             )}
           >
             <Plus className="w-5 h-5" />
@@ -177,8 +178,8 @@ export const Sidebar = () => {
           <div className="flex items-center gap-3 px-4 py-2 text-sm font-medium text-gray-300 cursor-not-allowed">
             {/* <Circle className="w-10 h-10" /> */}
             {/* <span>アイコン(未作成)</span> */}
-            <div className="bg-blue-500 text-white p-1.5 rounded-lg text-sm font-bold shadow-sm">
-              🍿
+            <div className="rounded-lg text-2xl font-bold text-gray-500">
+              Cinetag
             </div>
           </div>
 
@@ -192,7 +193,7 @@ export const Sidebar = () => {
                   "flex items-center gap-3 px-4 py-2 rounded-xl text-xs font-bold transition-colors",
                   isActive
                     ? "text-blue-600"
-                    : "text-gray-400 hover:text-gray-600"
+                    : "text-gray-400 hover:text-gray-600",
                 )}
               >
                 <item.icon className="w-4 h-4" />
@@ -246,13 +247,13 @@ export const Sidebar = () => {
               href={item.href}
               className={cn(
                 "flex flex-col items-center justify-center p-2 rounded-xl transition-all",
-                isActive ? "text-[#FFD75E]" : "text-gray-400"
+                isActive ? "text-[#FFD75E]" : "text-gray-400",
               )}
             >
               <item.icon
                 className={cn(
                   "w-6 h-6",
-                  isActive ? "fill-current" : "stroke-current"
+                  isActive ? "fill-current" : "stroke-current",
                 )}
               />
             </Link>
@@ -272,7 +273,7 @@ export const Sidebar = () => {
           }}
           className={cn(
             "flex items-center justify-center p-3 rounded-full bg-[#FFD75E] text-gray-900 shadow-lg active:scale-95 transition-transform",
-            isLoaded ? "opacity-100" : "opacity-50"
+            isLoaded ? "opacity-100" : "opacity-50",
           )}
         >
           <Plus className="w-6 h-6" />
@@ -286,7 +287,7 @@ export const Sidebar = () => {
               onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)}
               className={cn(
                 "flex flex-col items-center justify-center p-2 rounded-xl transition-all",
-                isSettingsMenuOpen ? "text-[#FFD75E]" : "text-gray-400"
+                isSettingsMenuOpen ? "text-[#FFD75E]" : "text-gray-400",
               )}
             >
               <Settings className="w-6 h-6" />
