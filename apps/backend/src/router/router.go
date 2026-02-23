@@ -130,7 +130,7 @@ func setupUserRoutes(authGroup *gin.RouterGroup, deps *Dependencies) {
 func setupTagRoutes(authGroup *gin.RouterGroup, deps *Dependencies) {
 	authGroup.POST("/tags", deps.TagHandler.CreateTag)
 	authGroup.PATCH("/tags/:tagId", deps.TagHandler.UpdateTag)
-	authGroup.POST("/tags/:tagId/movies", deps.TagHandler.AddMovieToTag)
+	authGroup.POST("/tags/:tagId/movies", deps.TagHandler.AddMoviesToTag)
 	authGroup.DELETE("/tags/:tagId/movies/:tagMovieId", deps.TagHandler.RemoveMovieFromTag)
 }
 

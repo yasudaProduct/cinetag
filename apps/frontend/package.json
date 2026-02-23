@@ -42,6 +42,7 @@
     "wrangler": "^4.54.0"
   },
   "overrides": {
-    "@smithy/config-resolver": "^4.4.0"
+    "@smithy/config-resolver": "^4.4.0",
+    "minimatch": "^10.2.1"
   }
 }

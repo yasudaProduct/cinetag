@@ -3,8 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "../components/providers/query-client-provider";
+import { AppShell } from "../components/AppShell";
 import { jaJP } from "@clerk/localizations";
-import { Sidebar } from "../components/Sidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,8 +17,27 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  ),
   title: "cinetag",
   description: "cinetag",
+  openGraph: {
+    title: "cinetag - 映画をタグでつながる、共有する",
+    description:
+      "cinetagは、映画に自由にタグを作成し、他のユーザーと共有できる新しい映画プラットフォームです。",
+    images: ["/images/og-image.png"],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@cinetag",
+    creator: "@cinetag",
+    title: "cinetag - 映画をタグでつながる、共有する",
+    description:
+      "cinetagは、映画に自由にタグを作成し、他のユーザーと共有できる新しい映画プラットフォームです。",
+    images: ["/images/og-image.png"],
+  },
 };
 
 export default function RootLayout({
@@ -46,15 +65,13 @@ export default function RootLayout({
         },
       }}
     >
-      <html lang="ja">
+      <html lang="ja" suppressHydrationWarning>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased flex min-h-screen bg-[#FFF5F5] text-gray-900`}
+          suppressHydrationWarning
+          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#FFF9F3] text-gray-900`}
         >
           <Providers>
-            <Sidebar />
-            <main className="flex-1 md:ml-64 min-h-screen pb-20 md:pb-0">
-              {children}
-            </main>
+            <AppShell>{children}</AppShell>
           </Providers>
         </body>
       </html>

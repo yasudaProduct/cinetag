@@ -16,11 +16,17 @@
 
 > 補足: PR 向けのCI（lint/build/test の品質ゲート）は `/.github/workflows/ci-pr.yml` で実行します（deploy/migrate は行いません）。
 
-### 1-2. **トリガー**:`main` `develop` ブランチへの push
+### 1-2. **トリガー**:`develop` ブランチへの push（`ci-develop.yml`）
 - **ジョブ**
-  - **`backend-migrate`**: `apps/backend` で `ENV=develop` を付けて `go run ./src/cmd/migrate`（Neon向け）
-  - **`frontend-deploy`**: `apps/frontend` で `npm run deploy`（Cloudflare向け）
-  - `1-1`と同様
+  - **`backend-db-migrate`**: `apps/backend` で `ENV=develop` を付けて `go run ./src/cmd/migrate`（Neon向け）
+  - **`backend-deploy`**: `apps/backend` を Cloud Run `cinetag-backend-develop` へデプロイ（`backend-db-migrate` 完了後に実行）
+  - **`frontend-deploy`**: `apps/frontend` で `opennextjs-cloudflare deploy --env develop`（Cloudflare Workers `cinetag-frontend-develop` へ）
+
+### 1-3. **トリガー**:`main` ブランチへの push（`ci-main.yml`）
+- **ジョブ**
+  - **`backend-deploy`**: `apps/backend` を Cloud Run `cinetag-backend` 本番へデプロイ
+  - **`frontend-deploy`**: `apps/frontend` で `opennextjs-cloudflare deploy`（Cloudflare Workers `cinetag-frontend` 本番へ）
+  - ※本番マイグレーションは自動実行しない（本ドキュメント6章参照）
 ---
 
 ## 2. 前提（構成とコマンド）
@@ -50,8 +56,8 @@
 ### 3.1 共通方針
 
 - **トリガー（推奨）**
-  - PR: `main`, `develop` 向け（※現状は未実装）
-  - push: `main`, `develop`（※現状は `develop` のみ）
+  - PR: `main`, `develop` 向け（`ci-pr.yml`）
+  - push: `develop` → 開発環境デプロイ（`ci-develop.yml`）、`main` → 本番デプロイ（`ci-main.yml`）
 - **失敗時の扱い**: 1つでも失敗したらPRをブロック
 - **キャッシュ**
   - Go: `~/go/pkg/mod`, `~/.cache/go-build`
@@ -88,8 +94,17 @@
 
 #### バックエンド（現状ワークフローで使用）
 
-- **`backend-migrate`**
+- **`backend-db-migrate`**
   - `NEON_DATABASE_URL`（GitHub Actions Secrets）
+- **`backend-deploy`**（Cloud Run）
+  - `GCP_PROJECT_ID` - GCP プロジェクトID
+  - `GCP_REGION` - Cloud Run のリージョン（例: `asia-northeast1`）
+  - `GCP_SA_KEY` - サービスアカウントの JSON キー（Cloud Run Admin, Artifact Registry Writer, Service Account User 等のロールが必要）
+  - `NEON_DATABASE_URL`（develop）/ `NEON_DATABASE_URL_PROD`（本番、別DBの場合は別途作成）
+  - `CLERK_JWKS_URL`
+  - `TMDB_API_KEY`
+
+> **GCP サービスアカウントの権限**: Cloud Run Admin, Artifact Registry Writer（または Admin）, Service Account User, Cloud Build Editor, Storage Admin 等が必要です。詳細は [Deploying from source code](https://cloud.google.com/run/docs/deploying-source-code#permissions_required_to_deploy) を参照してください。
 
 #### バックエンド（アプリ実行時の例）
 
@@ -104,7 +119,7 @@
 
 #### フロントエンド（現状ワークフローで使用）
 
-- **`frontend-deploy`**
+- **`frontend-deploy`**（`ci-develop.yml` / `ci-main.yml` 共通）
   - `CLOUDFLARE_API_TOKEN`
   - `NEXT_PUBLIC_BACKEND_API_BASE`
   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
@@ -113,28 +128,36 @@
   - `NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL`
   - `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL`
 
-> どの値が「ビルド時に必要」か「実行時に必要」かは、デプロイ方式（Pages/Workers）や設定により変わります。まずは **CIで `npm run build` が通ること** を最小ゴールにして、必要に応じて追加してください。
+> 本番と開発でバックエンドURLが異なる場合は、`NEXT_PUBLIC_BACKEND_API_BASE_PROD` 等の環境別 secrets を追加し、ワークフローで条件分岐する必要があります。
 
 ### 5.2 フロントエンドのデプロイ（Cloudflare / OpenNext）
 
 このリポジトリは `apps/frontend/wrangler.jsonc` を含み、OpenNext（`@opennextjs/cloudflare`）で **Cloudflare Workers にデプロイ**する構成です。
 
+- **環境分離**（`wrangler.jsonc` の `env`）
+  - 本番: `cinetag-frontend`（`wrangler deploy` または `npm run deploy`）
+  - 開発: `cinetag-frontend-develop`（`wrangler deploy --env develop`）
 - **ローカル実行**
   - `cd apps/frontend`
-  - `npm run deploy`
-- **CIから実行（推奨）**
-  - `npm ci`
-  - `npm run deploy`
+  - 本番: `npm run deploy`
+  - 開発: `npx opennextjs-cloudflare build && npx opennextjs-cloudflare deploy --env develop`
+- **CIから実行**
+  - `develop` push: `opennextjs-cloudflare deploy --env develop`（`ci-develop.yml`）
+  - `main` push: `opennextjs-cloudflare deploy`（`ci-main.yml`）
   - `CLOUDFLARE_API_TOKEN` をsecretsとして注入
 
-### 5.3 バックエンドのデプロイ（コンテナ）
+### 5.3 バックエンドのデプロイ（Cloud Run）
 
-バックエンドは `apps/backend/Dockerfile` を同梱しています。
+バックエンドは `apps/backend/Dockerfile` を同梱し、GitHub Actions から **Cloud Run** へデプロイします。
 
-- **推奨方針**
-  - CDでは **コンテナイメージをビルド**し、デプロイ先（例: Cloudflare Containers 等）へ反映する
-  - ただし、現時点で Cloudflare Containers 向けの `wrangler.toml` 等はリポジトリ内にないため、
-    - 「どこへ」「どのCLIで」デプロイするか（Cloudflare / 他PaaS）を決めた上で、環境ごとの設定ファイルを追加する
+- **環境分離**
+  - 開発: `cinetag-backend-develop`（`ci-develop.yml`、`develop` push）
+  - 本番: `cinetag-backend`（`ci-main.yml`、`main` push）
+- **デプロイ方式**
+  - `google-github-actions/deploy-cloudrun` を使用し、`source: apps/backend` からソースビルド
+  - Cloud Build が Dockerfile をビルドし、Artifact Registry 経由で Cloud Run にデプロイ
+- **実行順序**（develop）
+  - `backend-db-migrate` 完了後に `backend-deploy` を実行（スキーマ変更の整合性のため）
 
 ---
 

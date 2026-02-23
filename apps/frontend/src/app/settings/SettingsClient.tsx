@@ -134,7 +134,7 @@ export function SettingsClient() {
   const externalAccounts = user.externalAccounts || [];
 
   return (
-    <div className="min-h-screen bg-[#FFF9F3]">
+    <div className="min-h-screen">
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* ヘッダー */}
         <div className="flex items-center gap-4 mb-8">

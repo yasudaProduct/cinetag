@@ -67,18 +67,17 @@ func newTagService(t *testing.T, opt func(*deps)) TagService {
 	return NewTagService(logger, d.tagRepo, d.tagMovieRepo, d.tagFollowerRepo, d.movieService, d.imageBaseURL)
 }
 
-func TestTagService_AddMovieToTag(t *testing.T) {
+func TestTagService_AddMoviesToTag(t *testing.T) {
 	t.Parallel()
 
 	t.Run("入力バリデーション: tag_id が必須", func(t *testing.T) {
 		t.Parallel()
 		svc := newTagService(t, nil)
 
-		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "",
-			UserID:      "u1",
-			TmdbMovieID: 1,
-			Position:    0,
+		_, err := svc.AddMoviesToTag(context.Background(), AddMoviesToTagInput{
+			TagID:  "",
+			UserID: "u1",
+			Movies: []MovieItem{{TmdbMovieID: 1}},
 		})
 		if err == nil {
 			t.Fatalf("expected error")
@@ -89,61 +88,42 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 		t.Parallel()
 		svc := newTagService(t, nil)
 
-		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "t1",
-			UserID:      "",
-			TmdbMovieID: 1,
-			Position:    0,
+		_, err := svc.AddMoviesToTag(context.Background(), AddMoviesToTagInput{
+			TagID:  "t1",
+			UserID: "",
+			Movies: []MovieItem{{TmdbMovieID: 1}},
 		})
 		if err == nil {
 			t.Fatalf("expected error")
 		}
 	})
 
-	t.Run("入力バリデーション: tmdb_movie_id は正の整数", func(t *testing.T) {
+	t.Run("入力バリデーション: movies が空", func(t *testing.T) {
 		t.Parallel()
 		svc := newTagService(t, nil)
 
-		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "t1",
-			UserID:      "u1",
-			TmdbMovieID: 0,
-			Position:    0,
+		_, err := svc.AddMoviesToTag(context.Background(), AddMoviesToTagInput{
+			TagID:  "t1",
+			UserID: "u1",
+			Movies: []MovieItem{},
 		})
 		if err == nil {
 			t.Fatalf("expected error")
 		}
 	})
 
-	t.Run("入力バリデーション: position は 0 以上", func(t *testing.T) {
+	t.Run("タグが見つからない: ErrTagNotFound", func(t *testing.T) {
 		t.Parallel()
-		svc := newTagService(t, nil)
-
-		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "t1",
-			UserID:      "u1",
-			TmdbMovieID: 1,
-			Position:    -1,
-		})
-		if err == nil {
-			t.Fatalf("expected error")
-		}
-	})
-
-	t.Run("タグが見つからない: gorm.ErrRecordNotFound は ErrTagNotFound に変換される", func(t *testing.T) {
-		t.Parallel()
-
 		svc := newTagService(t, func(d *deps) {
 			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
 				return nil, gorm.ErrRecordNotFound
 			}
 		})
 
-		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "t1",
-			UserID:      "u1",
-			TmdbMovieID: 1,
-			Position:    0,
+		_, err := svc.AddMoviesToTag(context.Background(), AddMoviesToTagInput{
+			TagID:  "t1",
+			UserID: "u1",
+			Movies: []MovieItem{{TmdbMovieID: 1}},
 		})
 		if !errors.Is(err, ErrTagNotFound) {
 			t.Fatalf("expected ErrTagNotFound, got: %v", err)
@@ -160,213 +140,183 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 			}
 		})
 
-		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "t1",
-			UserID:      "u1",
-			TmdbMovieID: 1,
-			Position:    0,
+		_, err := svc.AddMoviesToTag(context.Background(), AddMoviesToTagInput{
+			TagID:  "t1",
+			UserID: "u1",
+			Movies: []MovieItem{{TmdbMovieID: 1}},
 		})
 		if !errors.Is(err, expected) {
 			t.Fatalf("expected propagated error, got: %v", err)
 		}
 	})
 
-	t.Run("重複追加: repository.ErrTagMovieAlreadyExists は ErrTagMovieAlreadyExists に変換される", func(t *testing.T) {
+	t.Run("権限チェック: owner_only で他ユーザー → ErrTagPermissionDenied", func(t *testing.T) {
 		t.Parallel()
-
 		svc := newTagService(t, func(d *deps) {
 			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
-				return &model.Tag{ID: id}, nil
-			}
-			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
-				return repository.ErrTagMovieAlreadyExists
+				return &model.Tag{ID: id, UserID: "owner1", AddMoviePolicy: "owner_only"}, nil
 			}
 		})
 
-		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "t1",
-			UserID:      "u1",
-			TmdbMovieID: 1,
-			Position:    0,
-		})
-		if !errors.Is(err, ErrTagMovieAlreadyExists) {
-			t.Fatalf("expected ErrTagMovieAlreadyExists, got: %v", err)
-		}
-	})
-
-	t.Run("タグ映画の作成で失敗: TagMovieRepository.Create のエラーはそのまま返る", func(t *testing.T) {
-		t.Parallel()
-
-		expected := errors.New("insert failed")
-		svc := newTagService(t, func(d *deps) {
-			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
-				return &model.Tag{ID: id}, nil
-			}
-			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
-				return expected
-			}
-		})
-
-		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "t1",
-			UserID:      "u1",
-			TmdbMovieID: 1,
-			Position:    0,
-		})
-		if !errors.Is(err, expected) {
-			t.Fatalf("expected propagated error, got: %v", err)
-		}
-	})
-
-	t.Run("成功: tag_movie を作成する", func(t *testing.T) {
-		t.Parallel()
-
-		var created *model.TagMovie
-
-		tagRepo := &testutil.FakeTagRepository{
-			FindByIDFn: func(ctx context.Context, id string) (*model.Tag, error) {
-				return &model.Tag{ID: id}, nil
-			},
-		}
-		tagMovieRepo := &testutil.FakeTagMovieRepository{
-			CreateFn: func(ctx context.Context, tagMovie *model.TagMovie) error {
-				created = &model.TagMovie{
-					TagID:       tagMovie.TagID,
-					TmdbMovieID: tagMovie.TmdbMovieID,
-					AddedByUser: tagMovie.AddedByUser,
-					Note:        tagMovie.Note,
-					Position:    tagMovie.Position,
-				}
-				return nil
-			},
-		}
-
-		logger := testutil.NewTestLogger()
-		svc := NewTagService(logger, tagRepo, tagMovieRepo, &testutil.FakeTagFollowerRepository{}, nil, "")
-
-		// Act
-		note := "hello"
-		out, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "t1",
-			UserID:      "u1",
-			TmdbMovieID: 123,
-			Note:        &note,
-			Position:    2,
-		})
-
-		// Assert
-		if err != nil {
-			t.Fatalf("expected no error, got: %v", err)
-		}
-		if out == nil {
-			t.Fatalf("expected output")
-		}
-		if created == nil {
-			t.Fatalf("expected TagMovieRepository.Create to be called")
-		}
-
-		if created.TagID != "t1" || created.AddedByUser != "u1" || created.TmdbMovieID != 123 || created.Position != 2 {
-			t.Fatalf("unexpected created tag movie: %+v", created)
-		}
-		if created.Note == nil || *created.Note != note {
-			t.Fatalf("expected note to be set")
-		}
-	})
-
-	t.Run("権限チェック: add_movie_policy=owner_only の場合、作成者以外は ErrTagPermissionDenied", func(t *testing.T) {
-		t.Parallel()
-
-		svc := newTagService(t, func(d *deps) {
-			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
-				return &model.Tag{
-					ID:             id,
-					UserID:         "owner1",
-					AddMoviePolicy: "owner_only",
-				}, nil
-			}
-		})
-
-		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "t1",
-			UserID:      "other_user",
-			TmdbMovieID: 1,
-			Position:    0,
+		_, err := svc.AddMoviesToTag(context.Background(), AddMoviesToTagInput{
+			TagID:  "t1",
+			UserID: "other_user",
+			Movies: []MovieItem{{TmdbMovieID: 1}},
 		})
 		if !errors.Is(err, ErrTagPermissionDenied) {
 			t.Fatalf("expected ErrTagPermissionDenied, got: %v", err)
 		}
 	})
 
-	t.Run("権限チェック: add_movie_policy=owner_only の場合、作成者は成功", func(t *testing.T) {
+	t.Run("権限チェック: owner_only でオーナー自身は成功", func(t *testing.T) {
 		t.Parallel()
-
-		var created *model.TagMovie
 		svc := newTagService(t, func(d *deps) {
 			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
-				return &model.Tag{
-					ID:             id,
-					UserID:         "owner1",
-					AddMoviePolicy: "owner_only",
-				}, nil
+				return &model.Tag{ID: id, UserID: "owner1", AddMoviePolicy: "owner_only"}, nil
 			}
 			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
-				created = tagMovie
 				return nil
 			}
 		})
 
-		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "t1",
-			UserID:      "owner1",
-			TmdbMovieID: 1,
-			Position:    0,
+		result, err := svc.AddMoviesToTag(context.Background(), AddMoviesToTagInput{
+			TagID:  "t1",
+			UserID: "owner1",
+			Movies: []MovieItem{{TmdbMovieID: 1}},
 		})
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
-		if created == nil {
-			t.Fatalf("expected TagMovieRepository.Create to be called")
+		if result.Summary.Created != 1 {
+			t.Fatalf("expected created=1, got %d", result.Summary.Created)
 		}
 	})
 
-	t.Run("権限チェック: add_movie_policy=everyone の場合、誰でも追加可能", func(t *testing.T) {
+	t.Run("権限チェック: everyone なら誰でも追加可能", func(t *testing.T) {
 		t.Parallel()
-
-		var created *model.TagMovie
 		svc := newTagService(t, func(d *deps) {
 			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
-				return &model.Tag{
-					ID:             id,
-					UserID:         "owner1",
-					AddMoviePolicy: "everyone",
-				}, nil
+				return &model.Tag{ID: id, UserID: "owner1", AddMoviePolicy: "everyone"}, nil
 			}
 			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
-				created = tagMovie
 				return nil
 			}
 		})
 
-		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "t1",
-			UserID:      "other_user",
-			TmdbMovieID: 1,
-			Position:    0,
+		result, err := svc.AddMoviesToTag(context.Background(), AddMoviesToTagInput{
+			TagID:  "t1",
+			UserID: "other_user",
+			Movies: []MovieItem{{TmdbMovieID: 1}},
 		})
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
-		if created == nil {
-			t.Fatalf("expected TagMovieRepository.Create to be called")
+		if result.Summary.Created != 1 {
+			t.Fatalf("expected created=1, got %d", result.Summary.Created)
 		}
 	})
 
-	t.Run("非同期処理: movieService がある場合、キャッシュウォームが実行される", func(t *testing.T) {
+	t.Run("全件成功: 3件追加", func(t *testing.T) {
+		t.Parallel()
+		var createdIDs []int
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id, UserID: "u1"}, nil
+			}
+			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
+				createdIDs = append(createdIDs, tagMovie.TmdbMovieID)
+				return nil
+			}
+		})
+
+		result, err := svc.AddMoviesToTag(context.Background(), AddMoviesToTagInput{
+			TagID:  "t1",
+			UserID: "u1",
+			Movies: []MovieItem{
+				{TmdbMovieID: 10, Position: 0},
+				{TmdbMovieID: 20, Position: 1},
+				{TmdbMovieID: 30, Position: 2},
+			},
+		})
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if result.Summary.Created != 3 || result.Summary.AlreadyExists != 0 || result.Summary.Failed != 0 {
+			t.Fatalf("unexpected summary: %+v", result.Summary)
+		}
+		if len(createdIDs) != 3 {
+			t.Fatalf("expected 3 creates, got %d", len(createdIDs))
+		}
+	})
+
+	t.Run("部分成功: 重複含み", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id, UserID: "u1"}, nil
+			}
+			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
+				if tagMovie.TmdbMovieID == 20 {
+					return repository.ErrTagMovieAlreadyExists
+				}
+				return nil
+			}
+		})
+
+		result, err := svc.AddMoviesToTag(context.Background(), AddMoviesToTagInput{
+			TagID:  "t1",
+			UserID: "u1",
+			Movies: []MovieItem{
+				{TmdbMovieID: 10},
+				{TmdbMovieID: 20},
+				{TmdbMovieID: 30},
+			},
+		})
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if result.Summary.Created != 2 || result.Summary.AlreadyExists != 1 {
+			t.Fatalf("unexpected summary: %+v", result.Summary)
+		}
+		if result.Results[1].Status != "already_exists" {
+			t.Fatalf("result[1]: expected already_exists, got %s", result.Results[1].Status)
+		}
+	})
+
+	t.Run("個別バリデーション: tmdb_movie_id が不正な項目はerror", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id, UserID: "u1"}, nil
+			}
+			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
+				return nil
+			}
+		})
+
+		result, err := svc.AddMoviesToTag(context.Background(), AddMoviesToTagInput{
+			TagID:  "t1",
+			UserID: "u1",
+			Movies: []MovieItem{
+				{TmdbMovieID: 10},
+				{TmdbMovieID: 0},
+			},
+		})
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if result.Summary.Created != 1 || result.Summary.Failed != 1 {
+			t.Fatalf("unexpected summary: %+v", result.Summary)
+		}
+		if result.Results[1].Status != "error" {
+			t.Fatalf("result[1]: expected error, got %s", result.Results[1].Status)
+		}
+	})
+
+	t.Run("キャッシュウォーム: 成功した映画のみgoroutineが呼ばれる", func(t *testing.T) {
 		t.Parallel()
 
-		// goroutine が呼ばれたことを検証するためのチャネル
-		done := make(chan int, 1)
-
+		done := make(chan int, 3)
 		movieSvc := &fakeMovieService{
 			EnsureMovieCacheFn: func(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error) {
 				done <- tmdbMovieID
@@ -376,74 +326,45 @@ func TestTagService_AddMovieToTag(t *testing.T) {
 
 		svc := newTagService(t, func(d *deps) {
 			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
-				return &model.Tag{ID: id}, nil
+				return &model.Tag{ID: id, UserID: "u1"}, nil
 			}
 			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
+				if tagMovie.TmdbMovieID == 20 {
+					return repository.ErrTagMovieAlreadyExists
+				}
 				return nil
 			}
 			d.movieService = movieSvc
 		})
 
-		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "t1",
-			UserID:      "u1",
-			TmdbMovieID: 123,
-			Position:    0,
-		})
-		if err != nil {
-			t.Fatalf("expected no error, got: %v", err)
-		}
-
-		// goroutine の完了を待つ（タイムアウト付き）
-		select {
-		case movieID := <-done:
-			if movieID != 123 {
-				t.Fatalf("expected movieID=123, got %d", movieID)
-			}
-		case <-time.After(1 * time.Second):
-			t.Fatalf("expected EnsureMovieCache to be called within 1 second")
-		}
-	})
-
-	t.Run("非同期処理: movieService のエラーは無視される（APIは成功）", func(t *testing.T) {
-		t.Parallel()
-
-		done := make(chan bool, 1)
-
-		movieSvc := &fakeMovieService{
-			EnsureMovieCacheFn: func(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error) {
-				done <- true
-				return nil, errors.New("cache warm failed")
+		result, err := svc.AddMoviesToTag(context.Background(), AddMoviesToTagInput{
+			TagID:  "t1",
+			UserID: "u1",
+			Movies: []MovieItem{
+				{TmdbMovieID: 10},
+				{TmdbMovieID: 20},
+				{TmdbMovieID: 30},
 			},
-		}
-
-		svc := newTagService(t, func(d *deps) {
-			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
-				return &model.Tag{ID: id}, nil
-			}
-			d.tagMovieRepo.CreateFn = func(ctx context.Context, tagMovie *model.TagMovie) error {
-				return nil
-			}
-			d.movieService = movieSvc
 		})
-
-		_, err := svc.AddMovieToTag(context.Background(), AddMovieToTagInput{
-			TagID:       "t1",
-			UserID:      "u1",
-			TmdbMovieID: 123,
-			Position:    0,
-		})
-		// APIは成功する
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
+		if result.Summary.Created != 2 {
+			t.Fatalf("expected created=2, got %d", result.Summary.Created)
+		}
 
-		// goroutine が実行されたことを確認
-		select {
-		case <-done:
-			// OK
-		case <-time.After(1 * time.Second):
-			t.Fatalf("expected EnsureMovieCache to be called within 1 second")
+		// 成功した2件（10, 30）のみキャッシュウォームが呼ばれる
+		warmed := map[int]bool{}
+		for i := 0; i < 2; i++ {
+			select {
+			case id := <-done:
+				warmed[id] = true
+			case <-time.After(2 * time.Second):
+				t.Fatalf("expected 2 cache warms, got %d", len(warmed))
+			}
+		}
+		if !warmed[10] || !warmed[30] {
+			t.Fatalf("expected movie IDs 10 and 30 to be warmed, got %v", warmed)
 		}
 	})
 }

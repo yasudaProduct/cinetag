@@ -1,5 +1,5 @@
-"use client";
+import HomeClient from "./HomeClient";
 
-export { default } from "../page";
-
-
+export default function TagsPage() {
+  return <HomeClient />;
+}
