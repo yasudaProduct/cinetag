@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # backend-migrate は開発用Neonデータベースへのマイグレーションを実行するジョブ
+  # backend-db-migrate は開発用Neonデータベースへのマイグレーションを実行するジョブ
   backend-db-migrate:
     name: backend / db migrate (Neon)
     runs-on: ubuntu-latest
@@ -39,6 +39,39 @@ jobs:
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           ENV: develop
         run: go run ./src/cmd/migrate
+
+  # backend-deploy は Go API を Cloud Run 開発環境にデプロイするジョブ
+  backend-deploy:
+    name: backend / deploy (Cloud Run develop)
+    needs: backend-db-migrate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: "read"
+      id-token: "write"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy to Cloud Run (develop)
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: cinetag-backend-develop
+          source: apps/backend
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          region: ${{ secrets.GCP_REGION }}
+          env_vars: |
+            DATABASE_URL=${{ secrets.NEON_DATABASE_URL }}
+            CLERK_JWKS_URL=${{ secrets.CLERK_JWKS_URL }}
+            TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}
+            ENV=develop
 
   # frontend-deploy は Next.js アプリケーションを Cloudflare Pages/Workers にデプロイするジョブ
   frontend-deploy:

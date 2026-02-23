@@ -19,10 +19,12 @@
 ### 1-2. **トリガー**:`develop` ブランチへの push（`ci-develop.yml`）
 - **ジョブ**
   - **`backend-db-migrate`**: `apps/backend` で `ENV=develop` を付けて `go run ./src/cmd/migrate`（Neon向け）
+  - **`backend-deploy`**: `apps/backend` を Cloud Run `cinetag-backend-develop` へデプロイ（`backend-db-migrate` 完了後に実行）
   - **`frontend-deploy`**: `apps/frontend` で `opennextjs-cloudflare deploy --env develop`（Cloudflare Workers `cinetag-frontend-develop` へ）
 
 ### 1-3. **トリガー**:`main` ブランチへの push（`ci-main.yml`）
 - **ジョブ**
+  - **`backend-deploy`**: `apps/backend` を Cloud Run `cinetag-backend` 本番へデプロイ
   - **`frontend-deploy`**: `apps/frontend` で `opennextjs-cloudflare deploy`（Cloudflare Workers `cinetag-frontend` 本番へ）
   - ※本番マイグレーションは自動実行しない（本ドキュメント6章参照）
 ---
@@ -92,8 +94,17 @@
 
 #### バックエンド（現状ワークフローで使用）
 
-- **`backend-migrate`**
+- **`backend-db-migrate`**
   - `NEON_DATABASE_URL`（GitHub Actions Secrets）
+- **`backend-deploy`**（Cloud Run）
+  - `GCP_PROJECT_ID` - GCP プロジェクトID
+  - `GCP_REGION` - Cloud Run のリージョン（例: `asia-northeast1`）
+  - `GCP_SA_KEY` - サービスアカウントの JSON キー（Cloud Run Admin, Artifact Registry Writer, Service Account User 等のロールが必要）
+  - `NEON_DATABASE_URL`（develop）/ `NEON_DATABASE_URL_PROD`（本番、別DBの場合は別途作成）
+  - `CLERK_JWKS_URL`
+  - `TMDB_API_KEY`
+
+> **GCP サービスアカウントの権限**: Cloud Run Admin, Artifact Registry Writer（または Admin）, Service Account User, Cloud Build Editor, Storage Admin 等が必要です。詳細は [Deploying from source code](https://cloud.google.com/run/docs/deploying-source-code#permissions_required_to_deploy) を参照してください。
 
 #### バックエンド（アプリ実行時の例）
 
@@ -135,14 +146,18 @@
   - `main` push: `opennextjs-cloudflare deploy`（`ci-main.yml`）
   - `CLOUDFLARE_API_TOKEN` をsecretsとして注入
 
-### 5.3 バックエンドのデプロイ（コンテナ）
+### 5.3 バックエンドのデプロイ（Cloud Run）
 
-バックエンドは `apps/backend/Dockerfile` を同梱しています。
+バックエンドは `apps/backend/Dockerfile` を同梱し、GitHub Actions から **Cloud Run** へデプロイします。
 
-- **推奨方針**
-  - CDでは **コンテナイメージをビルド**し、デプロイ先（例: Cloudflare Containers 等）へ反映する
-  - ただし、現時点で Cloudflare Containers 向けの `wrangler.toml` 等はリポジトリ内にないため、
-    - 「どこへ」「どのCLIで」デプロイするか（Cloudflare / 他PaaS）を決めた上で、環境ごとの設定ファイルを追加する
+- **環境分離**
+  - 開発: `cinetag-backend-develop`（`ci-develop.yml`、`develop` push）
+  - 本番: `cinetag-backend`（`ci-main.yml`、`main` push）
+- **デプロイ方式**
+  - `google-github-actions/deploy-cloudrun` を使用し、`source: apps/backend` からソースビルド
+  - Cloud Build が Dockerfile をビルドし、Artifact Registry 経由で Cloud Run にデプロイ
+- **実行順序**（develop）
+  - `backend-db-migrate` 完了後に `backend-deploy` を実行（スキーマ変更の整合性のため）
 
 ---
 
