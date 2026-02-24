@@ -54,8 +54,8 @@ const nextConfig: NextConfig = {
     const clerkAccountsSrc = clerkAccountsHosts.join(" ");
 
     const scriptSrc = isDev
-      ? `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsSrc} https://clerk.com`
-      : `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsSrc} https://clerk.com`; // TODO: 将来的にNonceベースに移行
+      ? `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsSrc} https://clerk.cine-tag.com`
+      : `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsSrc} https://clerk.cine-tag.com`; // TODO: 将来的にNonceベースに移行
 
     const connectSrc = [
       "'self'",
