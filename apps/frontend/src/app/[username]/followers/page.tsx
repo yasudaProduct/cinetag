@@ -1,6 +1,30 @@
+import type { Metadata } from "next";
+import { getUserByDisplayId } from "@/lib/api/users/getUser";
 import { FollowersList } from "../_components/tabs/FollowersList";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ username: string }>;
+}): Promise<Metadata> {
+  const { username } = await params;
+
+  try {
+    const user = await getUserByDisplayId(username, { cache: "no-store" });
+    const title = `${user.display_name}のフォロワー | cinetag`;
+
+    return {
+      title,
+      openGraph: { title },
+    };
+  } catch {
+    return {
+      title: "フォロワー | cinetag",
+    };
+  }
+}
 
 export default async function FollowersPage({
   params,
