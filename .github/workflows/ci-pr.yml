@@ -42,6 +42,51 @@ jobs:
       - name: Run unit tests
         run: go test ./...
 
+  backend-migration-check:
+    name: backend / migration check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cinetag_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: apps/backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      - name: Test migration up
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/cinetag_test?sslmode=disable
+        run: go run ./src/cmd/migrate up
+
+      - name: Test migration down
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/cinetag_test?sslmode=disable
+        run: go run ./src/cmd/migrate down
+
+      - name: Test migration up again (idempotency)
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/cinetag_test?sslmode=disable
+        run: go run ./src/cmd/migrate up
+
   frontend-lint:
     name: frontend / lint
     runs-on: ubuntu-latest

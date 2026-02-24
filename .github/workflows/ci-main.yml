@@ -15,10 +15,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # backend-db-migrate は本番用Neonデータベースへのマイグレーションを実行するジョブ
+  # backend-db-migrate は本番Neonデータベースへのマイグレーションを実行するジョブ
   backend-db-migrate:
-    name: backend / db migrate (Neon production)
+    name: backend / db migrate (goose)
     runs-on: ubuntu-latest
+    environment: production
     defaults:
       run:
         working-directory: apps/backend
@@ -36,15 +37,15 @@ jobs:
 
       - name: Run migration
         env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL_PROD }}
-          ENV: production
-        run: go run ./src/cmd/migrate
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: go run ./src/cmd/migrate up
 
   # backend-deploy は Go API を Cloud Run 本番環境にデプロイするジョブ
   backend-deploy:
     name: backend / deploy (Cloud Run production)
     needs: backend-db-migrate
     runs-on: ubuntu-latest
+    environment: production
     permissions:
       contents: "read"
       id-token: "write"
@@ -68,7 +69,7 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           region: ${{ secrets.GCP_REGION }}
           env_vars: |
-            DATABASE_URL=${{ secrets.NEON_DATABASE_URL_PROD }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
             CLERK_JWKS_URL=${{ secrets.CLERK_JWKS_URL }}
             TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}
             ENV=production
@@ -77,6 +78,7 @@ jobs:
   frontend-deploy:
     name: frontend / deploy (Cloudflare production)
     runs-on: ubuntu-latest
+    environment: production
     defaults:
       run:
         working-directory: apps/frontend

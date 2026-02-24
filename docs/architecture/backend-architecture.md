@@ -17,8 +17,10 @@ apps/backend/
 ├── src/
 │   ├── cmd/
 │   │   ├── main.go              # API サーバーのエントリーポイント
-│   │   └── migrate/
-│   │       └── main.go          # マイグレーション専用エントリーポイント
+│   │   ├── migrate/
+│   │   │   └── main.go          # マイグレーション専用エントリーポイント（goose）
+│   │   └── seed/
+│   │       └── main.go          # 開発用シードデータ投入エントリーポイント
 │   ├── internal/
 │   │   ├── db/                  # DB接続（GORM）初期化
 │   │   ├── handler/             # ハンドラー（プレゼンテーション層）
@@ -26,6 +28,10 @@ apps/backend/
 │   │   ├── repository/          # 永続化層（DB アクセス）
 │   │   ├── model/               # モデル（DBスキーマに対応するGORMモデルが中心）
 │   │   ├── middleware/          # カスタムミドルウェア
+│   │   ├── migration/           # gooseマイグレーション（embed.FS + SQLファイル）
+│   │   │   ├── embed.go
+│   │   │   └── migrations/      # バージョン管理されたSQLマイグレーションファイル
+│   │   └── seed/                # 開発用シードデータ読み込み・投入
 │   └── router/
 │       └── router.go            # ルーティング定義 + 依存関係の組み立て（DI）を一元管理
 └── ...

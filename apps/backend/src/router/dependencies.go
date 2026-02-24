@@ -26,6 +26,7 @@ type Dependencies struct {
 	ClerkWebhookHandler *handler.ClerkWebhookHandler
 
 	// Middlewares
+	MaintenanceMiddleware   gin.HandlerFunc
 	RequestLoggerMiddleware gin.HandlerFunc
 	RecoveryMiddleware      gin.HandlerFunc
 	AuthMiddleware          gin.HandlerFunc
@@ -60,6 +61,7 @@ func NewDependencies() *Dependencies {
 	clerkWebhookHandler := handler.NewClerkWebhookHandler(log, userService)
 
 	// Middlewares
+	maintenanceMiddleware := middleware.NewMaintenanceMiddleware(log)
 	requestLoggerMiddleware := middleware.NewRequestLoggerMiddleware(log)
 	recoveryMiddleware := middleware.NewRecoveryMiddleware(log)
 	authMiddleware := middleware.NewAuthMiddleware(log, userService)
@@ -71,6 +73,7 @@ func NewDependencies() *Dependencies {
 		MovieHandler:            movieHandler,
 		UserHandler:             userHandler,
 		ClerkWebhookHandler:     clerkWebhookHandler,
+		MaintenanceMiddleware:   maintenanceMiddleware,
 		RequestLoggerMiddleware: requestLoggerMiddleware,
 		RecoveryMiddleware:      recoveryMiddleware,
 		AuthMiddleware:          authMiddleware,

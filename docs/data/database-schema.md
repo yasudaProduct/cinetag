@@ -176,6 +176,8 @@ erDiagram
 | `update_users_updated_at` | users | BEFORE UPDATE | updated_at自動更新 |
 | `update_tags_updated_at` | tags | BEFORE UPDATE | updated_at自動更新 |
 
+> 注: トリガーはドキュメント上の設計であり、現在はGORMが `updated_at` を自動管理しているため、DBトリガーは未適用です。今後のマイグレーションで段階的に追加予定。
+
 ---
 
 ## 制約一覧
@@ -189,5 +191,17 @@ erDiagram
 | tag_movies | `tag_movies_unique` | UNIQUE | (tag_id, tmdb_movie_id)の一意性 |
 | tag_movies | `tag_movies_note_length` | CHECK | メモ280文字以下 |
 | tag_movies | `tag_movies_position_positive` | CHECK | position >= 0 |
+
+> 注: CHECK制約はドキュメント上の設計であり、現在はアプリケーション層でバリデーションしています。FK制約も同様に未適用です。今後のマイグレーションで段階的に追加予定。
+
+---
+
+## スキーマ管理
+
+スキーマ変更は **goose** によるバージョン管理型マイグレーションで管理しています。
+
+- マイグレーションファイル: `apps/backend/src/internal/migration/migrations/*.sql`
+- 実行コマンド: `go run ./src/cmd/migrate up` / `down` / `status` / `reset`
+- 詳細: `docs/operations/cicd.md` の「6. マイグレーション運用」を参照
 
 ---

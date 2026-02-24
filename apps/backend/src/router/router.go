@@ -29,12 +29,6 @@ func NewRouter() *gin.Engine {
 
 // setupMiddleware はミドルウェアを設定します。
 func setupMiddleware(r *gin.Engine, deps *Dependencies) {
-	// リカバリーミドルウェア（パニック時のログ出力）
-	r.Use(deps.RecoveryMiddleware)
-
-	// リクエストログミドルウェア（request_id付与、リクエストログ出力）
-	r.Use(deps.RequestLoggerMiddleware)
-
 	// CORS設定
 	r.Use(cors.New(cors.Config{
 		// 許可するオリジン（開発環境と本番環境のフロントエンドURL）
@@ -42,6 +36,7 @@ func setupMiddleware(r *gin.Engine, deps *Dependencies) {
 			"http://localhost:3000",                                // ローカル開発環境
 			"http://localhost:8787",                                // ローカル開発環境（Cloudflare Pages プレビュー）
 			"https://cinetag-frontend.yuta-develop-ct.workers.dev", // 開発環境（Cloudflare Workers）
+			"https://cine-tag.com",                                 // 本番環境
 		},
 		// 許可するHTTPメソッド
 		AllowMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
@@ -54,6 +49,15 @@ func setupMiddleware(r *gin.Engine, deps *Dependencies) {
 		// プリフライトリクエスト（OPTIONS）結果のキャッシュ期間（12時間）
 		MaxAge: 12 * time.Hour,
 	}))
+
+	// メンテナンスモード（MAINTENANCE_MODE=true で /health 以外を503にする）
+	r.Use(deps.MaintenanceMiddleware)
+
+	// リカバリーミドルウェア（パニック時のログ出力）
+	r.Use(deps.RecoveryMiddleware)
+
+	// リクエストログミドルウェア（request_id付与、リクエストログ出力）
+	r.Use(deps.RequestLoggerMiddleware)
 }
 
 // setupRoutes はすべてのルートを設定します。

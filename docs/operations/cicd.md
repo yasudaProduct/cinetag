@@ -9,6 +9,7 @@
 ### 1-1. **トリガー**:`main` `develop` ブランチへの pull_request
 - **ジョブ**
   - **`backend-unit-test`**: `apps/backend` で `go test ./...`
+  - **`backend-migration-check`**: PostgreSQLサービスコンテナでマイグレーションの up/down/up 往復テスト
   - **`frontend-lint`**: `apps/frontend` で `npm run lint`
   - **`frontend-build`** `apps/frontend` で `npm run build`
   - **`backend-vulncheck`** `apps/backend` で `govulncheck ./...`
@@ -18,15 +19,18 @@
 
 ### 1-2. **トリガー**:`develop` ブランチへの push（`ci-develop.yml`）
 - **ジョブ**
-  - **`backend-db-migrate`**: `apps/backend` で `ENV=develop` を付けて `go run ./src/cmd/migrate`（Neon向け）
+  - **`backend-db-migrate`**: `apps/backend` で `go run ./src/cmd/migrate up`（goose による差分マイグレーション、Neon向け）
+    - シードデータ投入: `go run ./src/cmd/seed`（`ENV=develop` で実行）
+    - 手動トリガー時に `reset_db=true` を指定すると、全マイグレーションをリセットして再適用
   - **`backend-deploy`**: `apps/backend` を Cloud Run `cinetag-backend-develop` へデプロイ（`backend-db-migrate` 完了後に実行）
   - **`frontend-deploy`**: `apps/frontend` で `opennextjs-cloudflare deploy --env develop`（Cloudflare Workers `cinetag-frontend-develop` へ）
 
 ### 1-3. **トリガー**:`main` ブランチへの push（`ci-main.yml`）
 - **ジョブ**
-  - **`backend-db-migrate`**: `apps/backend` で `ENV=production` を付けて `go run ./src/cmd/migrate`（Neon 本番ブランチ向け）
+  - **`backend-db-migrate`**: `apps/backend` で `go run ./src/cmd/migrate up`（goose による差分マイグレーション、本番Neon向け）
   - **`backend-deploy`**: `apps/backend` を Cloud Run `cinetag-backend` 本番へデプロイ（`backend-db-migrate` 完了後に実行）
   - **`frontend-deploy`**: `apps/frontend` で `opennextjs-cloudflare deploy`（Cloudflare Workers `cinetag-frontend` 本番へ）
+
 ---
 
 ## 2. 前提（構成とコマンド）
@@ -37,7 +41,8 @@
 - **主要コマンド**
   - unit: `go test ./...`
   - integration（DBあり）: `go test -tags=integration ./...`
-  - migrate（注意: 全テーブル削除→再作成）: `go run ./src/cmd/migrate`
+  - migrate: `go run ./src/cmd/migrate up`（差分マイグレーション適用）
+  - seed: `ENV=develop go run ./src/cmd/seed`（開発用シードデータ投入）
 
 ### 2.2 フロントエンド（Next.js）
 
@@ -65,10 +70,12 @@
 
 ### 3.2 バックエンドCI（推奨ジョブ）
 
-- **format（推奨）**
-  - `gofmt`（差分が出たら失敗）
 - **test（必須）**
   - `go test ./...`
+- **migration-check（必須）**
+  - PostgreSQLサービスコンテナを使用
+  - `go run ./src/cmd/migrate up` → `down` → `up` の往復テスト
+  - マイグレーションSQLの構文エラーとロールバックの正常性を検証
 - **integration（任意/段階導入）**
   - `docker compose up -d postgres-test`
   - `DATABASE_URL="postgres://postgres:postgres@localhost:5433/cinetag_test?sslmode=disable" go test -tags=integration ./...`
@@ -95,12 +102,13 @@
 #### バックエンド（現状ワークフローで使用）
 
 - **`backend-db-migrate`**
-  - `NEON_DATABASE_URL`（GitHub Actions Secrets）
+  - `NEON_DATABASE_URL`（develop用、GitHub Actions Secrets）
+  - `NEON_DATABASE_URL_PROD`（本番用、GitHub Actions Secrets）
 - **`backend-deploy`**（Cloud Run）
   - `GCP_PROJECT_ID` - GCP プロジェクトID
   - `GCP_REGION` - Cloud Run のリージョン（例: `asia-northeast1`）
   - `GCP_SA_KEY` - サービスアカウントの JSON キー（Cloud Run Admin, Artifact Registry Writer, Service Account User 等のロールが必要）
-  - `NEON_DATABASE_URL`（develop）/ `NEON_DATABASE_URL_PROD`（本番、別DBの場合は別途作成）
+  - `NEON_DATABASE_URL`（develop）/ `NEON_DATABASE_URL_PROD`（本番）
   - `CLERK_JWKS_URL`
   - `TMDB_API_KEY`
 
@@ -116,6 +124,7 @@
   - `CLERK_ISSUER`
   - `CLERK_AUDIENCE`
   - `PORT`
+  - `MAINTENANCE_MODE` - `true` でメンテナンスモード有効化（全APIが503を返す）
 
 #### フロントエンド（現状ワークフローで使用）
 
@@ -156,32 +165,75 @@
 - **デプロイ方式**
   - `google-github-actions/deploy-cloudrun` を使用し、`source: apps/backend` からソースビルド
   - Cloud Build が Dockerfile をビルドし、Artifact Registry 経由で Cloud Run にデプロイ
-- **実行順序**（develop）
-  - `backend-db-migrate` 完了後に `backend-deploy` を実行（スキーマ変更の整合性のため）
+- **実行順序**（develop / main 共通）
+  - `backend-db-migrate`（goose up）完了後に `backend-deploy` を実行（スキーマ変更の整合性のため）
 
 ---
 
-## 6. マイグレーション運用（重要）
+## 6. マイグレーション運用
 
-バックエンドの migrate は **全テーブル削除 → 再作成** の方針です（`apps/backend/README.md` 参照）。
+### 6.1 ツール
 
-- **開発環境**（`ci-develop.yml`）: 自動実行（`NEON_DATABASE_URL` 向け）
-- **本番環境**（`ci-main.yml`）: 自動実行（`NEON_DATABASE_URL_PROD` 向け）
+**goose**（`github.com/pressly/goose/v3`）をGoライブラリとして使用。SQLファイルは `embed.FS` でバイナリに埋め込み。
 
-**注意**: 本番マイグレーションは全テーブル削除のため、実行のたびに本番データが消えます。スキーマ変更のみでデータを保持したい場合は、差分マイグレーション戦略（DDLの段階適用）を別途設計してください。
+- マイグレーションファイル: `apps/backend/src/internal/migration/migrations/*.sql`
+- 埋め込み定義: `apps/backend/src/internal/migration/embed.go`
+- 実行コマンド: `apps/backend/src/cmd/migrate/main.go`
+
+### 6.2 コマンド
+
+```bash
+# apps/backend/ から実行
+go run ./src/cmd/migrate up       # 未適用のマイグレーションを全て適用
+go run ./src/cmd/migrate down     # 最新1つをロールバック
+go run ./src/cmd/migrate status   # 適用状況を表示
+ENV=develop go run ./src/cmd/migrate reset  # 全リセット→再適用（develop環境のみ）
+```
+
+### 6.3 マイグレーションファイルの書き方
+
+```sql
+-- +goose Up
+ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;
+
+-- +goose Down
+ALTER TABLE users DROP COLUMN IF EXISTS username;
+```
+
+- `-- +goose Up` と `-- +goose Down` の両方を必ず記述する
+- ファイル名: `NNNNN_説明.sql`（例: `00002_add_foreign_keys.sql`）
+- PRの `backend-migration-check` ジョブで up/down/up の往復テストが自動実行される
+
+### 6.4 デプロイ順序
+
+```
+goose up（マイグレーション） → backend deploy → frontend deploy
+```
+
+マイグレーションが先に走り、新しいコードが後からデプロイされる。
+
+### 6.5 Expand-Contract パターン（破壊的変更時）
+
+非破壊的変更（カラム追加、テーブル追加）はそのまま適用可能。破壊的変更（カラム削除、リネーム等）は2段階で実施する:
+
+1. **Expand（PR1）**: 新カラム追加 + コードを新旧両方に対応
+2. **Contract（PR2）**: 旧カラム削除のマイグレーション
+
+### 6.6 メンテナンスモード
+
+破壊的マイグレーション実行時に `MAINTENANCE_MODE=true` を Cloud Run の環境変数に設定すると、`/health` 以外の全APIが503を返す。
 
 ---
 
 ## 7. リリース/ロールバック（推奨）
 
 - **リリース手順（例）**
-  - `develop` へマージ → 開発環境へ自動デプロイ
+  - `develop` へマージ → 開発環境へ自動デプロイ（マイグレーション含む）
   - `staging` へマージ → ステージングへ自動デプロイ（任意）
-  - `main` へマージ → 本番デプロイ（手動承認つき）
+  - `main` へマージ → 本番デプロイ（マイグレーション → デプロイの順で自動実行）
 - **ロールバック**
-  - 原則: 直前の正常コミットへrevertし再デプロイ（Gitベース）
-  - DB変更が絡む場合: 事前に後方互換な変更（expand/contract）にするか、別途ロールバック手順を準備する
+  - マイグレーション: `go run ./src/cmd/migrate down` で最新1つをロールバック
+  - アプリケーション: 直前の正常コミットへrevertし再デプロイ（Gitベース）
+  - DB変更が絡む場合: Expand-Contract パターンにより後方互換な変更にしておくことが推奨
 
 ---
-
-

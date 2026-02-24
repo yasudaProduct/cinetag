@@ -66,6 +66,22 @@ export default function RootLayout({
       }}
     >
       <html lang="ja" suppressHydrationWarning>
+        <head>
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "WebSite",
+                name: "cinetag",
+                url:
+                  process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+                description:
+                  "映画に自由にタグを作成し、他のユーザーと共有できる映画プラットフォーム",
+              }),
+            }}
+          />
+        </head>
         <body
           suppressHydrationWarning
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#FFF9F3] text-gray-900`}
