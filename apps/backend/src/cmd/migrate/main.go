@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"strings"
@@ -42,10 +43,17 @@ func main() {
 		log.Fatalf("failed to ping database: %v", err)
 	}
 
+	// embed.FS は "migrations/*.sql" のパスで埋め込まれるため、
+	// fs.Sub でサブディレクトリをルートにする
+	migrationsFS, err := fs.Sub(migration.Migrations, "migrations")
+	if err != nil {
+		log.Fatalf("failed to get migrations sub-filesystem: %v", err)
+	}
+
 	provider, err := goose.NewProvider(
 		goose.DialectPostgres,
 		db,
-		migration.Migrations,
+		migrationsFS,
 		goose.WithVerbose(true),
 	)
 	if err != nil {
