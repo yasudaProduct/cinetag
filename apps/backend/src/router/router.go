@@ -45,6 +45,7 @@ func setupMiddleware(r *gin.Engine, deps *Dependencies) {
 			"http://localhost:3000",                                // ローカル開発環境
 			"http://localhost:8787",                                // ローカル開発環境（Cloudflare Pages プレビュー）
 			"https://cinetag-frontend.yuta-develop-ct.workers.dev", // 開発環境（Cloudflare Workers）
+			"https://cine-tag.com",                                 // 本番環境
 		},
 		// 許可するHTTPメソッド
 		AllowMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
