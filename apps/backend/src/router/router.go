@@ -29,15 +29,6 @@ func NewRouter() *gin.Engine {
 
 // setupMiddleware はミドルウェアを設定します。
 func setupMiddleware(r *gin.Engine, deps *Dependencies) {
-	// メンテナンスモード（MAINTENANCE_MODE=true で /health 以外を503にする）
-	r.Use(deps.MaintenanceMiddleware)
-
-	// リカバリーミドルウェア（パニック時のログ出力）
-	r.Use(deps.RecoveryMiddleware)
-
-	// リクエストログミドルウェア（request_id付与、リクエストログ出力）
-	r.Use(deps.RequestLoggerMiddleware)
-
 	// CORS設定
 	r.Use(cors.New(cors.Config{
 		// 許可するオリジン（開発環境と本番環境のフロントエンドURL）
@@ -58,6 +49,15 @@ func setupMiddleware(r *gin.Engine, deps *Dependencies) {
 		// プリフライトリクエスト（OPTIONS）結果のキャッシュ期間（12時間）
 		MaxAge: 12 * time.Hour,
 	}))
+
+	// メンテナンスモード（MAINTENANCE_MODE=true で /health 以外を503にする）
+	r.Use(deps.MaintenanceMiddleware)
+
+	// リカバリーミドルウェア（パニック時のログ出力）
+	r.Use(deps.RecoveryMiddleware)
+
+	// リクエストログミドルウェア（request_id付与、リクエストログ出力）
+	r.Use(deps.RequestLoggerMiddleware)
 }
 
 // setupRoutes はすべてのルートを設定します。
