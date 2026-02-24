@@ -25,12 +25,34 @@ cinetag/
 # ターミナル1: PostgreSQLの起動
 docker compose up -d postgres
 
-# ターミナル2: バックエンドの起動（apps/backendから）
+# ターミナル2: マイグレーション実行（apps/backendから）
+go run ./src/cmd/migrate up
+
+# ターミナル3: シードデータ投入（apps/backendから、オプション）
+ENV=develop go run ./src/cmd/seed
+
+# ターミナル4: バックエンドの起動（apps/backendから）
 go run ./src/cmd
 
-# ターミナル3: フロントエンドの起動（apps/frontendから）
+# ターミナル5: フロントエンドの起動（apps/frontendから）
 npm run dev
 ```
+
+### マイグレーション（goose）
+
+スキーマ管理には goose を使用。SQLファイルは `apps/backend/src/internal/migration/migrations/` に配置。
+
+```bash
+# apps/backend/ から実行
+go run ./src/cmd/migrate up       # 未適用のマイグレーションを適用
+go run ./src/cmd/migrate down     # 最新1つをロールバック
+go run ./src/cmd/migrate status   # 適用状況を表示
+ENV=develop go run ./src/cmd/migrate reset  # 全リセット（develop環境のみ）
+```
+
+新しいマイグレーションファイルの追加:
+- `NNNNN_説明.sql` の命名規則（例: `00002_add_foreign_keys.sql`）
+- `-- +goose Up` と `-- +goose Down` の両方を必ず記述
 
 ### 環境変数
 
@@ -40,6 +62,7 @@ npm run dev
 - `CLERK_ISSUER`, `CLERK_AUDIENCE` - オプショナルなJWT検証
 - `TMDB_API_KEY` - 映画データ用TMDB APIキー
 - `PORT` - サーバーポート（デフォルト: 8080）
+- `MAINTENANCE_MODE` - `true` で全APIを503にする（メンテナンス時のみ）
 
 **フロントエンド** (`apps/frontend/` の `.env.local`):
 - `NEXT_PUBLIC_BACKEND_API_BASE` - バックエンドAPI URL
@@ -67,6 +90,7 @@ npm run dev
 - `data/database-schema.md` - ER図付き完全なDBスキーマ
 - `frontend/frontend-api-layer.md` - フロントエンドAPI統合パターン
 - `backend/movie-data-integration.md` - TMDBキャッシュ戦略
+- `operations/cicd.md` - CI/CD運用とマイグレーション戦略
 
 ## Webhookのためのngrok
 

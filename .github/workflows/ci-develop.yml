@@ -9,6 +9,11 @@ on:
       - "*.md"
       - "plans/**"
   workflow_dispatch:
+    inputs:
+      reset_db:
+        description: "DBをリセットして全マイグレーションを再適用する"
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-develop-${{ github.ref_name }}
@@ -17,7 +22,7 @@ concurrency:
 jobs:
   # backend-db-migrate は開発用Neonデータベースへのマイグレーションを実行するジョブ
   backend-db-migrate:
-    name: backend / db migrate (Neon)
+    name: backend / db migrate (goose)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -34,11 +39,24 @@ jobs:
           go-version-file: apps/backend/go.mod
           cache-dependency-path: apps/backend/go.sum
 
-      - name: Run migration
+      - name: Reset DB (manual trigger only)
+        if: ${{ github.event.inputs.reset_db == 'true' }}
         env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ENV: develop
-        run: go run ./src/cmd/migrate
+        run: go run ./src/cmd/migrate reset
+
+      - name: Run migration
+        if: ${{ github.event.inputs.reset_db != 'true' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: go run ./src/cmd/migrate up
+
+      - name: Seed development data
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ENV: develop
+        run: go run ./src/cmd/seed
 
   # backend-deploy は Go API を Cloud Run 開発環境にデプロイするジョブ
   backend-deploy:
@@ -68,7 +86,7 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           region: ${{ secrets.GCP_REGION }}
           env_vars: |
-            DATABASE_URL=${{ secrets.NEON_DATABASE_URL }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
             CLERK_JWKS_URL=${{ secrets.CLERK_JWKS_URL }}
             TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}
             ENV=develop
