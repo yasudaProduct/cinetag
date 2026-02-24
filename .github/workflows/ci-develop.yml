@@ -42,19 +42,19 @@ jobs:
       - name: Reset DB (manual trigger only)
         if: ${{ github.event.inputs.reset_db == 'true' }}
         env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ENV: develop
         run: go run ./src/cmd/migrate reset
 
       - name: Run migration
         if: ${{ github.event.inputs.reset_db != 'true' }}
         env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: go run ./src/cmd/migrate up
 
       - name: Seed development data
         env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ENV: develop
         run: go run ./src/cmd/seed
 
@@ -86,7 +86,7 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           region: ${{ secrets.GCP_REGION }}
           env_vars: |
-            DATABASE_URL=${{ secrets.NEON_DATABASE_URL }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
             CLERK_JWKS_URL=${{ secrets.CLERK_JWKS_URL }}
             TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}
             ENV=develop
