@@ -19,6 +19,7 @@
 
 ## フロントエンド
 
+- next.config.ts 設定ガイド（CSP / 画像 / セキュリティヘッダー）: `docs/frontend/next-config.md`
 - フロントエンド API レイヤー設計: `docs/frontend/frontend-api-layer.md`
 - フロントエンド バリデーション仕様（zod）: `docs/frontend/frontend-validation.md`
 
