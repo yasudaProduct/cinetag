@@ -60,6 +60,7 @@ const nextConfig: NextConfig = {
     const connectSrc = [
       "'self'",
       "https://clerk.com",
+      "https://clerk.cine-tag.com",
       ...clerkAccountsHosts,
       ...(isDev ? ["http://localhost:8080"] : []),
       ...(backendOrigin ? [backendOrigin] : []),
