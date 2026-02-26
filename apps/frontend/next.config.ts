@@ -55,7 +55,7 @@ const nextConfig: NextConfig = {
 
     const scriptSrc = isDev
       ? `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsSrc} https://clerk.cine-tag.com`
-      : `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsSrc} https://clerk.cine-tag.com`; // TODO: 将来的にNonceベースに移行
+      : `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsSrc} https://clerk.cine-tag.com https://static.cloudflareinsights.com`; // TODO: 将来的にNonceベースに移行
 
     const connectSrc = [
       "'self'",
@@ -63,6 +63,7 @@ const nextConfig: NextConfig = {
       ...clerkAccountsHosts,
       ...(isDev ? ["http://localhost:8080"] : []),
       ...(backendOrigin ? [backendOrigin] : []),
+      ...(isDev ? [] : ["https://cloudflareinsights.com"]),
     ].join(" ");
 
     const workerSrc = ["'self'", "blob:"].join(" ");
