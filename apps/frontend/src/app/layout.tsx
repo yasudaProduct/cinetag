@@ -48,6 +48,10 @@ export default function RootLayout({
   return (
     <ClerkProvider
       localization={jaJP}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      signInFallbackRedirectUrl="/tags"
+      signUpFallbackRedirectUrl="/tags"
       appearance={{
         variables: {
           colorPrimary: "#3b82f6",
