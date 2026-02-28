@@ -4,9 +4,6 @@ import { ArrowRight, Tag, Users, Search } from "lucide-react";
 import { listTags, type ListTagsResult } from "@/lib/api/tags/list";
 import { TagCard, type MarqueeTag } from "./_components/TagCard";
 
-// ISR: 1時間ごとに再生成
-export const revalidate = 3600;
-
 // --- カラーパレット（実データ用の循環色） ---
 
 const TAG_COLORS = [

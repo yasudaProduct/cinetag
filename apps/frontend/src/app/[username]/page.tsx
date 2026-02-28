@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import UserPageClient from "./UserPageClient";
 import { getUserByDisplayId } from "@/lib/api/users/getUser";
 
+// ISR: 10分ごとに再生成
+export const revalidate = 600;
+
 export async function generateMetadata({
   params,
 }: {
@@ -11,7 +14,7 @@ export async function generateMetadata({
   const { username } = await params;
 
   try {
-    const user = await getUserByDisplayId(username, { cache: "no-store" });
+    const user = await getUserByDisplayId(username);
     const title = `${user.display_name} | cinetag`;
     const description =
       user.bio || `${user.display_name}のプロフィール - cinetag`;
@@ -47,7 +50,7 @@ export default async function UserPage({
 
   let user;
   try {
-    user = await getUserByDisplayId(username, { cache: "no-store" });
+    user = await getUserByDisplayId(username);
   } catch (error) {
     if (error instanceof Error && error.message.includes("404")) {
       notFound();

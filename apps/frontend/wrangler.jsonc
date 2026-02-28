@@ -16,17 +16,12 @@
       "service": "cinetag-frontend"
     }
   ],
-  // "r2_buckets": [
-  // 	// Use R2 incremental cache
-  // 	// See https://opennext.js.org/cloudflare/caching
-  // 	{
-  // 		"binding": "NEXT_INC_CACHE_R2_BUCKET",
-  // 		// Create the bucket before deploying
-  // 		// You can change the bucket name if you want
-  // 		// See https://developers.cloudflare.com/workers/wrangler/commands/#r2-bucket-create
-  // 		"bucket_name": "cache"
-  // 	}
-  // ],
+  "r2_buckets": [
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "cache"
+    }
+  ],
   "images": {
     // Enable image optimization
     // see https://opennext.js.org/cloudflare/howtos/image
