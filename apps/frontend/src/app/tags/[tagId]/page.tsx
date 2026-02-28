@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { getTagDetail } from "@/lib/api/tags/detail";
 import { TagDetailClient } from "./_components/TagDetailClient";
 
+// ISR: 5分ごとに再生成
+export const revalidate = 300;
+
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 

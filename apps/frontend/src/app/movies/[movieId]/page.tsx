@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { getMovieDetail } from "@/lib/api/movies/detail";
 import { MovieDetailClient } from "./_components/MovieDetailClient";
 
+// ISR: 1時間ごとに再生成（映画情報は変更頻度が低い）
+export const revalidate = 3600;
+
 export async function generateMetadata({
   params,
 }: {
