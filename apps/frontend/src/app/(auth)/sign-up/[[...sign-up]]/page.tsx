@@ -98,6 +98,17 @@ export default function SignUpPage() {
 /*
  * === メール/パスワード認証フォーム（将来用） ===
  *
+ * 【実装時の留意事項】
+ * メール/パスワード認証を有効化する際は、以下の対応が必要:
+ *
+ * 1. Clerk Dashboard で Bot Protection を有効にする
+ *    - Configure → Attack Protection → Bot Protection
+ *    - メール認証ではボットによる大量登録・総当たり攻撃のリスクがあるため必須
+ *
+ * 2. CSP（Content Security Policy）に Cloudflare Turnstile を許可する
+ *    - next.config.ts の script-src に https://challenges.cloudflare.com を追加
+ *    - next.config.ts の frame-src に https://challenges.cloudflare.com を追加
+ *
  * import { useState, type FormEvent } from "react";
  * import { useRouter } from "next/navigation";
  * import { Eye, EyeOff, Mail, Lock, ShieldCheck } from "lucide-react";
