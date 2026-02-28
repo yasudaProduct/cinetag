@@ -10,7 +10,12 @@ export default function SSOCallbackPage() {
         <Spinner size="lg" />
         <p className="text-sm text-gray-500">認証処理中...</p>
       </div>
-      <AuthenticateWithRedirectCallback />
+      <AuthenticateWithRedirectCallback
+        signInUrl="/sign-in"
+        signUpUrl="/sign-up"
+        signInForceRedirectUrl="/tags"
+        signUpForceRedirectUrl="/tags"
+      />
     </div>
   );
 }
