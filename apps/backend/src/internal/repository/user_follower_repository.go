@@ -27,6 +27,8 @@ type UserFollowerRepository interface {
 	CountFollowing(ctx context.Context, userID string) (int64, error)
 	// 指定ユーザーのフォロワー数を取得する。
 	CountFollowers(ctx context.Context, userID string) (int64, error)
+	// 指定ユーザーをフォローしているユーザーIDの一覧を取得する（通知用軽量クエリ）。
+	ListFollowerIDs(ctx context.Context, userID string) ([]string, error)
 }
 
 type userFollowerRepository struct {
@@ -148,6 +150,16 @@ func (r *userFollowerRepository) CountFollowing(ctx context.Context, userID stri
 		Where("follower_id = ?", userID).
 		Count(&count).Error
 	return count, err
+}
+
+// 指定ユーザーをフォローしているユーザーIDの一覧を取得する（通知用軽量クエリ）。
+func (r *userFollowerRepository) ListFollowerIDs(ctx context.Context, userID string) ([]string, error) {
+	var ids []string
+	err := r.db.WithContext(ctx).
+		Model(&model.UserFollower{}).
+		Where("followee_id = ?", userID).
+		Pluck("follower_id", &ids).Error
+	return ids, err
 }
 
 // 指定ユーザーのフォロワー数を取得する。

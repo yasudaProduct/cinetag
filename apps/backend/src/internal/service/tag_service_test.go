@@ -64,7 +64,7 @@ func newTagService(t *testing.T, opt func(*deps)) TagService {
 	if opt != nil {
 		opt(d)
 	}
-	return NewTagService(logger, d.tagRepo, d.tagMovieRepo, d.tagFollowerRepo, d.movieService, d.imageBaseURL)
+	return NewTagService(logger, d.tagRepo, d.tagMovieRepo, d.tagFollowerRepo, d.movieService, nil, d.imageBaseURL)
 }
 
 func TestTagService_AddMoviesToTag(t *testing.T) {

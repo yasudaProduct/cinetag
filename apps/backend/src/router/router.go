@@ -117,6 +117,9 @@ func setupAuthRoutes(api *gin.RouterGroup, deps *Dependencies) {
 		// タグフォロー
 		setupTagFollowRoutes(authGroup, deps)
 
+		// 通知
+		setupNotificationRoutes(authGroup, deps)
+
 		// 自分のフォロー中タグ一覧
 		authGroup.GET("/me/following-tags", deps.TagHandler.ListFollowingTags)
 	}
@@ -143,6 +146,14 @@ func setupTagFollowRoutes(authGroup *gin.RouterGroup, deps *Dependencies) {
 	authGroup.POST("/tags/:tagId/follow", deps.TagHandler.FollowTag)
 	authGroup.DELETE("/tags/:tagId/follow", deps.TagHandler.UnfollowTag)
 	authGroup.GET("/tags/:tagId/follow-status", deps.TagHandler.GetTagFollowStatus)
+}
+
+// setupNotificationRoutes は通知関連の認証必須ルートを設定します。
+func setupNotificationRoutes(authGroup *gin.RouterGroup, deps *Dependencies) {
+	authGroup.GET("/notifications", deps.NotificationHandler.ListNotifications)
+	authGroup.GET("/notifications/unread-count", deps.NotificationHandler.GetUnreadCount)
+	authGroup.PATCH("/notifications/:notificationId/read", deps.NotificationHandler.MarkAsRead)
+	authGroup.PATCH("/notifications/read-all", deps.NotificationHandler.MarkAllAsRead)
 }
 
 // healthCheckHandler はヘルスチェック用のハンドラーです。

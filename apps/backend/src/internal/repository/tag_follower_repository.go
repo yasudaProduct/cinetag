@@ -24,6 +24,8 @@ type TagFollowerRepository interface {
 	CountFollowers(ctx context.Context, tagID string) (int64, error)
 	// ユーザーがフォローしているタグ一覧を取得する。
 	ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]TagSummary, int64, error)
+	// タグをフォローしているユーザーIDの一覧を取得する（通知用軽量クエリ）。
+	ListFollowerIDs(ctx context.Context, tagID string) ([]string, error)
 }
 
 type tagFollowerRepository struct {
@@ -112,6 +114,16 @@ func (r *tagFollowerRepository) CountFollowers(ctx context.Context, tagID string
 		Where("tag_id = ?", tagID).
 		Count(&count).Error
 	return count, err
+}
+
+// タグをフォローしているユーザーIDの一覧を取得する（通知用軽量クエリ）。
+func (r *tagFollowerRepository) ListFollowerIDs(ctx context.Context, tagID string) ([]string, error) {
+	var ids []string
+	err := r.db.WithContext(ctx).
+		Model(&model.TagFollower{}).
+		Where("tag_id = ?", tagID).
+		Pluck("user_id", &ids).Error
+	return ids, err
 }
 
 // ユーザーがフォローしているタグ一覧を取得する。

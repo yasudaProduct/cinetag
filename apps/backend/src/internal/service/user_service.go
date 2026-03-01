@@ -84,21 +84,23 @@ type UserService interface {
 }
 
 type userService struct {
-	logger           *slog.Logger
-	db               *gorm.DB
-	userRepo         repository.UserRepository
-	userFollowerRepo repository.UserFollowerRepository
-	tagFollowerRepo  repository.TagFollowerRepository
+	logger              *slog.Logger
+	db                  *gorm.DB
+	userRepo            repository.UserRepository
+	userFollowerRepo    repository.UserFollowerRepository
+	tagFollowerRepo     repository.TagFollowerRepository
+	notificationService NotificationService
 }
 
 // UserService の実装を生成する。
-func NewUserService(logger *slog.Logger, db *gorm.DB, userRepo repository.UserRepository, userFollowerRepo repository.UserFollowerRepository, tagFollowerRepo repository.TagFollowerRepository) UserService {
+func NewUserService(logger *slog.Logger, db *gorm.DB, userRepo repository.UserRepository, userFollowerRepo repository.UserFollowerRepository, tagFollowerRepo repository.TagFollowerRepository, notificationService NotificationService) UserService {
 	return &userService{
-		logger:           logger,
-		db:               db,
-		userRepo:         userRepo,
-		userFollowerRepo: userFollowerRepo,
-		tagFollowerRepo:  tagFollowerRepo,
+		logger:              logger,
+		db:                  db,
+		userRepo:            userRepo,
+		userFollowerRepo:    userFollowerRepo,
+		tagFollowerRepo:     tagFollowerRepo,
+		notificationService: notificationService,
 	}
 }
 
@@ -304,7 +306,28 @@ func (s *userService) FollowUser(ctx context.Context, followerID, followeeID str
 		return ErrAlreadyFollowing
 	}
 
-	return s.userFollowerRepo.Create(ctx, followerID, followeeID)
+	if err := s.userFollowerRepo.Create(ctx, followerID, followeeID); err != nil {
+		return err
+	}
+
+	// フォローされたユーザーに通知（非同期）
+	if s.notificationService != nil {
+		logger := s.logger
+		notifSvc := s.notificationService
+		go func() {
+			ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := notifSvc.NotifyUserFollowed(ctx2, followeeID, followerID); err != nil {
+				logger.Error("service.FollowUser failed to send notification",
+					slog.String("followee_id", followeeID),
+					slog.String("follower_id", followerID),
+					slog.Any("error", err),
+				)
+			}
+		}()
+	}
+
+	return nil
 }
 
 // 指定ユーザーをアンフォローする。

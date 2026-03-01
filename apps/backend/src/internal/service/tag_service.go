@@ -96,12 +96,13 @@ type TagService interface {
 }
 
 type tagService struct {
-	logger          *slog.Logger
-	tagRepo         repository.TagRepository
-	tagMovieRepo    repository.TagMovieRepository
-	tagFollowerRepo repository.TagFollowerRepository
-	movieService    MovieService
-	imageBaseURL    string
+	logger              *slog.Logger
+	tagRepo             repository.TagRepository
+	tagMovieRepo        repository.TagMovieRepository
+	tagFollowerRepo     repository.TagFollowerRepository
+	movieService        MovieService
+	notificationService NotificationService
+	imageBaseURL        string
 }
 
 // TagService を生成する。
@@ -111,15 +112,17 @@ func NewTagService(
 	tagMovieRepo repository.TagMovieRepository,
 	tagFollowerRepo repository.TagFollowerRepository,
 	movieService MovieService,
+	notificationService NotificationService,
 	imageBaseURL string,
 ) TagService {
 	return &tagService{
-		logger:          logger,
-		tagRepo:         tagRepo,
-		tagMovieRepo:    tagMovieRepo,
-		tagFollowerRepo: tagFollowerRepo,
-		movieService:    movieService,
-		imageBaseURL:    strings.TrimRight(imageBaseURL, "/"),
+		logger:              logger,
+		tagRepo:             tagRepo,
+		tagMovieRepo:        tagMovieRepo,
+		tagFollowerRepo:     tagFollowerRepo,
+		movieService:        movieService,
+		notificationService: notificationService,
+		imageBaseURL:        strings.TrimRight(imageBaseURL, "/"),
 	}
 }
 
@@ -529,6 +532,23 @@ func (s *tagService) CreateTag(ctx context.Context, in CreateTagInput) (*model.T
 		return nil, err
 	}
 
+	// 公開タグ作成時、フォロワーに通知（非同期）
+	if tag.IsPublic && s.notificationService != nil {
+		logger := s.logger
+		tagID := tag.ID
+		userID := tag.UserID
+		go func() {
+			ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := s.notificationService.NotifyFollowingUserCreatedTag(ctx2, tagID, userID); err != nil {
+				logger.Error("service.CreateTag failed to send notification",
+					slog.String("tag_id", tagID),
+					slog.Any("error", err),
+				)
+			}
+		}()
+	}
+
 	return &tag, nil
 }
 
@@ -631,6 +651,30 @@ func (s *tagService) AddMoviesToTag(ctx context.Context, in AddMoviesToTagInput)
 					)
 				}
 			}(movie.TmdbMovieID)
+		}
+	}
+
+	// 新規追加された映画ごとに通知を送信（非同期）
+	if summary.Created > 0 && s.notificationService != nil {
+		for _, r := range results {
+			if r.Status == "created" && r.TagMovie != nil {
+				logger := s.logger
+				notifSvc := s.notificationService
+				tagID := in.TagID
+				tagMovieID := r.TagMovie.ID
+				actorUserID := in.UserID
+				go func() {
+					ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+					defer cancel()
+					if err := notifSvc.NotifyTagMovieAdded(ctx2, tagID, tagMovieID, actorUserID); err != nil {
+						logger.Error("service.AddMoviesToTag failed to send notification",
+							slog.String("tag_id", tagID),
+							slog.String("tag_movie_id", tagMovieID),
+							slog.Any("error", err),
+						)
+					}
+				}()
+			}
 		}
 	}
 
@@ -893,7 +937,27 @@ func (s *tagService) FollowTag(ctx context.Context, tagID, userID string) error 
 	}
 
 	// フォロー関係を作成
-	return s.tagFollowerRepo.Create(ctx, tagID, userID)
+	if err := s.tagFollowerRepo.Create(ctx, tagID, userID); err != nil {
+		return err
+	}
+
+	// タグオーナーに通知（非同期）
+	if s.notificationService != nil {
+		logger := s.logger
+		notifSvc := s.notificationService
+		go func() {
+			ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := notifSvc.NotifyTagFollowed(ctx2, tagID, userID); err != nil {
+				logger.Error("service.FollowTag failed to send notification",
+					slog.String("tag_id", tagID),
+					slog.Any("error", err),
+				)
+			}
+		}()
+	}
+
+	return nil
 }
 
 // UnfollowTag はタグのフォローを解除します。
