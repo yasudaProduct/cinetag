@@ -8,6 +8,7 @@ import { listNotifications } from "@/lib/api/notifications/listNotifications";
 import { markAsRead } from "@/lib/api/notifications/markAsRead";
 import { markAllAsRead } from "@/lib/api/notifications/markAllAsRead";
 import type { NotificationItem } from "@/lib/validation/notification.api";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 type NotificationDropdownProps = {
@@ -15,7 +16,7 @@ type NotificationDropdownProps = {
   onClose: () => void;
 };
 
-function getNotificationMessage(item: NotificationItem): string {
+export function getNotificationMessage(item: NotificationItem): string {
   const actorName = item.actor?.displayName ?? "退会済みユーザー";
 
   switch (item.notificationType) {
@@ -32,7 +33,7 @@ function getNotificationMessage(item: NotificationItem): string {
   }
 }
 
-function getNotificationHref(item: NotificationItem): string {
+export function getNotificationHref(item: NotificationItem): string {
   switch (item.notificationType) {
     case "tag_movie_added":
     case "tag_followed":
@@ -45,7 +46,7 @@ function getNotificationHref(item: NotificationItem): string {
   }
 }
 
-function formatRelativeTime(dateStr: string): string {
+export function formatRelativeTime(dateStr: string): string {
   const now = Date.now();
   const date = new Date(dateStr).getTime();
   const diff = now - date;
@@ -73,11 +74,11 @@ export function NotificationDropdown({
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["notifications", "list"],
+    queryKey: ["notifications", "dropdown"],
     queryFn: async () => {
       const token = await getToken({ template: "cinetag-backend" });
       if (!token) throw new Error("認証情報の取得に失敗しました");
-      return listNotifications(token, 1, 20);
+      return listNotifications(token, 1, 5, true);
     },
     enabled: isOpen,
   });
@@ -149,7 +150,7 @@ export function NotificationDropdown({
           </div>
         ) : notifications.length === 0 ? (
           <div className="flex items-center justify-center py-8 text-sm text-gray-400">
-            通知はありません
+            未読の通知はありません
           </div>
         ) : (
           notifications.map((item) => (
@@ -198,6 +199,17 @@ export function NotificationDropdown({
             </button>
           ))
         )}
+      </div>
+
+      {/* フッター */}
+      <div className="border-t border-gray-100">
+        <Link
+          href="/notifications"
+          onClick={onClose}
+          className="block w-full px-4 py-3 text-center text-sm font-medium text-blue-600 hover:bg-gray-50 transition-colors"
+        >
+          すべての通知を見る
+        </Link>
       </div>
     </div>
   );

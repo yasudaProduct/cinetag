@@ -42,8 +42,8 @@ type TagSummaryForNotification struct {
 
 // 通知に関するユースケースを表すインターフェース。
 type NotificationService interface {
-	// 通知一覧を取得する。
-	ListNotifications(ctx context.Context, userID string, page, pageSize int) ([]*NotificationItem, int64, error)
+	// 通知一覧を取得する。unreadOnly が true の場合、未読通知のみに絞る。
+	ListNotifications(ctx context.Context, userID string, page, pageSize int, unreadOnly bool) ([]*NotificationItem, int64, error)
 	// 未読通知数を取得する。
 	GetUnreadCount(ctx context.Context, userID string) (int64, error)
 	// 指定通知を既読にする。
@@ -85,8 +85,8 @@ func NewNotificationService(
 	}
 }
 
-// 通知一覧を取得する。
-func (s *notificationService) ListNotifications(ctx context.Context, userID string, page, pageSize int) ([]*NotificationItem, int64, error) {
+// 通知一覧を取得する。unreadOnly が true の場合、未読通知のみに絞る。
+func (s *notificationService) ListNotifications(ctx context.Context, userID string, page, pageSize int, unreadOnly bool) ([]*NotificationItem, int64, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -97,7 +97,7 @@ func (s *notificationService) ListNotifications(ctx context.Context, userID stri
 		pageSize = 50
 	}
 
-	rows, total, err := s.notifRepo.ListByRecipient(ctx, userID, page, pageSize)
+	rows, total, err := s.notifRepo.ListByRecipient(ctx, userID, page, pageSize, unreadOnly)
 	if err != nil {
 		return nil, 0, err
 	}

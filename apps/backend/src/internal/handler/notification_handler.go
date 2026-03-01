@@ -53,8 +53,9 @@ func (h *NotificationHandler) ListNotifications(c *gin.Context) {
 	if pageSize > 50 {
 		pageSize = 50
 	}
+	unreadOnly := c.Query("unread_only") == "true"
 
-	items, total, err := h.notificationService.ListNotifications(c.Request.Context(), user.ID, page, pageSize)
+	items, total, err := h.notificationService.ListNotifications(c.Request.Context(), user.ID, page, pageSize, unreadOnly)
 	if err != nil {
 		h.logger.Error("handler.ListNotifications failed",
 			slog.Any("error", err),

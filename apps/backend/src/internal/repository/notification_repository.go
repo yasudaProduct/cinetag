@@ -37,7 +37,8 @@ type NotificationRepository interface {
 	// CreateBatch は通知を一括作成する（フォロワー全員への通知等）。
 	CreateBatch(ctx context.Context, notifications []*model.Notification) error
 	// ListByRecipient は指定ユーザーの通知一覧を新しい順で返す。
-	ListByRecipient(ctx context.Context, userID string, page, pageSize int) ([]*NotificationRow, int64, error)
+	// unreadOnly が true の場合、未読通知のみに絞る。
+	ListByRecipient(ctx context.Context, userID string, page, pageSize int, unreadOnly bool) ([]*NotificationRow, int64, error)
 	// CountUnread は未読通知数を返す。
 	CountUnread(ctx context.Context, userID string) (int64, error)
 	// MarkAsRead は指定の通知を既読にする。recipient_user_id で所有権チェック。
@@ -69,15 +70,19 @@ func (r *notificationRepository) CreateBatch(ctx context.Context, notifications 
 }
 
 // 指定ユーザーの通知一覧を新しい順で返す。
-func (r *notificationRepository) ListByRecipient(ctx context.Context, userID string, page, pageSize int) ([]*NotificationRow, int64, error) {
+// unreadOnly が true の場合、未読通知のみに絞る。
+func (r *notificationRepository) ListByRecipient(ctx context.Context, userID string, page, pageSize int, unreadOnly bool) ([]*NotificationRow, int64, error) {
 	var total int64
 	offset := (page - 1) * pageSize
 
 	// 総件数
-	if err := r.db.WithContext(ctx).
+	countQuery := r.db.WithContext(ctx).
 		Model(&model.Notification{}).
-		Where("recipient_user_id = ?", userID).
-		Count(&total).Error; err != nil {
+		Where("recipient_user_id = ?", userID)
+	if unreadOnly {
+		countQuery = countQuery.Where("is_read = ?", false)
+	}
+	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	if total == 0 {
@@ -86,7 +91,7 @@ func (r *notificationRepository) ListByRecipient(ctx context.Context, userID str
 
 	// JOINクエリ
 	var rows []*NotificationRow
-	err := r.db.WithContext(ctx).
+	query := r.db.WithContext(ctx).
 		Table("notifications AS n").
 		Select(`n.id, n.recipient_user_id, n.notification_type, n.is_read, n.created_at,
 				n.actor_user_id,
@@ -100,7 +105,11 @@ func (r *notificationRepository) ListByRecipient(ctx context.Context, userID str
 		Joins("LEFT JOIN tags AS t ON t.id = n.tag_id").
 		Joins("LEFT JOIN tag_movies AS tm ON tm.id = n.tag_movie_id").
 		Joins("LEFT JOIN movie_cache AS mc ON mc.tmdb_movie_id = tm.tmdb_movie_id").
-		Where("n.recipient_user_id = ?", userID).
+		Where("n.recipient_user_id = ?", userID)
+	if unreadOnly {
+		query = query.Where("n.is_read = ?", false)
+	}
+	err := query.
 		Order("n.created_at DESC").
 		Limit(pageSize).
 		Offset(offset).
