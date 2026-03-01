@@ -82,6 +82,7 @@ export function MovieDetailClient({ movieId }: { movieId: string }) {
                     src={posterUrl}
                     alt={`${movie.title} poster`}
                     fill
+                    priority
                     className="object-cover"
                     sizes="(max-width: 768px) 220px, 300px"
                   />
