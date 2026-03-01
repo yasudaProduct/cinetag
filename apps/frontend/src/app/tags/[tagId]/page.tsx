@@ -89,12 +89,46 @@ export default async function TagDetailPage({
     ],
   };
 
+  let collectionJsonLd = null;
+  if (tagTitle) {
+    try {
+      const tag = await getTagDetail(tagId);
+      collectionJsonLd = {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: tag.title,
+        url: `${siteUrl}/tags/${tagId}`,
+        ...(tag.description && { description: tag.description }),
+        ...(tag.movieCount > 0 && { numberOfItems: tag.movieCount }),
+        ...(tag.owner?.name && {
+          author: {
+            "@type": "Person",
+            name: tag.owner.name,
+            ...(tag.owner.displayId && {
+              url: `${siteUrl}/${tag.owner.displayId}`,
+            }),
+          },
+        }),
+      };
+    } catch {
+      // ignore
+    }
+  }
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
+      {collectionJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(collectionJsonLd),
+          }}
+        />
+      )}
       <TagDetailClient tagId={tagId} />
     </>
   );

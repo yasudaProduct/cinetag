@@ -31,6 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   const tagPages: MetadataRoute.Sitemap = [];
+  const userDisplayIds = new Set<string>();
   const pageSize = 100;
   let page = 1;
 
@@ -45,6 +46,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           changeFrequency: "weekly",
           priority: 0.8,
         });
+
+        if (tag.authorDisplayId) {
+          userDisplayIds.add(tag.authorDisplayId);
+        }
       }
 
       if (result.items.length < pageSize) break;
@@ -54,5 +59,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error("sitemap: タグ一覧の取得に失敗しました:", error);
   }
 
-  return [...staticPages, ...tagPages];
+  const userPages: MetadataRoute.Sitemap = Array.from(userDisplayIds).map(
+    (displayId) => ({
+      url: `${siteUrl}/${displayId}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    }),
+  );
+
+  return [...staticPages, ...tagPages, ...userPages];
 }
