@@ -23,6 +23,7 @@ type Dependencies struct {
 	TagHandler          *handler.TagHandler
 	MovieHandler        *handler.MovieHandler
 	UserHandler         *handler.UserHandler
+	NotificationHandler *handler.NotificationHandler
 	ClerkWebhookHandler *handler.ClerkWebhookHandler
 
 	// Middlewares
@@ -50,14 +51,17 @@ func NewDependencies() *Dependencies {
 
 	// Services
 	movieService := service.NewMovieService(log, database)
+	notifRepo := repository.NewNotificationRepository(database)
+	notificationService := service.NewNotificationService(log, notifRepo, tagRepo, tagFollowerRepo, userFollowerRepo)
 	imageBaseURL := os.Getenv("TMDB_IMAGE_BASE_URL")
-	tagService := service.NewTagService(log, tagRepo, tagMovieRepo, tagFollowerRepo, movieService, imageBaseURL)
-	userService := service.NewUserService(log, database, userRepo, userFollowerRepo, tagFollowerRepo)
+	tagService := service.NewTagService(log, tagRepo, tagMovieRepo, tagFollowerRepo, movieService, notificationService, imageBaseURL)
+	userService := service.NewUserService(log, database, userRepo, userFollowerRepo, tagFollowerRepo, notificationService)
 
 	// Handlers
 	tagHandler := handler.NewTagHandler(log, tagService)
 	movieHandler := handler.NewMovieHandler(log, movieService)
 	userHandler := handler.NewUserHandler(log, userService, tagService)
+	notificationHandler := handler.NewNotificationHandler(log, notificationService)
 	clerkWebhookHandler := handler.NewClerkWebhookHandler(log, userService)
 
 	// Middlewares
@@ -72,6 +76,7 @@ func NewDependencies() *Dependencies {
 		TagHandler:              tagHandler,
 		MovieHandler:            movieHandler,
 		UserHandler:             userHandler,
+		NotificationHandler:     notificationHandler,
 		ClerkWebhookHandler:     clerkWebhookHandler,
 		MaintenanceMiddleware:   maintenanceMiddleware,
 		RequestLoggerMiddleware: requestLoggerMiddleware,

@@ -1,7 +1,7 @@
 # 通知機能 設計ドキュメント
 
 **作成日**: 2026-03-01
-**ステータス**: 検討中
+**ステータス**: 実装中（Phase 1）
 
 ---
 
@@ -169,14 +169,10 @@ type Notification struct {
     IsRead          bool       `gorm:"not null;default:false" json:"is_read"`
     ReadAt          *time.Time `json:"read_at"`
     CreatedAt       time.Time  `gorm:"not null;default:now()" json:"created_at"`
-
-    // リレーション（プリロード用）
-    Recipient *User     `gorm:"foreignKey:RecipientUserID" json:"-"`
-    Actor     *User     `gorm:"foreignKey:ActorUserID" json:"actor,omitempty"`
-    Tag       *Tag      `gorm:"foreignKey:TagID" json:"tag,omitempty"`
-    TagMovie  *TagMovie `gorm:"foreignKey:TagMovieID" json:"tag_movie,omitempty"`
 }
 ```
+
+> **実装上の変更**: GORMリレーション定義は省略し、既存パターンに合わせてリポジトリ層でLEFT JOIN + フラットDTO (`NotificationRow`) で対応する。
 
 **通知タイプ定数**:
 

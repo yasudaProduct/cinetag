@@ -18,6 +18,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMe } from "@/lib/api/users/getMe";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "@/components/NotificationBell";
 
 const TagModal = dynamic(
   () => import("@/components/TagModal").then((mod) => mod.TagModal),
@@ -79,7 +80,6 @@ export const Sidebar = () => {
           { icon: Tag, label: "フォローしたタグ", href: "/tags/following" },
           { icon: User, label: "マイページ", href: myPageHref },
           { icon: Settings, label: "設定", href: "/settings" },
-          { icon: Bell, label: "通知", href: "/#notifications" },
         ]
       : []),
   ];
@@ -96,7 +96,6 @@ export const Sidebar = () => {
   const settingsMenuItems = [
     { icon: User, label: "マイページ", href: myPageHref },
     { icon: Settings, label: "設定", href: "/settings" },
-    { icon: Bell, label: "通知", href: "/#notifications" },
   ];
 
   const bottomMenuItems = [
@@ -157,6 +156,18 @@ export const Sidebar = () => {
               </div>
             );
           })}
+
+          {/* 通知ベル（ログイン時のみ） */}
+          {isLoaded && isSignedIn && (
+            <div className="relative group">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <NotificationBell />
+                <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900 transition-colors">
+                  通知
+                </span>
+              </div>
+            </div>
+          )}
 
           <button
             type="button"
@@ -266,6 +277,9 @@ export const Sidebar = () => {
             </Link>
           );
         })}
+
+        {/* Mobile Notification Bell (ログイン時のみ) */}
+        {isLoaded && isSignedIn && <NotificationBell />}
 
         {/* Mobile Create Button */}
         <button
