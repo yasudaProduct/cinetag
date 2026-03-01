@@ -1048,14 +1048,104 @@ Host: localhost:8080
 
 ---
 
-### 9. 今後の拡張候補
+### 9. 通知（Notifications）エンドポイント
+
+#### 9.1 GET `/api/v1/notifications`
+
+- **概要**: 認証ユーザーの通知一覧を新しい順で取得する。
+- **認証**: 必須
+- **クエリパラメータ**
+
+| 名前          | 型      | 必須 | 説明                                                  |
+|---------------|---------|------|-------------------------------------------------------|
+| `page`        | int     | 任意 | ページ番号（デフォルト: 1）                          |
+| `page_size`   | int     | 任意 | 1ページあたり件数（デフォルト: 20, 上限: 50）        |
+| `unread_only` | string  | 任意 | `"true"` の場合、未読通知のみに絞り込む              |
+
+- **レスポンス例（200）**
+
+```json
+{
+  "notifications": [
+    {
+      "id": "notif-uuid-1",
+      "notification_type": "tag_movie_added",
+      "is_read": false,
+      "created_at": "2025-01-01T12:00:00Z",
+      "actor": {
+        "id": "user-uuid-1",
+        "display_id": "cinephile_jane",
+        "display_name": "cinephile_jane",
+        "avatar_url": "https://images.example.com/avatar.jpg"
+      },
+      "tag": {
+        "id": "tag-uuid-1",
+        "title": "ジブリの名作"
+      },
+      "movie_title": "千と千尋の神隠し"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 20
+}
+```
+
+- **通知タイプ（`notification_type`）**
+
+| 値                            | 説明                                 |
+|-------------------------------|--------------------------------------|
+| `tag_movie_added`             | タグに映画が追加された               |
+| `tag_followed`                | 自分のタグがフォローされた           |
+| `user_followed`               | 自分がフォローされた                 |
+| `following_user_created_tag`  | フォロー中ユーザーが新タグを作成した |
+
+#### 9.2 GET `/api/v1/notifications/unread-count`
+
+- **概要**: 認証ユーザーの未読通知数を取得する。
+- **認証**: 必須
+- **レスポンス例（200）**
+
+```json
+{
+  "unread_count": 5
+}
+```
+
+#### 9.3 PATCH `/api/v1/notifications/:notificationId/read`
+
+- **概要**: 指定の通知を既読にする。
+- **認証**: 必須（所有権チェックあり）
+- **パスパラメータ**
+
+| 名前             | 型   | 説明       |
+|------------------|------|------------|
+| `notificationId` | UUID | 通知のID   |
+
+- **レスポンス**: `204 No Content`
+
+- **レスポンス例（404）**
+
+```json
+{
+  "error": "notification not found"
+}
+```
+
+#### 9.4 PATCH `/api/v1/notifications/read-all`
+
+- **概要**: 認証ユーザーの全未読通知を既読にする。
+- **認証**: 必須
+- **レスポンス**: `204 No Content`
+
+---
+
+### 10. 今後の拡張候補
 
 - **フィード系エンドポイント**
   - `GET /api/v1/feed/tags/popular` : フォロワー数順の人気タグ
   - `GET /api/v1/feed/tags/recent`  : 作成日時順の新着タグ
   - `GET /api/v1/feed/me`           : 自分がフォローしているタグの更新情報
-- **通知・アクティビティ**
-  - タグに映画が追加されたときの通知や、フォローされたときの通知を返すエンドポイント。
 - **管理系（Admin）**
   - スパム報告、タグの非公開化／BANなどを行う管理者用 API。
 

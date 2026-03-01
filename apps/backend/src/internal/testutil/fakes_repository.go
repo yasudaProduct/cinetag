@@ -165,6 +165,10 @@ func (f *FakeTagFollowerRepository) CountFollowers(ctx context.Context, tagID st
 	return f.CountFollowersFn(ctx, tagID)
 }
 
+func (f *FakeTagFollowerRepository) ListFollowerIDs(ctx context.Context, tagID string) ([]string, error) {
+	return []string{}, nil
+}
+
 func (f *FakeTagFollowerRepository) ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]repository.TagSummary, int64, error) {
 	if f.ListFollowingTagsFn == nil {
 		return []repository.TagSummary{}, 0, nil

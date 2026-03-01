@@ -132,6 +132,10 @@ func (f *fakeUserFollowerRepo) CountFollowers(ctx context.Context, userID string
 	return f.CountFollowersFn(ctx, userID)
 }
 
+func (f *fakeUserFollowerRepo) ListFollowerIDs(ctx context.Context, userID string) ([]string, error) {
+	return []string{}, nil
+}
+
 func TestUserService_EnsureUser(t *testing.T) {
 	t.Parallel()
 
@@ -139,7 +143,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 		t.Parallel()
 
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "", Email: "a@example.com"})
 		if err == nil {
 			t.Fatalf("expected error")
@@ -150,7 +154,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 		t.Parallel()
 
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1", Email: ""})
 		if err == nil {
 			t.Fatalf("expected error")
@@ -172,7 +176,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		out, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1", Email: "a@example.com"})
 		if err != nil {
@@ -196,7 +200,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1", Email: "a@example.com"})
 		if !errors.Is(err, expected) {
@@ -224,7 +228,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		avatar := "https://example.com/a.png"
 		out, err := svc.EnsureUser(context.Background(), ClerkUserInfo{
@@ -270,7 +274,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{
 			ID:        "clerk_1",
@@ -302,7 +306,7 @@ func TestUserService_EnsureUser(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		_, err := svc.EnsureUser(context.Background(), ClerkUserInfo{ID: "clerk_1", Email: "a@example.com"})
 		if !errors.Is(err, expected) {
@@ -320,7 +324,7 @@ func TestUserService_FindUserByClerkUserID(t *testing.T) {
 	t.Run("入力バリデーション: clerk_user_id が必須", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		_, err := svc.FindUserByClerkUserID(context.Background(), "")
 		if err == nil {
 			t.Fatalf("expected error")
@@ -335,7 +339,7 @@ func TestUserService_FindUserByClerkUserID(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		_, err := svc.FindUserByClerkUserID(context.Background(), "clerk_1")
 		if !errors.Is(err, ErrUserNotFound) {
@@ -352,7 +356,7 @@ func TestUserService_FindUserByClerkUserID(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		_, err := svc.FindUserByClerkUserID(context.Background(), "clerk_1")
 		if !errors.Is(err, expected) {
@@ -369,7 +373,7 @@ func TestUserService_FindUserByClerkUserID(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		user, err := svc.FindUserByClerkUserID(context.Background(), "clerk_1")
 		if err != nil {
@@ -387,7 +391,7 @@ func TestUserService_GetUserByDisplayID(t *testing.T) {
 	t.Run("入力バリデーション: display_id が必須", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		_, err := svc.GetUserByDisplayID(context.Background(), "")
 		if err == nil {
 			t.Fatalf("expected error")
@@ -402,7 +406,7 @@ func TestUserService_GetUserByDisplayID(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		_, err := svc.GetUserByDisplayID(context.Background(), "user1")
 		if !errors.Is(err, ErrUserNotFound) {
@@ -419,7 +423,7 @@ func TestUserService_GetUserByDisplayID(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		_, err := svc.GetUserByDisplayID(context.Background(), "user1")
 		if !errors.Is(err, ErrUserNotFound) {
@@ -436,7 +440,7 @@ func TestUserService_GetUserByDisplayID(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		user, err := svc.GetUserByDisplayID(context.Background(), "user1")
 		if err != nil {
@@ -454,7 +458,7 @@ func TestUserService_UpdateUser(t *testing.T) {
 	t.Run("入力バリデーション: user_id が必須", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		displayName := "NewName"
 		_, err := svc.UpdateUser(context.Background(), "", UpdateUserInput{DisplayName: &displayName})
 		if err == nil {
@@ -465,7 +469,7 @@ func TestUserService_UpdateUser(t *testing.T) {
 	t.Run("入力バリデーション: 空白のみのuser_idはエラー", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		displayName := "NewName"
 		_, err := svc.UpdateUser(context.Background(), "   ", UpdateUserInput{DisplayName: &displayName})
 		if err == nil {
@@ -476,7 +480,7 @@ func TestUserService_UpdateUser(t *testing.T) {
 	t.Run("入力バリデーション: display_name が空文字はエラー", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		displayName := ""
 		_, err := svc.UpdateUser(context.Background(), "u1", UpdateUserInput{DisplayName: &displayName})
 		if err == nil {
@@ -487,7 +491,7 @@ func TestUserService_UpdateUser(t *testing.T) {
 	t.Run("入力バリデーション: display_name が100文字超はエラー", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		longName := ""
 		for i := 0; i < 101; i++ {
 			longName += "a"
@@ -501,7 +505,7 @@ func TestUserService_UpdateUser(t *testing.T) {
 	t.Run("入力バリデーション: 更新フィールドが空はエラー", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		_, err := svc.UpdateUser(context.Background(), "u1", UpdateUserInput{})
 		if err == nil {
 			t.Fatalf("expected error for no fields to update")
@@ -517,7 +521,7 @@ func TestUserService_UpdateUser(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		displayName := "NewName"
 		_, err := svc.UpdateUser(context.Background(), "u1", UpdateUserInput{DisplayName: &displayName})
@@ -541,7 +545,7 @@ func TestUserService_UpdateUser(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		displayName := "NewName"
 		user, err := svc.UpdateUser(context.Background(), "u1", UpdateUserInput{DisplayName: &displayName})
@@ -575,7 +579,7 @@ func TestUserService_UpdateUser(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		displayName := "  TrimmedName  "
 		_, err := svc.UpdateUser(context.Background(), "u1", UpdateUserInput{DisplayName: &displayName})
@@ -594,7 +598,7 @@ func TestUserService_UpdateUserFromClerk(t *testing.T) {
 	t.Run("入力バリデーション: user_id が必須", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		avatarURL := "https://example.com/avatar.png"
 		err := svc.UpdateUserFromClerk(context.Background(), "", &avatarURL)
 		if err == nil {
@@ -605,7 +609,7 @@ func TestUserService_UpdateUserFromClerk(t *testing.T) {
 	t.Run("入力バリデーション: 空白のみのuser_idはエラー", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		avatarURL := "https://example.com/avatar.png"
 		err := svc.UpdateUserFromClerk(context.Background(), "   ", &avatarURL)
 		if err == nil {
@@ -622,7 +626,7 @@ func TestUserService_UpdateUserFromClerk(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		avatarURL := "https://example.com/avatar.png"
 		err := svc.UpdateUserFromClerk(context.Background(), "u1", &avatarURL)
@@ -643,7 +647,7 @@ func TestUserService_UpdateUserFromClerk(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		avatarURL := "https://example.com/new-avatar.png"
 		err := svc.UpdateUserFromClerk(context.Background(), "u1", &avatarURL)
@@ -674,7 +678,7 @@ func TestUserService_UpdateUserFromClerk(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		err := svc.UpdateUserFromClerk(context.Background(), "u1", nil)
 		if err != nil {
@@ -697,7 +701,7 @@ func TestUserService_FollowUser(t *testing.T) {
 	t.Run("入力バリデーション: follower_id が必須", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		err := svc.FollowUser(context.Background(), "", "u2")
 		if err == nil {
 			t.Fatalf("expected error")
@@ -707,7 +711,7 @@ func TestUserService_FollowUser(t *testing.T) {
 	t.Run("入力バリデーション: followee_id が必須", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		err := svc.FollowUser(context.Background(), "u1", "")
 		if err == nil {
 			t.Fatalf("expected error")
@@ -717,7 +721,7 @@ func TestUserService_FollowUser(t *testing.T) {
 	t.Run("自分自身をフォロー: ErrCannotFollowSelf", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		err := svc.FollowUser(context.Background(), "u1", "u1")
 		if !errors.Is(err, ErrCannotFollowSelf) {
 			t.Fatalf("expected ErrCannotFollowSelf, got: %v", err)
@@ -732,7 +736,7 @@ func TestUserService_FollowUser(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		err := svc.FollowUser(context.Background(), "u1", "u2")
 		if !errors.Is(err, ErrUserNotFound) {
@@ -749,7 +753,7 @@ func TestUserService_FollowUser(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, repo, &fakeUserFollowerRepo{}, nil, nil)
 
 		err := svc.FollowUser(context.Background(), "u1", "u2")
 		if !errors.Is(err, ErrUserNotFound) {
@@ -770,7 +774,7 @@ func TestUserService_FollowUser(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, followerRepo, nil)
+		svc := NewUserService(logger, nil, repo, followerRepo, nil, nil)
 
 		err := svc.FollowUser(context.Background(), "u1", "u2")
 		if !errors.Is(err, ErrAlreadyFollowing) {
@@ -797,7 +801,7 @@ func TestUserService_FollowUser(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, repo, followerRepo, nil)
+		svc := NewUserService(logger, nil, repo, followerRepo, nil, nil)
 
 		err := svc.FollowUser(context.Background(), "u1", "u2")
 		if err != nil {
@@ -815,7 +819,7 @@ func TestUserService_UnfollowUser(t *testing.T) {
 	t.Run("入力バリデーション: follower_id が必須", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		err := svc.UnfollowUser(context.Background(), "", "u2")
 		if err == nil {
 			t.Fatalf("expected error")
@@ -825,7 +829,7 @@ func TestUserService_UnfollowUser(t *testing.T) {
 	t.Run("入力バリデーション: followee_id が必須", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		err := svc.UnfollowUser(context.Background(), "u1", "")
 		if err == nil {
 			t.Fatalf("expected error")
@@ -840,7 +844,7 @@ func TestUserService_UnfollowUser(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil, nil)
 
 		err := svc.UnfollowUser(context.Background(), "u1", "u2")
 		if !errors.Is(err, ErrNotFollowing) {
@@ -862,7 +866,7 @@ func TestUserService_UnfollowUser(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil, nil)
 
 		err := svc.UnfollowUser(context.Background(), "u1", "u2")
 		if err != nil {
@@ -880,7 +884,7 @@ func TestUserService_IsFollowing(t *testing.T) {
 	t.Run("空のIDの場合: false を返す", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		result, err := svc.IsFollowing(context.Background(), "", "u2")
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
@@ -898,7 +902,7 @@ func TestUserService_IsFollowing(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil, nil)
 
 		result, err := svc.IsFollowing(context.Background(), "u1", "u2")
 		if err != nil {
@@ -917,7 +921,7 @@ func TestUserService_IsFollowing(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil, nil)
 
 		result, err := svc.IsFollowing(context.Background(), "u1", "u2")
 		if err != nil {
@@ -935,7 +939,7 @@ func TestUserService_ListFollowing(t *testing.T) {
 	t.Run("入力バリデーション: user_id が必須", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		_, _, err := svc.ListFollowing(context.Background(), "", 1, 20)
 		if err == nil {
 			t.Fatalf("expected error")
@@ -952,7 +956,7 @@ func TestUserService_ListFollowing(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil, nil)
 
 		_, _, err := svc.ListFollowing(context.Background(), "u1", 0, 10)
 		if err != nil {
@@ -973,7 +977,7 @@ func TestUserService_ListFollowing(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil, nil)
 
 		_, _, err := svc.ListFollowing(context.Background(), "u1", 2, 1000)
 		if err != nil {
@@ -995,7 +999,7 @@ func TestUserService_ListFollowing(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil, nil)
 
 		users, total, err := svc.ListFollowing(context.Background(), "u1", 1, 20)
 		if err != nil {
@@ -1016,7 +1020,7 @@ func TestUserService_ListFollowers(t *testing.T) {
 	t.Run("入力バリデーション: user_id が必須", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		_, _, err := svc.ListFollowers(context.Background(), "", 1, 20)
 		if err == nil {
 			t.Fatalf("expected error")
@@ -1034,7 +1038,7 @@ func TestUserService_ListFollowers(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil, nil)
 
 		_, _, err := svc.ListFollowers(context.Background(), "u1", 0, 0)
 		if err != nil {
@@ -1057,7 +1061,7 @@ func TestUserService_ListFollowers(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil, nil)
 
 		users, total, err := svc.ListFollowers(context.Background(), "u1", 1, 20)
 		if err != nil {
@@ -1075,7 +1079,7 @@ func TestUserService_GetFollowStats(t *testing.T) {
 	t.Run("入力バリデーション: user_id が必須", func(t *testing.T) {
 		t.Parallel()
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, &fakeUserFollowerRepo{}, nil, nil)
 		_, _, err := svc.GetFollowStats(context.Background(), "")
 		if err == nil {
 			t.Fatalf("expected error")
@@ -1093,7 +1097,7 @@ func TestUserService_GetFollowStats(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil, nil)
 
 		following, followers, err := svc.GetFollowStats(context.Background(), "u1")
 		if err != nil {
@@ -1113,7 +1117,7 @@ func TestUserService_GetFollowStats(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil, nil)
 
 		_, _, err := svc.GetFollowStats(context.Background(), "u1")
 		if !errors.Is(err, expected) {
@@ -1133,7 +1137,7 @@ func TestUserService_GetFollowStats(t *testing.T) {
 			},
 		}
 		logger := testutil.NewTestLogger()
-		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil)
+		svc := NewUserService(logger, nil, &fakeUserRepo{}, followerRepo, nil, nil)
 
 		_, _, err := svc.GetFollowStats(context.Background(), "u1")
 		if !errors.Is(err, expected) {
