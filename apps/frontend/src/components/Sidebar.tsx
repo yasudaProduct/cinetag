@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import {
@@ -17,9 +16,17 @@ import {
 import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMe } from "@/lib/api/users/getMe";
+import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
-import { TagModal } from "@/components/TagModal";
-import { LoginModal } from "@/components/LoginModal";
+
+const TagModal = dynamic(
+  () => import("@/components/TagModal").then((mod) => mod.TagModal),
+  { ssr: false },
+);
+const LoginModal = dynamic(
+  () => import("@/components/LoginModal").then((mod) => mod.LoginModal),
+  { ssr: false },
+);
 
 export const Sidebar = () => {
   const pathname = usePathname();
