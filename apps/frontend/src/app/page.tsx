@@ -298,16 +298,10 @@ export default async function LandingPage() {
           </Link>
           <div className="flex items-center gap-4">
             <Link
-              href="/sign-in"
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              ログイン
-            </Link>
-            <Link
-              href="/sign-up"
+              href="/tags"
               className="inline-flex items-center px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-full hover:bg-gray-800 transition-colors"
             >
-              無料で始める
+              タグを探す
             </Link>
           </div>
         </div>
