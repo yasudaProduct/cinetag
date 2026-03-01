@@ -16,7 +16,11 @@ const NotificationDropdown = dynamic(
   { ssr: false },
 );
 
-export function NotificationBell() {
+type NotificationBellProps = {
+  label?: string;
+};
+
+export function NotificationBell({ label }: NotificationBellProps) {
   const { getToken, isSignedIn, isLoaded } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -58,17 +62,23 @@ export function NotificationBell() {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "relative flex items-center justify-center p-2 rounded-xl transition-all",
+          "relative flex items-center transition-all",
+          label
+            ? "gap-3 text-sm font-bold"
+            : "justify-center p-2 rounded-xl",
           isOpen ? "text-gray-900" : "text-gray-400 hover:text-gray-900",
         )}
         aria-label="通知"
       >
-        <Bell className="w-5 h-5" />
-        {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full leading-none">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        )}
+        <span className="relative">
+          <Bell className="w-5 h-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full leading-none">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
+        </span>
+        {label && <span>{label}</span>}
       </button>
 
       {isOpen && (

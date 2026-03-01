@@ -125,7 +125,7 @@ export function NotificationDropdown({
   const hasUnread = notifications.some((n) => !n.isRead);
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-80 max-h-[480px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden z-50">
+    <div className="absolute left-0 top-full mt-2 w-80 max-h-[480px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden z-50">
       {/* ヘッダー */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <h3 className="text-sm font-bold text-gray-900">通知</h3>

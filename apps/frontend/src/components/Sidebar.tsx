@@ -159,13 +159,8 @@ export const Sidebar = () => {
 
           {/* 通知ベル（ログイン時のみ） */}
           {isLoaded && isSignedIn && (
-            <div className="relative group">
-              <div className="flex items-center gap-3 px-4 py-3">
-                <NotificationBell />
-                <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900 transition-colors">
-                  通知
-                </span>
-              </div>
+            <div className="px-4 py-3">
+              <NotificationBell label="通知" />
             </div>
           )}
 
