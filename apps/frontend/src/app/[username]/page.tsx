@@ -50,6 +50,8 @@ export default async function UserPage({
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
   let user;
   try {
@@ -61,5 +63,25 @@ export default async function UserPage({
     throw error;
   }
 
-  return <UserPageClient username={username} initialProfileUser={user} />;
+  const profileJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    mainEntity: {
+      "@type": "Person",
+      name: user.display_name,
+      url: `${siteUrl}/${user.display_id}`,
+      ...(user.bio && { description: user.bio }),
+      ...(user.avatar_url && { image: user.avatar_url }),
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(profileJsonLd) }}
+      />
+      <UserPageClient username={username} initialProfileUser={user} />
+    </>
+  );
 }
