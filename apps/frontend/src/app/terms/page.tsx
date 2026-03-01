@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "利用規約 | cinetag",
   description: "cinetagの利用規約です。サービスの利用条件をご確認ください。",
+  alternates: {
+    canonical: "/terms",
+  },
 };
 
 export default function TermsPage() {

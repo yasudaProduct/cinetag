@@ -283,6 +283,9 @@ export const metadata: Metadata = {
   title: "cinetag - 映画をタグでつながる、共有する",
   description:
     "cinetagは、映画に自由にタグを作成し、他のユーザーと共有できる新しい映画プラットフォームです。",
+  alternates: {
+    canonical: "/",
+  },
 };
 
 export default async function LandingPage() {
