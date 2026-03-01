@@ -14,10 +14,16 @@ export async function generateMetadata({
   try {
     const user = await getUserByDisplayId(username, { cache: "no-store" });
     const title = `${user.display_name}のフォロワー | cinetag`;
+    const description = `${user.display_name}をフォローしているユーザーの一覧です。`;
 
     return {
       title,
-      openGraph: { title },
+      description,
+      alternates: {
+        canonical: `/${username}/followers`,
+      },
+      openGraph: { title, description },
+      twitter: { card: "summary" as const, title, description },
     };
   } catch {
     return {
