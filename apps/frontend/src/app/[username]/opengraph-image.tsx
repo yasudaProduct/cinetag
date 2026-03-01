@@ -1,6 +1,8 @@
 import { ImageResponse } from "next/og";
 import { getUserByDisplayId } from "@/lib/api/users/getUser";
+import { getNotoSansJPBold } from "@/lib/og-font";
 
+export const revalidate = 600;
 export const runtime = "edge";
 export const alt = "ユーザープロフィール";
 export const size = { width: 1200, height: 630 };
@@ -26,16 +28,7 @@ export default async function OGImage({
     // fallback to defaults
   }
 
-  const notoSansJP = await fetch(
-    "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&display=swap",
-  ).then(async (css) => {
-    const text = await css.text();
-    const fontUrl = text.match(
-      /src: url\((.+?)\) format\('woff2'\)/,
-    )?.[1];
-    if (!fontUrl) throw new Error("Font URL not found");
-    return fetch(fontUrl).then((res) => res.arrayBuffer());
-  });
+  const notoSansJP = await getNotoSansJPBold();
 
   return new ImageResponse(
     (

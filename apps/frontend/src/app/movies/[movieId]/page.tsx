@@ -89,6 +89,9 @@ export default async function MovieDetailPage({
             "@type": "AggregateRating",
             ratingValue: movie.voteAverage,
             bestRating: 10,
+            ...(movie.voteCount != null && {
+              ratingCount: movie.voteCount,
+            }),
           },
         }),
       };
