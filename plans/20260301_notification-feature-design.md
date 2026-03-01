@@ -1,7 +1,7 @@
 # 通知機能 設計ドキュメント
 
 **作成日**: 2026-03-01
-**ステータス**: 実装中（Phase 1）
+**ステータス**: Phase 1 実装完了
 
 ---
 
@@ -196,7 +196,8 @@ type NotificationRepository interface {
     // CreateBatch は通知を一括作成（フォロワー全員への通知等）
     CreateBatch(ctx context.Context, notifications []*model.Notification) error
     // ListByRecipient は指定ユーザーの通知一覧を返す（新しい順）
-    ListByRecipient(ctx context.Context, userID string, page, pageSize int) ([]*model.Notification, int64, error)
+    // unreadOnly が true の場合、未読通知のみに絞る
+    ListByRecipient(ctx context.Context, userID string, page, pageSize int, unreadOnly bool) ([]*NotificationRow, int64, error)
     // CountUnread は未読通知数を返す
     CountUnread(ctx context.Context, userID string) (int64, error)
     // MarkAsRead は指定の通知を既読にする
@@ -212,8 +213,8 @@ type NotificationRepository interface {
 
 ```go
 type NotificationService interface {
-    // 通知の取得
-    ListNotifications(ctx context.Context, userID string, page, pageSize int) ([]*NotificationItem, int64, error)
+    // 通知の取得（unreadOnly が true の場合、未読通知のみに絞る）
+    ListNotifications(ctx context.Context, userID string, page, pageSize int, unreadOnly bool) ([]*NotificationItem, int64, error)
     GetUnreadCount(ctx context.Context, userID string) (int64, error)
     // 既読管理
     MarkAsRead(ctx context.Context, notificationID, userID string) error
@@ -292,6 +293,7 @@ go func() {
 |-----------|------|-----------|------|
 | `page` | int | 1 | ページ番号 |
 | `page_size` | int | 20 | 1ページあたりの件数（最大50） |
+| `unread_only` | string | - | `"true"` の場合、未読通知のみに絞り込む |
 
 **レスポンス（200 OK）**:
 
@@ -348,7 +350,7 @@ go func() {
 
 | 関数 | 概要 |
 |------|------|
-| `listNotifications(page, pageSize, token)` | 通知一覧取得 |
+| `listNotifications(token, page, pageSize, unreadOnly?)` | 通知一覧取得（`unreadOnly=true` で未読のみ） |
 | `getUnreadCount(token)` | 未読通知数取得 |
 | `markAsRead(notificationId, token)` | 個別既読 |
 | `markAllAsRead(token)` | 全件既読 |
@@ -401,9 +403,11 @@ export const notificationListResponseSchema = z.object({
 ヘッダー
 ├── NotificationBell         # ベルアイコン + 未読バッジ
 │   └── NotificationDropdown # ドロップダウンパネル
-│       ├── NotificationItem # 各通知カード
-│       └── "すべて既読にする" ボタン
-└── /notifications ページ    # 通知一覧フルページ（オプション）
+│       ├── NotificationItem # 各通知カード（未読のみ最大5件）
+│       ├── "すべて既読にする" ボタン
+│       └── "すべての通知を見る" リンク → /notifications
+└── /notifications ページ    # 通知一覧フルページ（実装済み）
+    └── NotificationsClient  # 全通知をページネーション付きで表示
 ```
 
 **NotificationBell**:
@@ -412,11 +416,19 @@ export const notificationListResponseSchema = z.object({
 - クリックでドロップダウンを開閉
 
 **NotificationDropdown**:
-- 最新20件の通知を表示
-- 未読通知はハイライト背景
+- **未読通知のみ最大5件**を表示（`listNotifications(token, 1, 5, true)`）
+- 未読通知はハイライト背景（`bg-blue-50/50`）
 - クリックで該当リソースページに遷移 + 自動既読化
-- 「すべて既読にする」リンク
+- 「すべて既読にする」ボタン
+- 「すべての通知を見る」リンク（`/notifications` ページへ遷移）
 - 遅延ロード（`dynamic import`）でバンドルサイズに影響させない
+
+**`/notifications` ページ** (`apps/frontend/src/app/notifications/`):
+- `page.tsx`（サーバーコンポーネント）+ `NotificationsClient.tsx`（クライアントコンポーネント）
+- 全通知（既読含む）をページネーション付きで表示（20件/ページ）
+- 「すべて既読にする」ボタン
+- 通知クリックで既読化 + 遷移先ページへ移動
+- ヘルパー関数（`getNotificationMessage`, `getNotificationHref`, `formatRelativeTime`）は `NotificationDropdown` から export して共有
 
 **ポーリング実装**:
 
@@ -627,18 +639,21 @@ CREATE TABLE notification_preferences (
 
 ### Phase 1: アプリ内通知
 
-| ステップ | 内容 | 依存 |
-|---------|------|------|
-| 1-1 | DBマイグレーション（`notifications` テーブル） | なし |
-| 1-2 | `Notification` モデル定義 | 1-1 |
-| 1-3 | `NotificationRepository` 実装 | 1-2 |
-| 1-4 | `NotificationService` 実装 | 1-3 |
-| 1-5 | 既存サービスに通知呼び出し追加 | 1-4 |
-| 1-6 | `NotificationHandler` + ルーター登録 | 1-4 |
-| 1-7 | フロントエンド API関数 + Zodスキーマ | 1-6 |
-| 1-8 | NotificationBell + DropdownUI | 1-7 |
-| 1-9 | ポーリング実装（React Query `refetchInterval`） | 1-8 |
-| 1-10 | 通知クリック時の遷移・既読化 | 1-8 |
+| ステップ | 内容 | 依存 | 状態 |
+|---------|------|------|------|
+| 1-1 | DBマイグレーション（`notifications` テーブル） | なし | 完了 |
+| 1-2 | `Notification` モデル定義 | 1-1 | 完了 |
+| 1-3 | `NotificationRepository` 実装 | 1-2 | 完了 |
+| 1-4 | `NotificationService` 実装 | 1-3 | 完了 |
+| 1-5 | 既存サービスに通知呼び出し追加 | 1-4 | 完了 |
+| 1-6 | `NotificationHandler` + ルーター登録 | 1-4 | 完了 |
+| 1-7 | フロントエンド API関数 + Zodスキーマ | 1-6 | 完了 |
+| 1-8 | NotificationBell + DropdownUI | 1-7 | 完了 |
+| 1-9 | ポーリング実装（React Query `refetchInterval`） | 1-8 | 完了 |
+| 1-10 | 通知クリック時の遷移・既読化 | 1-8 | 完了 |
+| 1-11 | `unread_only` フィルタ追加（Backend + Frontend） | 1-6 | 完了 |
+| 1-12 | ドロップダウンを未読5件表示に変更 | 1-11 | 完了 |
+| 1-13 | `/notifications` 通知一覧ページ作成 | 1-11 | 完了 |
 
 ### Phase 2-3 は Phase 1 の運用状況を見て判断
 
