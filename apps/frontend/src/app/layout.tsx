@@ -22,6 +22,9 @@ export const metadata: Metadata = {
   ),
   title: "cinetag",
   description: "cinetag",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title: "cinetag - 映画をタグでつながる、共有する",
     description:
