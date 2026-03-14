@@ -30,6 +30,9 @@ type MovieService interface {
 	// TMDB の検索APIで映画を検索し、候補一覧を返す。
 	SearchMovies(ctx context.Context, query string, page int) ([]TMDBSearchResult, int, error)
 
+	// TMDB の人名検索APIで監督・出演者を検索し、関連映画を返す。
+	SearchMoviesByPerson(ctx context.Context, query string, page int) ([]TMDBSearchResult, int, error)
+
 	// 指定した TMDB 映画 ID の詳細情報を取得する。
 	GetMovieDetail(ctx context.Context, tmdbMovieID int) (*MovieDetailResponse, error)
 
@@ -146,6 +149,30 @@ type tmdbSearchResponse struct {
 	} `json:"results"`
 }
 
+// TMDB の /search/person のレスポンスを表す構造体。
+type tmdbPersonSearchResponse struct {
+	Page         int                `json:"page"`
+	TotalPages   int                `json:"total_pages"`
+	TotalResults int                `json:"total_results"`
+	Results      []tmdbPersonResult `json:"results"`
+}
+
+type tmdbPersonResult struct {
+	ID       int                `json:"id"`
+	Name     string             `json:"name"`
+	KnownFor []tmdbKnownForItem `json:"known_for"`
+}
+
+type tmdbKnownForItem struct {
+	MediaType     string   `json:"media_type"`
+	ID            int      `json:"id"`
+	Title         string   `json:"title"`
+	OriginalTitle string   `json:"original_title"`
+	PosterPath    *string  `json:"poster_path"`
+	ReleaseDate   string   `json:"release_date"`
+	VoteAverage   *float64 `json:"vote_average"`
+}
+
 // フロントに返す検索候補を表す構造体。
 type TMDBSearchResult struct {
 	TmdbMovieID   int      `json:"tmdb_movie_id"`
@@ -236,6 +263,100 @@ func (s *movieService) SearchMovies(ctx context.Context, query string, page int)
 			ReleaseDate:   release,
 			VoteAverage:   r.VoteAverage,
 		})
+	}
+
+	return out, body.TotalResults, nil
+}
+
+// TMDB の人名検索APIで監督・出演者を検索し、known_for から映画を抽出して返す。
+func (s *movieService) SearchMoviesByPerson(ctx context.Context, query string, page int) ([]TMDBSearchResult, int, error) {
+	q := strings.TrimSpace(query)
+	if q == "" {
+		return []TMDBSearchResult{}, 0, nil
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if s.cfg.APIKey == "" {
+		return nil, 0, errors.New("TMDB_API_KEY is not set")
+	}
+
+	base, err := url.Parse(s.cfg.BaseURL)
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid TMDB_BASE_URL: %w", err)
+	}
+	base.Path = path.Join(base.Path, "search", "person")
+
+	params := base.Query()
+	params.Set("query", q)
+	params.Set("page", strconv.Itoa(page))
+	if s.cfg.DefaultLanguage != "" {
+		params.Set("language", s.cfg.DefaultLanguage)
+	}
+	base.RawQuery = params.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base.String(), nil)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to create TMDB request: %w", err)
+	}
+
+	token := strings.TrimSpace(s.cfg.APIKey)
+	if token != "" {
+		if strings.HasPrefix(strings.ToLower(token), "bearer ") {
+			req.Header.Set("Authorization", token)
+		} else {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to call TMDB: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, 0, fmt.Errorf("tmdb request failed: status=%d", resp.StatusCode)
+	}
+
+	var body tmdbPersonSearchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, 0, fmt.Errorf("failed to decode TMDB response: %w", err)
+	}
+
+	// known_for から映画のみ抽出し、重複を排除する。
+	seen := make(map[int]struct{})
+	out := make([]TMDBSearchResult, 0)
+	for _, person := range body.Results {
+		for _, item := range person.KnownFor {
+			if item.MediaType != "movie" {
+				continue
+			}
+			if _, ok := seen[item.ID]; ok {
+				continue
+			}
+			seen[item.ID] = struct{}{}
+
+			var release *string
+			if strings.TrimSpace(item.ReleaseDate) != "" {
+				s := strings.TrimSpace(item.ReleaseDate)
+				release = &s
+			}
+			var original *string
+			if strings.TrimSpace(item.OriginalTitle) != "" {
+				s := strings.TrimSpace(item.OriginalTitle)
+				original = &s
+			}
+			out = append(out, TMDBSearchResult{
+				TmdbMovieID:   item.ID,
+				Title:         item.Title,
+				OriginalTitle: original,
+				PosterPath:    item.PosterPath,
+				ReleaseDate:   release,
+				VoteAverage:   item.VoteAverage,
+			})
+		}
 	}
 
 	return out, body.TotalResults, nil

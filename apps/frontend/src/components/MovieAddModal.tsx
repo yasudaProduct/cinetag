@@ -5,7 +5,7 @@ import { X, Search, Plus, Check, Film } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { searchMovies, type MovieSearchItem } from "@/lib/api/movies/search";
+import { searchMovies, type MovieSearchItem, type MovieSearchType } from "@/lib/api/movies/search";
 import { getMovieDetail } from "@/lib/api/movies/detail";
 import { addMoviesToTag } from "@/lib/api/tags/addMovie";
 import { getBackendTokenOrThrow } from "@/lib/api/_shared/auth";
@@ -88,14 +88,15 @@ export const MovieAddModal = ({
 }: MovieAddModalProps) => {
   const { getToken } = useAuth();
   const [q, setQ] = useState("");
+  const [searchType, setSearchType] = useState<MovieSearchType>("title");
   const [selectedMovies, setSelectedMovies] = useState<SelectedMovie[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const trimmedQ = useMemo(() => q.trim(), [q]);
 
   const searchQuery = useQuery({
-    queryKey: ["movieSearch", trimmedQ],
-    queryFn: () => searchMovies({ q: trimmedQ, page: 1 }),
+    queryKey: ["movieSearch", trimmedQ, searchType],
+    queryFn: () => searchMovies({ q: trimmedQ, page: 1, search_type: searchType }),
     enabled: open && trimmedQ.length >= 2,
   });
 
@@ -197,7 +198,7 @@ export const MovieAddModal = ({
               映画を追加
             </h2>
             <p className="mt-1 text-sm text-[#7C7288]">
-              タイトルで検索して、追加したい映画を選択してください。
+              タイトルや監督名・出演者名で検索して、追加したい映画を選択してください。
             </p>
           </div>
           <button
@@ -212,6 +213,28 @@ export const MovieAddModal = ({
 
         {/* Body */}
         <div className="px-7 pb-7 pt-4 space-y-4 overflow-y-auto flex-1 min-h-0">
+          {/* Search type tabs */}
+          <div className="flex gap-1 p-1 rounded-xl bg-[#F3E1D6]/50">
+            {([
+              { value: "title" as const, label: "タイトル" },
+              { value: "person" as const, label: "人名（監督・出演者）" },
+            ]).map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => setSearchType(tab.value)}
+                className={[
+                  "flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  searchType === tab.value
+                    ? "bg-white text-[#1F1A2B] shadow-sm"
+                    : "text-[#7C7288] hover:text-[#1F1A2B]",
+                ].join(" ")}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           {/* Search input */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -221,7 +244,7 @@ export const MovieAddModal = ({
               type="text"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="映画タイトルで検索（2文字以上）"
+              placeholder={searchType === "title" ? "映画タイトルで検索（2文字以上）" : "監督名・出演者名で検索（2文字以上）"}
               className="block w-full pl-12 pr-4 py-3 rounded-xl border border-[#E4D3C7] bg-[#FFFDF8] text-[#1F1A2B] text-sm focus:ring-2 focus:ring-[#FF8C75] focus:border-transparent placeholder:text-[#C2B5A8] shadow-[0_1px_0_rgba(0,0,0,0.03)]"
             />
           </div>
@@ -287,7 +310,7 @@ export const MovieAddModal = ({
                 <div className="flex flex-col items-center justify-center py-8 text-[#B09EA0]">
                   <Search className="w-8 h-8 mb-2" />
                   <span className="text-sm">
-                    映画タイトルを入力してください
+                    {searchType === "title" ? "映画タイトルを入力してください" : "監督名・出演者名を入力してください"}
                   </span>
                 </div>
               )}
