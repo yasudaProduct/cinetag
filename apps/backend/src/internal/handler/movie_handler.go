@@ -25,12 +25,23 @@ func NewMovieHandler(logger *slog.Logger, movieService service.MovieService) *Mo
 }
 
 // TMDB 検索結果を返します。
-// GET /api/v1/movies/search?q={query}&page={page}
+// GET /api/v1/movies/search?q={query}&page={page}&search_type={search_type}
 func (h *MovieHandler) SearchMovies(c *gin.Context) {
 	q := strings.TrimSpace(c.Query("q"))
 	page := parseIntDefault(c.Query("page"), 1)
+	searchType := strings.TrimSpace(c.Query("search_type"))
 
-	items, total, err := h.movieService.SearchMovies(c.Request.Context(), q, page)
+	var items []service.TMDBSearchResult
+	var total int
+	var err error
+
+	switch searchType {
+	case "person":
+		items, total, err = h.movieService.SearchMoviesByPerson(c.Request.Context(), q, page)
+	default:
+		items, total, err = h.movieService.SearchMovies(c.Request.Context(), q, page)
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to search movies"})
 		return

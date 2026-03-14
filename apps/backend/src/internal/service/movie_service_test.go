@@ -341,6 +341,300 @@ func TestSearchMovies_ResultMapping(t *testing.T) {
 	}
 }
 
+func TestSearchMoviesByPerson(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		query          string
+		page           int
+		apiKey         string
+		serverResponse func(w http.ResponseWriter, r *http.Request)
+		wantResults    int
+		wantTotal      int
+		wantErr        bool
+		errContains    string
+	}{
+		{
+			name:   "successful person search returns known_for movies",
+			query:  "Christopher Nolan",
+			page:   1,
+			apiKey: "test-api-key",
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				// Verify it hits /search/person
+				if r.URL.Path != "/3/search/person" {
+					t.Errorf("path = %q, want /3/search/person", r.URL.Path)
+				}
+				auth := r.Header.Get("Authorization")
+				if auth != "Bearer test-api-key" {
+					t.Errorf("Authorization = %q, want %q", auth, "Bearer test-api-key")
+				}
+
+				posterPath := "/poster.jpg"
+				vote := 8.8
+
+				resp := tmdbPersonSearchResponse{
+					Page:         1,
+					TotalPages:   1,
+					TotalResults: 1,
+					Results: []tmdbPersonResult{
+						{
+							ID:   525,
+							Name: "Christopher Nolan",
+							KnownFor: []tmdbKnownForItem{
+								{
+									MediaType:     "movie",
+									ID:            27205,
+									Title:         "インセプション",
+									OriginalTitle: "Inception",
+									PosterPath:    &posterPath,
+									ReleaseDate:   "2010-07-16",
+									VoteAverage:   &vote,
+								},
+								{
+									MediaType:     "tv",
+									ID:            99999,
+									Title:         "Some TV Show",
+									OriginalTitle: "Some TV Show",
+								},
+								{
+									MediaType:     "movie",
+									ID:            49026,
+									Title:         "ダークナイト ライジング",
+									OriginalTitle: "The Dark Knight Rises",
+									ReleaseDate:   "2012-07-20",
+								},
+							},
+						},
+					},
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(resp)
+			},
+			wantResults: 2, // TV は除外されるので映画2本
+			wantTotal:   1, // person の total_results
+			wantErr:     false,
+		},
+		{
+			name:        "empty query returns empty results",
+			query:       "",
+			page:        1,
+			apiKey:      "test-api-key",
+			wantResults: 0,
+			wantTotal:   0,
+			wantErr:     false,
+		},
+		{
+			name:        "missing API key returns error",
+			query:       "test",
+			page:        1,
+			apiKey:      "",
+			wantErr:     true,
+			errContains: "TMDB_API_KEY is not set",
+		},
+		{
+			name:   "page <= 0 defaults to page 1",
+			query:  "test",
+			page:   0,
+			apiKey: "test-api-key",
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				page := r.URL.Query().Get("page")
+				if page != "1" {
+					t.Errorf("page = %q, want %q", page, "1")
+				}
+				resp := tmdbPersonSearchResponse{TotalResults: 0}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(resp)
+			},
+			wantResults: 0,
+			wantTotal:   0,
+			wantErr:     false,
+		},
+		{
+			name:   "API returns non-2xx status",
+			query:  "test",
+			page:   1,
+			apiKey: "test-api-key",
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusServiceUnavailable)
+			},
+			wantErr:     true,
+			errContains: "status=503",
+		},
+		{
+			name:   "duplicate movies from multiple persons are deduplicated",
+			query:  "Nolan",
+			page:   1,
+			apiKey: "test-api-key",
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				resp := tmdbPersonSearchResponse{
+					TotalResults: 2,
+					Results: []tmdbPersonResult{
+						{
+							ID:   525,
+							Name: "Christopher Nolan",
+							KnownFor: []tmdbKnownForItem{
+								{MediaType: "movie", ID: 27205, Title: "インセプション"},
+							},
+						},
+						{
+							ID:   526,
+							Name: "Jonathan Nolan",
+							KnownFor: []tmdbKnownForItem{
+								{MediaType: "movie", ID: 27205, Title: "インセプション"},
+								{MediaType: "movie", ID: 155, Title: "ダークナイト"},
+							},
+						},
+					},
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(resp)
+			},
+			wantResults: 2, // 重複排除で 2本
+			wantTotal:   2,
+			wantErr:     false,
+		},
+		{
+			name:   "person with no known_for movies returns empty",
+			query:  "Unknown Person",
+			page:   1,
+			apiKey: "test-api-key",
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				resp := tmdbPersonSearchResponse{
+					TotalResults: 1,
+					Results: []tmdbPersonResult{
+						{
+							ID:       999,
+							Name:     "Unknown Person",
+							KnownFor: []tmdbKnownForItem{},
+						},
+					},
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(resp)
+			},
+			wantResults: 0,
+			wantTotal:   1,
+			wantErr:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var server *httptest.Server
+			var client *http.Client
+			if tt.serverResponse != nil {
+				server = httptest.NewServer(http.HandlerFunc(tt.serverResponse))
+				defer server.Close()
+				client = server.Client()
+			}
+
+			cfg := TMDBConfig{
+				APIKey:          tt.apiKey,
+				DefaultLanguage: "ja-JP",
+			}
+			if server != nil {
+				cfg.BaseURL = server.URL + "/3"
+			}
+
+			svc := NewMovieServiceWithConfig(nil, cfg, client)
+
+			results, total, err := svc.SearchMoviesByPerson(context.Background(), tt.query, tt.page)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SearchMoviesByPerson() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr {
+				if tt.errContains != "" && err != nil {
+					if !containsString(err.Error(), tt.errContains) {
+						t.Errorf("error = %q, want to contain %q", err.Error(), tt.errContains)
+					}
+				}
+				return
+			}
+
+			if len(results) != tt.wantResults {
+				t.Errorf("len(results) = %d, want %d", len(results), tt.wantResults)
+			}
+			if total != tt.wantTotal {
+				t.Errorf("total = %d, want %d", total, tt.wantTotal)
+			}
+		})
+	}
+}
+
+func TestSearchMoviesByPerson_ResultMapping(t *testing.T) {
+	t.Parallel()
+
+	posterPath := "/nolan.jpg"
+	voteAverage := 8.8
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := tmdbPersonSearchResponse{
+			TotalResults: 1,
+			Results: []tmdbPersonResult{
+				{
+					ID:   525,
+					Name: "Christopher Nolan",
+					KnownFor: []tmdbKnownForItem{
+						{
+							MediaType:     "movie",
+							ID:            27205,
+							Title:         "インセプション",
+							OriginalTitle: "Inception",
+							PosterPath:    &posterPath,
+							ReleaseDate:   "2010-07-16",
+							VoteAverage:   &voteAverage,
+						},
+					},
+				},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	cfg := TMDBConfig{
+		APIKey:  "test-key",
+		BaseURL: server.URL + "/3",
+	}
+	svc := NewMovieServiceWithConfig(nil, cfg, server.Client())
+
+	results, _, err := svc.SearchMoviesByPerson(context.Background(), "Nolan", 1)
+	if err != nil {
+		t.Fatalf("SearchMoviesByPerson() error = %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Fatalf("len(results) = %d, want 1", len(results))
+	}
+
+	r := results[0]
+	if r.TmdbMovieID != 27205 {
+		t.Errorf("TmdbMovieID = %d, want 27205", r.TmdbMovieID)
+	}
+	if r.Title != "インセプション" {
+		t.Errorf("Title = %q, want %q", r.Title, "インセプション")
+	}
+	if r.OriginalTitle == nil || *r.OriginalTitle != "Inception" {
+		t.Errorf("OriginalTitle = %v, want %q", r.OriginalTitle, "Inception")
+	}
+	if r.PosterPath == nil || *r.PosterPath != "/nolan.jpg" {
+		t.Errorf("PosterPath = %v, want %q", r.PosterPath, "/nolan.jpg")
+	}
+	if r.ReleaseDate == nil || *r.ReleaseDate != "2010-07-16" {
+		t.Errorf("ReleaseDate = %v, want %q", r.ReleaseDate, "2010-07-16")
+	}
+	if r.VoteAverage == nil || *r.VoteAverage != 8.8 {
+		t.Errorf("VoteAverage = %v, want 8.8", r.VoteAverage)
+	}
+}
+
 func TestNewMovieServiceWithConfig_Defaults(t *testing.T) {
 	t.Parallel()
 

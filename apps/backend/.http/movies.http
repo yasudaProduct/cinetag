@@ -13,4 +13,8 @@
 @page = 1
 GET {{host}}{{api_prefix}}/movies/search?q={{query}}&page={{page}}
 
+### 映画検索（TMDB検索/統合、認証不要）
+@query = Nolan
+GET {{host}}{{api_prefix}}/movies/search?q={{query}}&page={{page}}&search_type=person
+
 

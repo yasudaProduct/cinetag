@@ -14,8 +14,9 @@ import (
 )
 
 type fakeMovieService struct {
-	SearchMoviesFn     func(ctx context.Context, query string, page int) ([]service.TMDBSearchResult, int, error)
-	EnsureMovieCacheFn func(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error)
+	SearchMoviesFn         func(ctx context.Context, query string, page int) ([]service.TMDBSearchResult, int, error)
+	SearchMoviesByPersonFn func(ctx context.Context, query string, page int) ([]service.TMDBSearchResult, int, error)
+	EnsureMovieCacheFn     func(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error)
 }
 
 func (f *fakeMovieService) SearchMovies(ctx context.Context, query string, page int) ([]service.TMDBSearchResult, int, error) {
@@ -23,6 +24,13 @@ func (f *fakeMovieService) SearchMovies(ctx context.Context, query string, page 
 		return []service.TMDBSearchResult{}, 0, nil
 	}
 	return f.SearchMoviesFn(ctx, query, page)
+}
+
+func (f *fakeMovieService) SearchMoviesByPerson(ctx context.Context, query string, page int) ([]service.TMDBSearchResult, int, error) {
+	if f.SearchMoviesByPersonFn == nil {
+		return []service.TMDBSearchResult{}, 0, nil
+	}
+	return f.SearchMoviesByPersonFn(ctx, query, page)
 }
 
 func (f *fakeMovieService) EnsureMovieCache(ctx context.Context, tmdbMovieID int) (*model.MovieCache, error) {
@@ -150,6 +158,82 @@ func TestMovieHandler_SearchMovies(t *testing.T) {
 		}
 		if gotPage != 1 {
 			t.Fatalf("expected page=1, got %d", gotPage)
+		}
+	})
+
+	t.Run("search_type=person で SearchMoviesByPerson が呼ばれる", func(t *testing.T) {
+		t.Parallel()
+
+		var personCalled bool
+		var titleCalled bool
+		movieSvc := &fakeMovieService{
+			SearchMoviesFn: func(ctx context.Context, query string, page int) ([]service.TMDBSearchResult, int, error) {
+				titleCalled = true
+				return []service.TMDBSearchResult{}, 0, nil
+			},
+			SearchMoviesByPersonFn: func(ctx context.Context, query string, page int) ([]service.TMDBSearchResult, int, error) {
+				personCalled = true
+				if query != "Nolan" {
+					t.Errorf("expected query=Nolan, got %s", query)
+				}
+				return []service.TMDBSearchResult{
+					{TmdbMovieID: 27205, Title: "インセプション"},
+				}, 1, nil
+			},
+		}
+
+		r := newMovieHandlerRouter(t, movieSvc)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/movies/search?q=Nolan&search_type=person", nil, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+		if !personCalled {
+			t.Fatal("expected SearchMoviesByPerson to be called")
+		}
+		if titleCalled {
+			t.Fatal("expected SearchMovies NOT to be called")
+		}
+	})
+
+	t.Run("search_type=title でデフォルトの SearchMovies が呼ばれる", func(t *testing.T) {
+		t.Parallel()
+
+		var titleCalled bool
+		movieSvc := &fakeMovieService{
+			SearchMoviesFn: func(ctx context.Context, query string, page int) ([]service.TMDBSearchResult, int, error) {
+				titleCalled = true
+				return []service.TMDBSearchResult{}, 0, nil
+			},
+		}
+
+		r := newMovieHandlerRouter(t, movieSvc)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/movies/search?q=test&search_type=title", nil, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+		if !titleCalled {
+			t.Fatal("expected SearchMovies to be called")
+		}
+	})
+
+	t.Run("search_type 未指定でデフォルトの SearchMovies が呼ばれる", func(t *testing.T) {
+		t.Parallel()
+
+		var titleCalled bool
+		movieSvc := &fakeMovieService{
+			SearchMoviesFn: func(ctx context.Context, query string, page int) ([]service.TMDBSearchResult, int, error) {
+				titleCalled = true
+				return []service.TMDBSearchResult{}, 0, nil
+			},
+		}
+
+		r := newMovieHandlerRouter(t, movieSvc)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/movies/search?q=test", nil, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+		if !titleCalled {
+			t.Fatal("expected SearchMovies to be called")
 		}
 	})
 }

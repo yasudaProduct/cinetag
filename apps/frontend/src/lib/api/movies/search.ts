@@ -15,14 +15,18 @@ export type MovieSearchResponse = {
   total_count: number;
 };
 
-export async function searchMovies(params: { q: string; page?: number }): Promise<MovieSearchResponse> {
+export type MovieSearchType = "title" | "person";
+
+export async function searchMovies(params: { q: string; page?: number; search_type?: MovieSearchType }): Promise<MovieSearchResponse> {
   const base = getPublicApiBaseOrThrow();
   const q = params.q.trim();
   const page = params.page ?? 1;
+  const searchType = params.search_type ?? "title";
 
   const url = new URL(`${base}/api/v1/movies/search`);
   url.searchParams.set("q", q);
   url.searchParams.set("page", String(page));
+  url.searchParams.set("search_type", searchType);
 
   const res = await fetch(url.toString(), { method: "GET" });
   const body = await safeJson(res);

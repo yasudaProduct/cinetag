@@ -34,6 +34,10 @@ func (f *fakeMovieService) SearchMovies(ctx context.Context, query string, page 
 	return f.SearchMoviesFn(ctx, query, page)
 }
 
+func (f *fakeMovieService) SearchMoviesByPerson(_ context.Context, _ string, _ int) ([]TMDBSearchResult, int, error) {
+	return []TMDBSearchResult{}, 0, nil
+}
+
 func (f *fakeMovieService) GetMovieDetail(_ context.Context, _ int) (*MovieDetailResponse, error) {
 	return nil, nil
 }
