@@ -4,7 +4,7 @@
 
 ## 背景
 
-サプライチェーン攻撃の約8割は、パッケージ公開から1週間以内に検出・削除されている。この知見をもとに、以下の5つの対策を実施した。
+サプライチェーン攻撃の約8割は、パッケージ公開から1週間以内に検出・削除されている。この知見をもとに、以下の対策を実施した。
 
 ---
 
@@ -56,7 +56,6 @@ ignore-scripts=true
 - `.github/workflows/ci-pr.yml`
 - `.github/workflows/ci-develop.yml`
 - `.github/workflows/ci-main.yml`
-- `.github/workflows/dependency-review.yml`
 
 タグ参照（例: `actions/checkout@v4`）をコミットハッシュに置き換えた。タグは書き換え可能なため、ハッシュによるピン留めで改ざんを防ぐ。
 
@@ -67,7 +66,6 @@ ignore-scripts=true
 | `actions/setup-node` | v4 | `49933ea5288caeca8642d1e84afbd3f7d6820020` |
 | `google-github-actions/auth` | v2 | `c200f3691d83b41bf9bbd8638997a462592937ed` |
 | `google-github-actions/deploy-cloudrun` | v2 | `251330ba9a8a34bfbc1622895f42e1d53fd14522` |
-| `actions/dependency-review-action` | v4.9.0 | `2031cfc080254a8a887f58cffee85186f0e49e48` |
 
 各行にはコメントでタグ名を残しており、可読性を維持している。
 
@@ -81,29 +79,42 @@ pinact run
 
 ---
 
-### 5. Dependency Review Action の導入
+### 5. Dependency Review Action（未適用）
 
-**対象ファイル:** `.github/workflows/dependency-review.yml`
+`actions/dependency-review-action` は Pull Request 時に依存関係の変更をスキャンし、既知の脆弱性が混入していないかチェックするツール。
 
-Pull Request 時に依存関係の変更をスキャンし、既知の脆弱性が混入していないかチェックする。`moderate` 以上の重大度でジョブが失敗するよう設定。
+**未適用の理由:** プライベートリポジトリでは GitHub Advanced Security（有料プラン）が有効でないと Dependency graph が使用できず、このアクションは動作しない。
+
+リポジトリを public にするか、GitHub Advanced Security を有効にした場合は以下のワークフローを追加することで利用できる。
 
 ```yaml
-- uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
-  with:
-    fail-on-severity: moderate
-    comment-summary-in-pr: always
+# .github/workflows/dependency-review.yml
+name: Dependency Review
+on:
+  pull_request:
+    branches: [develop, main]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: always
 ```
-
-PRにはスキャン結果がコメントとして自動投稿される。
 
 ---
 
 ## 対策一覧まとめ
 
-| 対策 | 実施内容 | 対象ファイル |
-|---|---|---|
-| クールダウン期間 | `min-release-age=7` | `apps/frontend/.npmrc` |
-| ロックファイル管理 | `npm ci` 使用（既存） | CI ワークフロー全般 |
-| インストールスクリプト無効化 | `ignore-scripts=true` | `apps/frontend/.npmrc` |
-| GitHub Actions SHA ピン留め | タグ → コミットハッシュ | `.github/workflows/*.yml` |
-| Dependency Review | PR 時に自動脆弱性スキャン | `.github/workflows/dependency-review.yml` |
+| 対策 | 実施内容 | 対象ファイル | 状態 |
+|---|---|---|---|
+| クールダウン期間 | `min-release-age=7` | `apps/frontend/.npmrc` | 適用済 |
+| ロックファイル管理 | `npm ci` 使用（既存） | CI ワークフロー全般 | 適用済 |
+| インストールスクリプト無効化 | `ignore-scripts=true` | `apps/frontend/.npmrc` | 適用済 |
+| GitHub Actions SHA ピン留め | タグ → コミットハッシュ | `.github/workflows/*.yml` | 適用済 |
+| Dependency Review | PR 時に自動脆弱性スキャン | `.github/workflows/dependency-review.yml` | 未適用（GitHub Advanced Security が必要） |
