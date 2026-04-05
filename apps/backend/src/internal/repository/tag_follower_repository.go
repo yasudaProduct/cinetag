@@ -151,6 +151,7 @@ func (r *tagFollowerRepository) ListFollowingTags(ctx context.Context, userID st
 		Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
 				(SELECT COUNT(*) FROM tag_movies WHERE tag_id = t.id) AS movie_count,
 				(SELECT COUNT(*) FROM tag_followers WHERE tag_id = t.id) AS follower_count,
+				(SELECT COUNT(*) FROM tag_likes WHERE tag_id = t.id) AS like_count,
 				t.created_at,
 				u.display_name AS author, u.display_id AS author_display_id`).
 		Joins("INNER JOIN tag_followers AS tf ON t.id = tf.tag_id").

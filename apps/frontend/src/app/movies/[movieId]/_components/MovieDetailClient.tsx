@@ -1,22 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  Star,
-  Calendar,
-  Clock,
-  Globe,
-  Tag,
-  Film,
-  Heart,
-} from "lucide-react";
+import { Star, Calendar, Clock, Globe, Tag, Film, Heart } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getMovieDetail } from "@/lib/api/movies/detail";
 import { getMovieRelatedTags } from "@/lib/api/movies/tags";
 import { Spinner } from "@/components/ui/spinner";
-import { ShareButton } from "@/components/ui/share/ShareButton";
 
 export function MovieDetailClient({ movieId }: { movieId: string }) {
   const tmdbMovieId = Number(movieId);
@@ -101,11 +91,6 @@ export function MovieDetailClient({ movieId }: { movieId: string }) {
                 <h1 className="text-2xl md:text-4xl font-bold text-gray-900 tracking-tight">
                   {movie.title}
                 </h1>
-                <ShareButton
-                  variant="icon-only"
-                  title={`${movie.title} | cinetag`}
-                  description={movie.overview}
-                />
               </div>
               {movie.originalTitle && (
                 <p className="mt-1 text-base md:text-lg text-gray-500">

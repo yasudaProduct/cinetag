@@ -55,7 +55,7 @@ const nextConfig: NextConfig = {
 
     const scriptSrc = isDev
       ? `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsSrc} https://clerk.cine-tag.com`
-      : `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsSrc} https://clerk.cine-tag.com https://static.cloudflareinsights.com`; // TODO: 将来的にNonceベースに移行
+      : `'self' 'unsafe-inline' 'unsafe-eval' ${clerkAccountsSrc} https://clerk.cine-tag.com https://static.cloudflareinsights.com https://www.googletagmanager.com`; // TODO: 将来的にNonceベースに移行
 
     const connectSrc = [
       "'self'",
@@ -65,6 +65,7 @@ const nextConfig: NextConfig = {
       ...(isDev ? ["http://localhost:8080"] : []),
       ...(backendOrigin ? [backendOrigin] : []),
       ...(isDev ? [] : ["https://cloudflareinsights.com"]),
+      ...(process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? [`https://www.google-analytics.com`] : []),
     ].join(" ");
 
     const workerSrc = ["'self'", "blob:"].join(" ");

@@ -571,6 +571,97 @@ func (h *TagHandler) ListFollowingTags(c *gin.Context) {
 	})
 }
 
+// LikeTag はタグをいいねします。
+// POST /api/v1/tags/:tagId/like
+func (h *TagHandler) LikeTag(c *gin.Context) {
+	tagID := c.Param("tagId")
+
+	userVal, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	user, ok := userVal.(*model.User)
+	if !ok || user == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user in context"})
+		return
+	}
+
+	err := h.tagService.LikeTag(c.Request.Context(), tagID, user.ID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrTagNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
+		case errors.Is(err, service.ErrTagPermissionDenied):
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		case errors.Is(err, service.ErrAlreadyLikedTag):
+			c.JSON(http.StatusConflict, gin.H{"error": "already liked"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to like tag"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "successfully liked"})
+}
+
+// UnlikeTag はタグのいいねを解除します。
+// DELETE /api/v1/tags/:tagId/like
+func (h *TagHandler) UnlikeTag(c *gin.Context) {
+	tagID := c.Param("tagId")
+
+	userVal, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	user, ok := userVal.(*model.User)
+	if !ok || user == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user in context"})
+		return
+	}
+
+	err := h.tagService.UnlikeTag(c.Request.Context(), tagID, user.ID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrTagNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
+		case errors.Is(err, service.ErrNotLikedTag):
+			c.JSON(http.StatusConflict, gin.H{"error": "not liked"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unlike tag"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "successfully unliked"})
+}
+
+// GetTagLikeStatus はユーザーがタグをいいねしているかチェックします。
+// GET /api/v1/tags/:tagId/like-status
+func (h *TagHandler) GetTagLikeStatus(c *gin.Context) {
+	tagID := c.Param("tagId")
+
+	userVal, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	user, ok := userVal.(*model.User)
+	if !ok || user == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user in context"})
+		return
+	}
+
+	isLiking, err := h.tagService.IsLikingTag(c.Request.Context(), tagID, user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get like status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"is_liked": isLiking})
+}
+
 func parseIntDefault(s string, def int) int {
 	if s == "" {
 		return def

@@ -2,29 +2,31 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Film, Bookmark } from "lucide-react";
+import { Film, Bookmark, ThumbsUp } from "lucide-react";
 
-interface CategoryListItemProps {
+interface TagListRowProps {
   title: string;
   description: string;
   author: string;
   authorDisplayId?: string;
   movieCount: number;
-  likes: string | number;
+  followerCount: number;
+  likeCount?: number;
   images: string[];
   href?: string;
 }
 
-export const CategoryListItem = ({
+export const TagListRow = ({
   title,
   description,
   author,
   authorDisplayId,
   movieCount,
-  likes,
+  followerCount,
+  likeCount = 0,
   images = [],
   href,
-}: CategoryListItemProps) => {
+}: TagListRowProps) => {
   const safeImages = Array.isArray(images) ? images : [];
 
   const AuthorName = authorDisplayId ? (
@@ -94,9 +96,9 @@ export const CategoryListItem = ({
                 {title}
               </h3>
             )}
-            
+
             {/* Description (Linked) */}
-             {href ? (
+            {href ? (
               <Link href={href} className="block">
                 <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-2 hover:text-gray-700">
                   {description}
@@ -118,7 +120,11 @@ export const CategoryListItem = ({
               </div>
               <div className="flex items-center gap-1.5">
                 <Bookmark className="w-3.5 h-3.5 text-pink-500" />
-                <span>{likes}</span>
+                <span>{followerCount}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <ThumbsUp className="w-3.5 h-3.5 text-blue-400" />
+                <span>{likeCount}</span>
               </div>
             </div>
           </div>
