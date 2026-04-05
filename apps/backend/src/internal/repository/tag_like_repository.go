@@ -20,6 +20,8 @@ type TagLikeRepository interface {
 	IsLiking(ctx context.Context, tagID, userID string) (bool, error)
 	// CountLikes はタグのいいね数を取得します。
 	CountLikes(ctx context.Context, tagID string) (int64, error)
+	// ListLikedTags はユーザーがいいねしたタグ一覧を取得します（いいね日時の新しい順）。
+	ListLikedTags(ctx context.Context, userID string, page, pageSize int) ([]TagSummary, int64, error)
 }
 
 type tagLikeRepository struct {
@@ -75,4 +77,43 @@ func (r *tagLikeRepository) CountLikes(ctx context.Context, tagID string) (int64
 		Where("tag_id = ?", tagID).
 		Count(&count).Error
 	return count, err
+}
+
+// ListLikedTags はユーザーがいいねしたタグ一覧を取得する。
+func (r *tagLikeRepository) ListLikedTags(ctx context.Context, userID string, page, pageSize int) ([]TagSummary, int64, error) {
+	var total int64
+	offset := (page - 1) * pageSize
+
+	if err := r.db.WithContext(ctx).
+		Table("tag_likes AS tl").
+		Joins("INNER JOIN tags AS t ON t.id = tl.tag_id").
+		Where("tl.user_id = ?", userID).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if total == 0 {
+		return []TagSummary{}, 0, nil
+	}
+
+	var rows []TagSummary
+	err := r.db.WithContext(ctx).
+		Table("tags AS t").
+		Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
+				(SELECT COUNT(*) FROM tag_movies WHERE tag_id = t.id) AS movie_count,
+				(SELECT COUNT(*) FROM tag_followers WHERE tag_id = t.id) AS follower_count,
+				(SELECT COUNT(*) FROM tag_likes WHERE tag_id = t.id) AS like_count,
+				t.created_at,
+				u.display_name AS author, u.display_id AS author_display_id`).
+		Joins("INNER JOIN tag_likes AS tl ON t.id = tl.tag_id").
+		Joins("JOIN users AS u ON u.id = t.user_id").
+		Where("tl.user_id = ?", userID).
+		Order("tl.created_at DESC").
+		Limit(pageSize).
+		Offset(offset).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return rows, total, nil
 }

@@ -183,6 +183,7 @@ type FakeTagLikeRepository struct {
 	DeleteAllByUserIDFn func(ctx context.Context, userID string) error
 	IsLikingFn          func(ctx context.Context, tagID, userID string) (bool, error)
 	CountLikesFn        func(ctx context.Context, tagID string) (int64, error)
+	ListLikedTagsFn     func(ctx context.Context, userID string, page, pageSize int) ([]repository.TagSummary, int64, error)
 }
 
 func (f *FakeTagLikeRepository) Create(ctx context.Context, tagID, userID string) error {
@@ -218,4 +219,11 @@ func (f *FakeTagLikeRepository) CountLikes(ctx context.Context, tagID string) (i
 		return 0, nil
 	}
 	return f.CountLikesFn(ctx, tagID)
+}
+
+func (f *FakeTagLikeRepository) ListLikedTags(ctx context.Context, userID string, page, pageSize int) ([]repository.TagSummary, int64, error) {
+	if f.ListLikedTagsFn == nil {
+		return []repository.TagSummary{}, 0, nil
+	}
+	return f.ListLikedTagsFn(ctx, userID, page, pageSize)
 }

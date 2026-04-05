@@ -95,6 +95,9 @@ type TagService interface {
 	// - pageSize はページサイズを指定する。
 	ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]TagListItem, int64, error)
 
+	// ユーザーがいいねしたタグ一覧を返す（いいね日時の新しい順）。
+	ListLikedTags(ctx context.Context, userID string, page, pageSize int) ([]TagListItem, int64, error)
+
 	// タグをいいねする。
 	LikeTag(ctx context.Context, tagID, userID string) error
 
@@ -1066,15 +1069,7 @@ func (s *tagService) ListFollowingTags(ctx context.Context, userID string, page,
 	if strings.TrimSpace(userID) == "" {
 		return nil, 0, fmt.Errorf("user_id is required")
 	}
-	if page < 1 {
-		page = 1
-	}
-	if pageSize <= 0 {
-		pageSize = 20
-	}
-	if pageSize > 100 {
-		pageSize = 100
-	}
+	page, pageSize = normalizeTagListPaging(page, pageSize)
 
 	rows, total, err := s.tagFollowerRepo.ListFollowingTags(ctx, userID, page, pageSize)
 	if err != nil {
@@ -1084,7 +1079,41 @@ func (s *tagService) ListFollowingTags(ctx context.Context, userID string, page,
 		return []TagListItem{}, 0, nil
 	}
 
-	// 映画ポスター画像の取得
+	return s.tagSummariesToListItems(ctx, rows), total, nil
+}
+
+// ListLikedTags はユーザーがいいねしたタグ一覧を返す。
+func (s *tagService) ListLikedTags(ctx context.Context, userID string, page, pageSize int) ([]TagListItem, int64, error) {
+	if strings.TrimSpace(userID) == "" {
+		return nil, 0, fmt.Errorf("user_id is required")
+	}
+	page, pageSize = normalizeTagListPaging(page, pageSize)
+
+	rows, total, err := s.tagLikeRepo.ListLikedTags(ctx, userID, page, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+	if total == 0 {
+		return []TagListItem{}, 0, nil
+	}
+
+	return s.tagSummariesToListItems(ctx, rows), total, nil
+}
+
+func normalizeTagListPaging(page, pageSize int) (int, int) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	return page, pageSize
+}
+
+func (s *tagService) tagSummariesToListItems(ctx context.Context, rows []repository.TagSummary) []TagListItem {
 	imagesByTag := make(map[string][]string, len(rows))
 	if s.movieService != nil {
 		for _, r := range rows {
@@ -1115,7 +1144,7 @@ func (s *tagService) ListFollowingTags(ctx context.Context, userID string, page,
 
 	items := make([]TagListItem, 0, len(rows))
 	for _, r := range rows {
-		item := TagListItem{
+		items = append(items, TagListItem{
 			ID:              r.ID,
 			Title:           r.Title,
 			Description:     r.Description,
@@ -1128,11 +1157,9 @@ func (s *tagService) ListFollowingTags(ctx context.Context, userID string, page,
 			LikeCount:       r.LikeCount,
 			Images:          imagesByTag[r.ID],
 			CreatedAt:       r.CreatedAt,
-		}
-		items = append(items, item)
+		})
 	}
-
-	return items, total, nil
+	return items
 }
 
 // LikeTag はタグをいいねします。

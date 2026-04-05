@@ -1521,6 +1521,91 @@ func TestTagService_ListFollowingTags(t *testing.T) {
 	})
 }
 
+func TestTagService_ListLikedTags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("入力バリデーション: user_id が必須", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, nil)
+		_, _, err := svc.ListLikedTags(context.Background(), "", 1, 20)
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("ページング正規化が反映される", func(t *testing.T) {
+		t.Parallel()
+		var gotPage, gotPageSize int
+		svc := newTagService(t, func(d *deps) {
+			d.tagLikeRepo.ListLikedTagsFn = func(ctx context.Context, userID string, page, pageSize int) ([]repository.TagSummary, int64, error) {
+				gotPage = page
+				gotPageSize = pageSize
+				return []repository.TagSummary{}, 0, nil
+			}
+		})
+
+		_, _, err := svc.ListLikedTags(context.Background(), "u1", 0, 0)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if gotPage != 1 || gotPageSize != 20 {
+			t.Fatalf("expected (1,20), got (%d,%d)", gotPage, gotPageSize)
+		}
+	})
+
+	t.Run("total=0 の場合は空配列を返す", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagLikeRepo.ListLikedTagsFn = func(ctx context.Context, userID string, page, pageSize int) ([]repository.TagSummary, int64, error) {
+				return []repository.TagSummary{}, 0, nil
+			}
+		})
+
+		items, total, err := svc.ListLikedTags(context.Background(), "u1", 1, 20)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if total != 0 {
+			t.Fatalf("expected total=0, got %d", total)
+		}
+		if items == nil || len(items) != 0 {
+			t.Fatalf("expected empty slice, got %#v", items)
+		}
+	})
+
+	t.Run("成功: いいねしたタグ一覧を返す", func(t *testing.T) {
+		t.Parallel()
+		now := time.Now()
+		svc := newTagService(t, func(d *deps) {
+			d.tagLikeRepo.ListLikedTagsFn = func(ctx context.Context, userID string, page, pageSize int) ([]repository.TagSummary, int64, error) {
+				return []repository.TagSummary{
+					{
+						ID:              "t1",
+						Title:           "Tag1",
+						IsPublic:        true,
+						MovieCount:      3,
+						FollowerCount:   7,
+						CreatedAt:       now,
+						Author:          "owner1",
+						AuthorDisplayID: "owner1_id",
+					},
+				}, 1, nil
+			}
+		})
+
+		items, total, err := svc.ListLikedTags(context.Background(), "u1", 1, 20)
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if total != 1 || len(items) != 1 {
+			t.Fatalf("unexpected result: total=%d len=%d", total, len(items))
+		}
+		if items[0].ID != "t1" || items[0].Author != "owner1" {
+			t.Fatalf("unexpected item: %+v", items[0])
+		}
+	})
+}
+
 func TestTagService_ListTagsByUserID(t *testing.T) {
 	t.Parallel()
 
