@@ -27,22 +27,20 @@ export function TagLikeButton({
   const [optimisticCount, setOptimisticCount] = useState(initialLikeCount);
 
   const likeMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (action: "like" | "unlike") => {
       const token = await getToken({ template: "cinetag-backend" });
       if (!token) throw new Error("認証が必要です");
-      if (optimisticIsLiked) {
+      if (action === "unlike") {
         await unlikeTag(tagId, token);
       } else {
         await likeTag(tagId, token);
       }
     },
-    onMutate: () => {
-      // 楽観更新
+    onMutate: (action) => {
       setOptimisticIsLiked((prev) => !prev);
-      setOptimisticCount((prev) => (optimisticIsLiked ? prev - 1 : prev + 1));
+      setOptimisticCount((prev) => (action === "unlike" ? prev - 1 : prev + 1));
     },
     onError: () => {
-      // 失敗時はロールバック
       setOptimisticIsLiked(initialIsLiked);
       setOptimisticCount(initialLikeCount);
     },
@@ -64,7 +62,7 @@ export function TagLikeButton({
     <button
       type="button"
       disabled={likeMutation.isPending}
-      onClick={() => likeMutation.mutate()}
+      onClick={() => likeMutation.mutate(optimisticIsLiked ? "unlike" : "like")}
       className={`w-full font-bold py-3 rounded-full flex items-center justify-center gap-2 shadow-sm hover:shadow transition-all ${
         optimisticIsLiked
           ? "bg-blue-100 text-blue-600 border border-blue-300 hover:bg-blue-200"
@@ -80,14 +78,7 @@ export function TagLikeButton({
           処理中
         </span>
       ) : (
-        <>
-          {optimisticIsLiked ? "いいね済み" : "いいねする"}
-          {optimisticCount > 0 && (
-            <span className="text-xs font-normal opacity-70">
-              {optimisticCount}
-            </span>
-          )}
-        </>
+        <>{optimisticIsLiked ? "いいね済み" : "いいねする"}</>
       )}
     </button>
   );

@@ -13,7 +13,7 @@ import { getTagFollowStatus } from "@/lib/api/tags/getFollowStatus";
 import { Search, Plus, Pencil, Bookmark, Film, ThumbsUp } from "lucide-react";
 import { TagLikeButton } from "@/components/TagLikeButton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import { Spinner } from "@/components/ui/spinner";
 import { ShareButton } from "@/components/ui/share/ShareButton";
 
@@ -39,12 +39,16 @@ export function TagDetailClient({ tagId }: { tagId: string }) {
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [followersOpen, setFollowersOpen] = useState(false);
-  const { getToken } = useAuth();
-  const { isSignedIn } = useUser();
+  const { getToken, isLoaded: authLoaded, isSignedIn } = useAuth();
   const queryClient = useQueryClient();
 
+  // 未ログインとログイン済みで is_liked / 権限付きレスポンスが変わるため、
+  // Clerk 準備完了後に限り取得し、キャッシュキーを分ける（未認証キャッシュの取り違え防止）。
+  const tagAuthKey = isSignedIn === true ? "in" : "out";
+
   const detailQuery = useQuery({
-    queryKey: ["tagDetail", tagId],
+    queryKey: ["tagDetail", tagId, tagAuthKey],
+    enabled: authLoaded,
     queryFn: async () => {
       const token = await getToken({ template: "cinetag-backend" }).catch(
         () => null,
@@ -54,7 +58,8 @@ export function TagDetailClient({ tagId }: { tagId: string }) {
   });
 
   const moviesQuery = useQuery({
-    queryKey: ["tagMovies", tagId],
+    queryKey: ["tagMovies", tagId, tagAuthKey],
+    enabled: authLoaded,
     queryFn: async () => {
       const token = await getToken({ template: "cinetag-backend" }).catch(
         () => null,
@@ -82,7 +87,7 @@ export function TagDetailClient({ tagId }: { tagId: string }) {
       if (!token) return { isFollowing: false };
       return await getTagFollowStatus(tagId, token);
     },
-    enabled: isSignedIn === true,
+    enabled: authLoaded && isSignedIn === true,
   });
 
   // フォロー/アンフォローミューテーション
@@ -232,6 +237,7 @@ export function TagDetailClient({ tagId }: { tagId: string }) {
                 {/* いいねボタン（ログインユーザー全員） */}
                 {isSignedIn && detail && (
                   <TagLikeButton
+                    key={tagId}
                     tagId={tagId}
                     initialLikeCount={detail.likeCount ?? 0}
                     initialIsLiked={detail.isLiked ?? false}
@@ -347,7 +353,9 @@ export function TagDetailClient({ tagId }: { tagId: string }) {
               ))}
             </div>
 
-            {(detailQuery.isLoading || moviesQuery.isLoading) && (
+            {(!authLoaded ||
+              detailQuery.isLoading ||
+              moviesQuery.isLoading) && (
               <div className="mt-10 flex justify-center">
                 <Spinner size="md" className="text-gray-600" />
               </div>
