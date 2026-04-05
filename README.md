@@ -4,6 +4,9 @@
 
 映画に対してユーザーが自由に「タグ（プレイリストのようなテーマ）」を作成し、他ユーザーもタグに映画を登録できる共有サービス。
 
+- 開発環境 [https://cinetag-frontend-develop.yuta-develop-ct.workers.dev](https://cinetag-frontend-develop.yuta-develop-ct.workers.dev)
+- 本番環境 [https://cine-tag.com](https://cine-tag.com)
+
 ## 2. 環境構築
 
 ### 前提条件
@@ -40,7 +43,6 @@
 
 ## 3. 開発
 
-
 ### Git 運用フロー
 
 #### 1. ブランチ戦略
@@ -49,6 +51,23 @@
 - **develop** : 開発用の統合ブランチ
 - **feature/**: 機能追加や修正ごとに `feature/xxxx` ブランチを作成
 - **fix/**: バグ修正用の `fix/xxxx` ブランチを作成
+
+### デプロイ環境と CD
+
+| タイミング | 対象ブランチ | 内容 |
+| --- | --- | --- |
+| `develop` への **push**（マージ後など） | 開発環境 | DB マイグレーション → バックエンド → フロントエンドの順で自動実行 |
+| `main` への **push** | 本番環境 | 同上（本番用の接続先・サービス名） |
+
+**Pull Request** ではテスト・lint・ビルド等の **CI のみ** 実行され、デプロイやリモート DB へのマイグレーションは行いません。
+
+**利用しているクラウド・サービス（概要）**
+
+| 役割 | サービス | 開発環境の例 | 本番環境の例 |
+| --- | --- | --- | --- |
+| データベース | [Neon](https://neon.tech/)（PostgreSQL） | develop 用 DB（接続 URL は GitHub Secrets） | 本番用 DB |
+| バックエンド API | [Google Cloud Run](https://cloud.google.com/run) | サービス名 `cinetag-backend-develop` | サービス名 `cinetag-backend` |
+| フロントエンド | [Cloudflare Workers](https://workers.cloudflare.com/)（OpenNext / `@opennextjs/cloudflare`） | `cinetag-frontend-develop` | `cinetag-frontend` |
 
 ### git worktree
 
