@@ -40,7 +40,6 @@ export async function listTagMovies(tagId: string, options?: { token?: string })
   const body = await safeJson(res);
   const parsed = TagMoviesResponseSchema.safeParse(body);
   if (!parsed.success) {
-    console.warn("Invalid tag movies response:", parsed.error, body);
     throw new Error("タグ映画一覧レスポンスの形式が不正です。");
   }
 

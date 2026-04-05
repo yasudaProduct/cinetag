@@ -32,11 +32,8 @@ export async function getTagDetail(
   const body = await safeJson(res);
   const parsed = TagDetailResponseSchema.safeParse(body);
   if (!parsed.success) {
-    console.warn("Invalid tag detail response:", parsed.error, body);
     throw new Error("タグ詳細レスポンスの形式が不正です。");
   }
-
-  console.log("tag detail response:", parsed.data);
 
   return { ...parsed.data, id: parsed.data.id || tagId };
 }

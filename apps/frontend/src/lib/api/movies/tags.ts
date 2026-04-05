@@ -21,7 +21,6 @@ export async function getMovieRelatedTags(tmdbMovieId: number): Promise<MovieRel
   const body = await safeJson(res);
   const parsed = MovieRelatedTagsResponseSchema.safeParse(body);
   if (!parsed.success) {
-    console.warn("Invalid movie related tags response:", parsed.error, body);
     throw new Error("関連タグレスポンスの形式が不正です。");
   }
 

@@ -70,7 +70,6 @@ export const ImageUploadModal = ({
 
       // プレビュー用URLを生成
       const url = URL.createObjectURL(file);
-      console.log(url);
       setPreviewUrl(url);
     },
     [validateFile]

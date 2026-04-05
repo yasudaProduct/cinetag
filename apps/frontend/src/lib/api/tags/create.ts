@@ -32,7 +32,6 @@ export async function createTag(params: { token: string; input: CreateTagInput }
 
   const parsedCreated = TagCreateResponseSchema.safeParse(body);
   if (!parsedCreated.success) {
-    console.warn("Invalid create tag response:", parsedCreated.error, body);
     throw new Error("作成レスポンスの形式が不正です。");
   }
 

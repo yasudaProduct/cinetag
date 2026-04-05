@@ -56,7 +56,6 @@ export async function listUserTags(params: ListUserTagsParams): Promise<ListUser
 
   const parsed = TagsListResponseSchema.safeParse(body);
   if (!parsed.success) {
-    console.warn("Invalid user tags list response:", parsed.error, body);
     throw new Error("ユーザーのタグ一覧レスポンスの形式が不正です。");
   }
 
