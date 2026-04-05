@@ -46,6 +46,7 @@ export function TagLikeButton({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tagDetail", tagId] });
+      queryClient.invalidateQueries({ queryKey: ["likedTags"] });
     },
   });
 

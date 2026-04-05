@@ -28,6 +28,7 @@ type fakeTagService struct {
 	IsFollowingTagFn     func(ctx context.Context, tagID, userID string) (bool, error)
 	ListTagFollowersFn   func(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error)
 	ListFollowingTagsFn  func(ctx context.Context, userID string, page, pageSize int) ([]service.TagListItem, int64, error)
+	ListLikedTagsFn      func(ctx context.Context, userID string, page, pageSize int) ([]service.TagListItem, int64, error)
 	LikeTagFn            func(ctx context.Context, tagID, userID string) error
 	UnlikeTagFn          func(ctx context.Context, tagID, userID string) error
 	IsLikingTagFn        func(ctx context.Context, tagID, userID string) (bool, error)
@@ -124,6 +125,13 @@ func (f *fakeTagService) ListFollowingTags(ctx context.Context, userID string, p
 	return f.ListFollowingTagsFn(ctx, userID, page, pageSize)
 }
 
+func (f *fakeTagService) ListLikedTags(ctx context.Context, userID string, page, pageSize int) ([]service.TagListItem, int64, error) {
+	if f.ListLikedTagsFn == nil {
+		return []service.TagListItem{}, 0, nil
+	}
+	return f.ListLikedTagsFn(ctx, userID, page, pageSize)
+}
+
 func (f *fakeTagService) LikeTag(ctx context.Context, tagID, userID string) error {
 	if f.LikeTagFn == nil {
 		return nil
@@ -184,6 +192,7 @@ func newTagHandlerRouter(t *testing.T, tagSvc service.TagService, user *model.Us
 	auth.DELETE("/tags/:tagId/follow", h.UnfollowTag)
 	auth.GET("/tags/:tagId/follow-status", h.GetTagFollowStatus)
 	auth.GET("/me/following-tags", h.ListFollowingTags)
+	auth.GET("/me/liked-tags", h.ListLikedTags)
 
 	return r
 }
@@ -1390,6 +1399,74 @@ func TestTagHandler_ListFollowingTags(t *testing.T) {
 
 		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
 		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/me/following-tags?page=2&page_size=10", nil, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+		if gotUserID != "u1" {
+			t.Fatalf("expected userID=u1, got %s", gotUserID)
+		}
+		if gotPage != 2 {
+			t.Fatalf("expected page=2, got %d", gotPage)
+		}
+		if gotPageSize != 10 {
+			t.Fatalf("expected pageSize=10, got %d", gotPageSize)
+		}
+
+		resp := map[string]any{}
+		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
+		if resp["total_count"] != float64(1) {
+			t.Fatalf("expected total_count=1, got %v", resp["total_count"])
+		}
+	})
+}
+
+func TestTagHandler_ListLikedTags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("未認証(user無し): 401", func(t *testing.T) {
+		t.Parallel()
+
+		r := newTagHandlerRouter(t, &fakeTagService{}, nil)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/me/liked-tags", nil, nil)
+		if rw.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", rw.Code)
+		}
+	})
+
+	t.Run("サービスが失敗: 500", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			ListLikedTagsFn: func(ctx context.Context, userID string, page, pageSize int) ([]service.TagListItem, int64, error) {
+				return nil, 0, errors.New("db error")
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/me/liked-tags", nil, nil)
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+	})
+
+	t.Run("成功: 200", func(t *testing.T) {
+		t.Parallel()
+
+		var gotUserID string
+		var gotPage, gotPageSize int
+		svc := &fakeTagService{
+			ListLikedTagsFn: func(ctx context.Context, userID string, page, pageSize int) ([]service.TagListItem, int64, error) {
+				gotUserID = userID
+				gotPage = page
+				gotPageSize = pageSize
+				return []service.TagListItem{
+					{ID: "t1", Title: "Tag 1", Author: "User 1", AuthorDisplayID: "user1"},
+				}, 1, nil
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/me/liked-tags?page=2&page_size=10", nil, nil)
 		if rw.Code != http.StatusOK {
 			t.Fatalf("expected 200, got %d", rw.Code)
 		}

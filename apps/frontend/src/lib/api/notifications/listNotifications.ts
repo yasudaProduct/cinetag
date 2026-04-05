@@ -43,7 +43,6 @@ export async function listNotifications(
 
   const parsed = NotificationListResponseSchema.safeParse(body);
   if (!parsed.success) {
-    console.warn("Invalid notification list response:", parsed.error, body);
     throw new Error("通知一覧レスポンスの形式が不正です。");
   }
 

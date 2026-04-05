@@ -49,7 +49,6 @@ export async function listTags(params?: ListTagsParams): Promise<ListTagsResult>
 
   const parsed = TagsListResponseSchema.safeParse(body);
   if (!parsed.success) {
-    console.warn("Invalid tags list response:", parsed.error, body);
     throw new Error("タグ一覧レスポンスの形式が不正です。");
   }
 

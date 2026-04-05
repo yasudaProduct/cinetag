@@ -156,7 +156,9 @@ export default function UserPageClient(props: {
                 isOwnPage={isOwnPage ?? false}
               />
             )}
-            {activeTab === "favorite" && <LikedTagsList />}
+            {activeTab === "favorite" && (
+              <LikedTagsList isOwnPage={isOwnPage ?? false} />
+            )}
           </div>
         </div>
       </main>

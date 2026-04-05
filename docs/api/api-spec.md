@@ -440,7 +440,20 @@ Host: localhost:8080
 }
 ```
 
-#### 4.12 POST `/api/v1/clerk/webhook`
+#### 4.12 GET `/api/v1/me/liked-tags`
+
+- **概要**: ログインユーザーがいいねしたタグ一覧を取得する（いいね日時の新しい順）。
+- **認証**: 必須
+- **クエリパラメータ**
+
+| 名前        | 型  | 必須 | 説明                                             |
+|-------------|-----|------|--------------------------------------------------|
+| `page`      | int | 任意 | ページ番号（デフォルト: 1）                     |
+| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限例: 100） |
+
+- **レスポンス例（200）**: `GET /api/v1/me/following-tags` と同形（`items` / `page` / `page_size` / `total_count`）。
+
+#### 4.13 POST `/api/v1/clerk/webhook`
 
 - **概要**: Clerk Webhook を受信し、`user.created` および `user.deleted` イベントをローカル `users` テーブルに同期する。
 - **認証**: 不要

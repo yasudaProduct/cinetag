@@ -113,7 +113,7 @@ export function UserProfile({
               )}
 
               {/* Navigation - 自分のページのみ表示 */}
-              {isOwnPage && (
+              {/* {isOwnPage && (
                 <div className="flex gap-2">
                   <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-pink-50 text-pink-600 font-medium text-sm">
                     <svg
@@ -130,7 +130,7 @@ export function UserProfile({
                     設定
                   </button>
                 </div>
-              )}
+              )} */}
             </div>
           </div>
         </div>

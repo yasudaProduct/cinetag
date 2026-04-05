@@ -29,7 +29,6 @@ export async function getUnreadCount(token: string): Promise<number> {
 
   const parsed = UnreadCountResponseSchema.safeParse(body);
   if (!parsed.success) {
-    console.warn("Invalid unread count response:", parsed.error, body);
     throw new Error("未読通知数レスポンスの形式が不正です。");
   }
 

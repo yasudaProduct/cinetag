@@ -571,6 +571,37 @@ func (h *TagHandler) ListFollowingTags(c *gin.Context) {
 	})
 }
 
+// ListLikedTags はログインユーザーがいいねしたタグ一覧を取得します。
+// GET /api/v1/me/liked-tags
+func (h *TagHandler) ListLikedTags(c *gin.Context) {
+	userVal, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	user, ok := userVal.(*model.User)
+	if !ok || user == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user in context"})
+		return
+	}
+
+	page := parseIntDefault(c.Query("page"), 1)
+	pageSize := parseIntDefault(c.Query("page_size"), 20)
+
+	items, total, err := h.tagService.ListLikedTags(c.Request.Context(), user.ID, page, pageSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list liked tags"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items":       items,
+		"page":        page,
+		"page_size":   pageSize,
+		"total_count": total,
+	})
+}
+
 // LikeTag はタグをいいねします。
 // POST /api/v1/tags/:tagId/like
 func (h *TagHandler) LikeTag(c *gin.Context) {

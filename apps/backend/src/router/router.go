@@ -125,6 +125,7 @@ func setupAuthRoutes(api *gin.RouterGroup, deps *Dependencies) {
 
 		// 自分のフォロー中タグ一覧
 		authGroup.GET("/me/following-tags", deps.TagHandler.ListFollowingTags)
+		authGroup.GET("/me/liked-tags", deps.TagHandler.ListLikedTags)
 	}
 }
 
