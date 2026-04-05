@@ -20,6 +20,7 @@ export const TagListItemSchema = z
         author_display_id: z.string().optional(),
         movie_count: z.number().int().nonnegative(),
         follower_count: z.number().int().nonnegative(),
+        like_count: z.number().int().nonnegative().optional().default(0),
         // バックエンド実装差分で null が返ることがあるため、null/undefined は [] に正規化する
         images: z.preprocess((v) => (v == null ? [] : v), z.array(z.string()).default([])),
         created_at: z.string().optional(),
@@ -33,6 +34,7 @@ export const TagListItemSchema = z
         authorDisplayId: data.author_display_id,
         movieCount: data.movie_count,
         followerCount: data.follower_count,
+        likeCount: data.like_count ?? 0,
         images: data.images,
         createdAt: data.created_at,
     }));
@@ -151,6 +153,8 @@ export const TagDetailResponseSchema = z
         add_movie_policy: AddMoviePolicySchema.optional(),
         movie_count: z.number().int().nonnegative().optional(),
         follower_count: z.number().int().nonnegative().optional(),
+        like_count: z.number().int().nonnegative().optional(),
+        is_liked: z.boolean().optional(),
         participant_count: z.number().int().nonnegative().optional(),
         participants: z.array(TagDetailParticipantSchema).optional(),
     })
@@ -170,6 +174,8 @@ export const TagDetailResponseSchema = z
             addMoviePolicy: data.add_movie_policy ?? "everyone",
             movieCount: data.movie_count ?? 0,
             followerCount: data.follower_count ?? 0,
+            likeCount: data.like_count ?? 0,
+            isLiked: data.is_liked ?? false,
             participantCount: data.participant_count ?? 0,
             participants,
         };
@@ -287,3 +293,19 @@ export const TagFollowersListResponseSchema = z
     }));
 
 export type TagFollowersListResponse = z.infer<typeof TagFollowersListResponseSchema>;
+
+/**
+ * タグいいね関連のスキーマ
+ */
+
+// GET /api/v1/tags/:tagId/like-status のレスポンス
+export const TagLikeStatusResponseSchema = z
+    .object({
+        is_liked: z.boolean(),
+    })
+    .passthrough()
+    .transform((data) => ({
+        isLiked: data.is_liked,
+    }));
+
+export type TagLikeStatusResponse = z.infer<typeof TagLikeStatusResponseSchema>;

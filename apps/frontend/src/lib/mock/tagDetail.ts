@@ -16,6 +16,8 @@ export type TagDetail = {
   };
   movieCount: number;
   followerCount: number;
+  likeCount: number;
+  isLiked: boolean;
   canEdit: boolean;
   canAddMovie: boolean;
   addMoviePolicy: AddMoviePolicy;
@@ -75,6 +77,8 @@ export function getMockTagDetail(tagId: string): TagDetail {
     owner: { id: "", name: "Eleanor Vance", avatarUrl: undefined, displayId: "eleanor-vance" },
     movieCount: 15,
     followerCount: 8,
+    likeCount: 0,
+    isLiked: false,
     canEdit: false,
     canAddMovie: true,
     addMoviePolicy: "everyone" as AddMoviePolicy,

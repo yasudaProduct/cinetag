@@ -27,6 +27,7 @@ type TagSummary struct {
 	IsPublic        bool      `gorm:"column:is_public"`
 	MovieCount      int       `gorm:"column:movie_count"`
 	FollowerCount   int       `gorm:"column:follower_count"`
+	LikeCount       int       `gorm:"column:like_count"`
 	CreatedAt       time.Time `gorm:"column:created_at"`
 	Author          string    `gorm:"column:author"`
 	AuthorDisplayID string    `gorm:"column:author_display_id"`
@@ -43,6 +44,7 @@ type TagDetailRow struct {
 	AddMoviePolicy string    `gorm:"column:add_movie_policy"`
 	MovieCount     int       `gorm:"column:movie_count"`
 	FollowerCount  int       `gorm:"column:follower_count"`
+	LikeCount      int       `gorm:"column:like_count"`
 	CreatedAt      time.Time `gorm:"column:created_at"`
 	UpdatedAt      time.Time `gorm:"column:updated_at"`
 
@@ -115,6 +117,7 @@ func (r *tagRepository) FindDetailByID(ctx context.Context, id string) (*TagDeta
 		Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public, t.add_movie_policy,
 				(SELECT COUNT(*) FROM tag_movies WHERE tag_id = t.id) AS movie_count,
 				(SELECT COUNT(*) FROM tag_followers WHERE tag_id = t.id) AS follower_count,
+				(SELECT COUNT(*) FROM tag_likes WHERE tag_id = t.id) AS like_count,
 				t.created_at, t.updated_at,
 				u.id AS owner_id, u.display_id AS owner_display_id,
 				u.display_name AS owner_display_name, u.avatar_url AS owner_avatar_url`).
@@ -188,6 +191,7 @@ func (r *tagRepository) ListPublicTags(ctx context.Context, filter TagListFilter
 	qb := baseQuery.Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
 				(SELECT COUNT(*) FROM tag_movies WHERE tag_id = t.id) AS movie_count,
 				(SELECT COUNT(*) FROM tag_followers WHERE tag_id = t.id) AS follower_count,
+				(SELECT COUNT(*) FROM tag_likes WHERE tag_id = t.id) AS like_count,
 				t.created_at,
 				u.display_name AS author, u.display_id AS author_display_id`)
 
@@ -236,6 +240,7 @@ func (r *tagRepository) ListTagsByUserID(ctx context.Context, filter UserTagList
 	qb := baseQuery.Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
 				(SELECT COUNT(*) FROM tag_movies WHERE tag_id = t.id) AS movie_count,
 				(SELECT COUNT(*) FROM tag_followers WHERE tag_id = t.id) AS follower_count,
+				(SELECT COUNT(*) FROM tag_likes WHERE tag_id = t.id) AS like_count,
 				t.created_at,
 				u.display_name AS author, u.display_id AS author_display_id`).
 		Order("t.created_at DESC")

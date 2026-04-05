@@ -11,6 +11,7 @@ type Tag = {
   authorDisplayId?: string;
   movieCount: number;
   followerCount: number;
+  likeCount?: number;
   images: string[];
 };
 
@@ -52,6 +53,7 @@ export function TagsList({
           authorDisplayId={tag.authorDisplayId ?? ""}
           movieCount={tag.movieCount}
           followerCount={tag.followerCount}
+          likeCount={tag.likeCount ?? 0}
           images={tag.images}
           href={`/tags/${tag.id}`}
         />
