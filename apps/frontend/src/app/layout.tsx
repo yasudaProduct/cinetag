@@ -55,6 +55,7 @@ export default function RootLayout({
       signUpUrl="/sign-up"
       signInFallbackRedirectUrl="/tags"
       signUpFallbackRedirectUrl="/tags"
+      telemetry={false}
       appearance={{
         variables: {
           colorPrimary: "#3b82f6",
