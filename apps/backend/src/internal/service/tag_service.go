@@ -25,6 +25,7 @@ type TagListItem struct {
 	IsPublic        bool      `json:"is_public"`
 	MovieCount      int       `json:"movie_count"`
 	FollowerCount   int       `json:"follower_count"`
+	LikeCount       int       `json:"like_count"`
 	Images          []string  `json:"images"`
 	CreatedAt       time.Time `json:"created_at"`
 }
@@ -93,6 +94,15 @@ type TagService interface {
 	// - page はページ番号を指定する。
 	// - pageSize はページサイズを指定する。
 	ListFollowingTags(ctx context.Context, userID string, page, pageSize int) ([]TagListItem, int64, error)
+
+	// タグをいいねする。
+	LikeTag(ctx context.Context, tagID, userID string) error
+
+	// タグのいいねを解除する。
+	UnlikeTag(ctx context.Context, tagID, userID string) error
+
+	// ユーザーがタグをいいねしているかチェックする。
+	IsLikingTag(ctx context.Context, tagID, userID string) (bool, error)
 }
 
 type tagService struct {
@@ -100,6 +110,7 @@ type tagService struct {
 	tagRepo             repository.TagRepository
 	tagMovieRepo        repository.TagMovieRepository
 	tagFollowerRepo     repository.TagFollowerRepository
+	tagLikeRepo         repository.TagLikeRepository
 	movieService        MovieService
 	notificationService NotificationService
 	imageBaseURL        string
@@ -111,6 +122,7 @@ func NewTagService(
 	tagRepo repository.TagRepository,
 	tagMovieRepo repository.TagMovieRepository,
 	tagFollowerRepo repository.TagFollowerRepository,
+	tagLikeRepo repository.TagLikeRepository,
 	movieService MovieService,
 	notificationService NotificationService,
 	imageBaseURL string,
@@ -120,6 +132,7 @@ func NewTagService(
 		tagRepo:             tagRepo,
 		tagMovieRepo:        tagMovieRepo,
 		tagFollowerRepo:     tagFollowerRepo,
+		tagLikeRepo:         tagLikeRepo,
 		movieService:        movieService,
 		notificationService: notificationService,
 		imageBaseURL:        strings.TrimRight(imageBaseURL, "/"),
@@ -182,6 +195,8 @@ type TagDetail struct {
 	AddMoviePolicy string    `json:"add_movie_policy"`
 	MovieCount     int       `json:"movie_count"`
 	FollowerCount  int       `json:"follower_count"`
+	LikeCount      int       `json:"like_count"`
+	IsLiked        bool      `json:"is_liked"`
 	Owner          TagOwner  `json:"owner"`
 	CanEdit        bool      `json:"can_edit"`
 	CanAddMovie    bool      `json:"can_add_movie"`
@@ -249,6 +264,8 @@ var (
 	ErrTagMovieNotFound      = errors.New("tag movie not found")      // タグ映画が存在しない
 	ErrAlreadyFollowingTag   = errors.New("already following tag")    // 既にタグをフォロー済み
 	ErrNotFollowingTag       = errors.New("not following tag")        // タグをフォローしていない
+	ErrAlreadyLikedTag       = errors.New("already liked tag")        // 既にタグをいいね済み
+	ErrNotLikedTag           = errors.New("not liked tag")            // タグをいいねしていない
 )
 
 // タグを更新する。
@@ -366,6 +383,16 @@ func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserI
 		})
 	}
 
+	// ビューアーのいいね状態を取得
+	isLiked := false
+	if viewerUserID != nil && strings.TrimSpace(*viewerUserID) != "" {
+		isLiked, err = s.tagLikeRepo.IsLiking(ctx, tagID, *viewerUserID)
+		if err != nil {
+			// いいね状態取得に失敗しても詳細自体は返す
+			isLiked = false
+		}
+	}
+
 	// タグの詳細を返す。
 	return &TagDetail{
 		ID:             row.ID,
@@ -376,6 +403,8 @@ func (s *tagService) GetTagDetail(ctx context.Context, tagID string, viewerUserI
 		AddMoviePolicy: row.AddMoviePolicy,
 		MovieCount:     row.MovieCount,
 		FollowerCount:  row.FollowerCount,
+		LikeCount:      row.LikeCount,
+		IsLiked:        isLiked,
 		Owner: TagOwner{
 			ID:          row.OwnerID,
 			DisplayID:   row.OwnerDisplayID,
@@ -769,6 +798,7 @@ func (s *tagService) ListPublicTags(ctx context.Context, q, sort string, page, p
 			IsPublic:        r.IsPublic,
 			MovieCount:      r.MovieCount,
 			FollowerCount:   r.FollowerCount,
+			LikeCount:       r.LikeCount,
 			Images:          imagesByTag[r.ID],
 			CreatedAt:       r.CreatedAt,
 		}
@@ -849,6 +879,7 @@ func (s *tagService) ListTagsByUserID(ctx context.Context, userID string, public
 			IsPublic:        r.IsPublic,
 			MovieCount:      r.MovieCount,
 			FollowerCount:   r.FollowerCount,
+			LikeCount:       r.LikeCount,
 			Images:          imagesByTag[r.ID],
 			CreatedAt:       r.CreatedAt,
 		}
@@ -1094,6 +1125,7 @@ func (s *tagService) ListFollowingTags(ctx context.Context, userID string, page,
 			IsPublic:        r.IsPublic,
 			MovieCount:      r.MovieCount,
 			FollowerCount:   r.FollowerCount,
+			LikeCount:       r.LikeCount,
 			Images:          imagesByTag[r.ID],
 			CreatedAt:       r.CreatedAt,
 		}
@@ -1101,4 +1133,81 @@ func (s *tagService) ListFollowingTags(ctx context.Context, userID string, page,
 	}
 
 	return items, total, nil
+}
+
+// LikeTag はタグをいいねします。
+func (s *tagService) LikeTag(ctx context.Context, tagID, userID string) error {
+	if strings.TrimSpace(tagID) == "" {
+		return fmt.Errorf("tag_id is required")
+	}
+	if strings.TrimSpace(userID) == "" {
+		return fmt.Errorf("user_id is required")
+	}
+
+	// タグの存在確認
+	tag, err := s.tagRepo.FindByID(ctx, tagID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrTagNotFound
+		}
+		return err
+	}
+
+	// 非公開タグは作成者以外いいねできない
+	if !tag.IsPublic && tag.UserID != userID {
+		return ErrTagPermissionDenied
+	}
+
+	// 既にいいね済みかチェック
+	isLiking, err := s.tagLikeRepo.IsLiking(ctx, tagID, userID)
+	if err != nil {
+		return err
+	}
+	if isLiking {
+		return ErrAlreadyLikedTag
+	}
+
+	return s.tagLikeRepo.Create(ctx, tagID, userID)
+}
+
+// UnlikeTag はタグのいいねを解除します。
+func (s *tagService) UnlikeTag(ctx context.Context, tagID, userID string) error {
+	if strings.TrimSpace(tagID) == "" {
+		return fmt.Errorf("tag_id is required")
+	}
+	if strings.TrimSpace(userID) == "" {
+		return fmt.Errorf("user_id is required")
+	}
+
+	// タグの存在確認
+	_, err := s.tagRepo.FindByID(ctx, tagID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrTagNotFound
+		}
+		return err
+	}
+
+	// いいねしているかチェック
+	isLiking, err := s.tagLikeRepo.IsLiking(ctx, tagID, userID)
+	if err != nil {
+		return err
+	}
+	if !isLiking {
+		return ErrNotLikedTag
+	}
+
+	return s.tagLikeRepo.Delete(ctx, tagID, userID)
+}
+
+// IsLikingTag はユーザーがタグをいいねしているかチェックします。
+func (s *tagService) IsLikingTag(ctx context.Context, tagID, userID string) (bool, error) {
+	if strings.TrimSpace(tagID) == "" {
+		return false, fmt.Errorf("tag_id is required")
+	}
+	if strings.TrimSpace(userID) == "" {
+		return false, nil
+	}
+
+	return s.tagLikeRepo.IsLiking(ctx, tagID, userID)
 }

@@ -46,6 +46,7 @@ func NewDependencies() *Dependencies {
 	tagRepo := repository.NewTagRepository(database)
 	tagMovieRepo := repository.NewTagMovieRepository(database)
 	tagFollowerRepo := repository.NewTagFollowerRepository(database)
+	tagLikeRepo := repository.NewTagLikeRepository(database)
 	userRepo := repository.NewUserRepository(log, database)
 	userFollowerRepo := repository.NewUserFollowerRepository(database)
 
@@ -54,7 +55,7 @@ func NewDependencies() *Dependencies {
 	notifRepo := repository.NewNotificationRepository(database)
 	notificationService := service.NewNotificationService(log, notifRepo, tagRepo, tagFollowerRepo, userFollowerRepo)
 	imageBaseURL := os.Getenv("TMDB_IMAGE_BASE_URL")
-	tagService := service.NewTagService(log, tagRepo, tagMovieRepo, tagFollowerRepo, movieService, notificationService, imageBaseURL)
+	tagService := service.NewTagService(log, tagRepo, tagMovieRepo, tagFollowerRepo, tagLikeRepo, movieService, notificationService, imageBaseURL)
 	userService := service.NewUserService(log, database, userRepo, userFollowerRepo, tagFollowerRepo, notificationService)
 
 	// Handlers

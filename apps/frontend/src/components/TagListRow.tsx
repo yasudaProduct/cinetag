@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Film, Bookmark } from "lucide-react";
+import { Film, Bookmark, ThumbsUp } from "lucide-react";
 
 interface TagListRowProps {
   title: string;
@@ -11,6 +11,7 @@ interface TagListRowProps {
   authorDisplayId?: string;
   movieCount: number;
   followerCount: number;
+  likeCount?: number;
   images: string[];
   href?: string;
 }
@@ -22,6 +23,7 @@ export const TagListRow = ({
   authorDisplayId,
   movieCount,
   followerCount,
+  likeCount = 0,
   images = [],
   href,
 }: TagListRowProps) => {
@@ -119,6 +121,10 @@ export const TagListRow = ({
               <div className="flex items-center gap-1.5">
                 <Bookmark className="w-3.5 h-3.5 text-pink-500" />
                 <span>{followerCount}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <ThumbsUp className="w-3.5 h-3.5 text-blue-400" />
+                <span>{likeCount}</span>
               </div>
             </div>
           </div>

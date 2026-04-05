@@ -117,6 +117,9 @@ func setupAuthRoutes(api *gin.RouterGroup, deps *Dependencies) {
 		// タグフォロー
 		setupTagFollowRoutes(authGroup, deps)
 
+		// タグいいね
+		setupTagLikeRoutes(authGroup, deps)
+
 		// 通知
 		setupNotificationRoutes(authGroup, deps)
 
@@ -146,6 +149,13 @@ func setupTagFollowRoutes(authGroup *gin.RouterGroup, deps *Dependencies) {
 	authGroup.POST("/tags/:tagId/follow", deps.TagHandler.FollowTag)
 	authGroup.DELETE("/tags/:tagId/follow", deps.TagHandler.UnfollowTag)
 	authGroup.GET("/tags/:tagId/follow-status", deps.TagHandler.GetTagFollowStatus)
+}
+
+// setupTagLikeRoutes はタグいいね関連の認証必須ルートを設定します。
+func setupTagLikeRoutes(authGroup *gin.RouterGroup, deps *Dependencies) {
+	authGroup.POST("/tags/:tagId/like", deps.TagHandler.LikeTag)
+	authGroup.DELETE("/tags/:tagId/like", deps.TagHandler.UnlikeTag)
+	authGroup.GET("/tags/:tagId/like-status", deps.TagHandler.GetTagLikeStatus)
 }
 
 // setupNotificationRoutes は通知関連の認証必須ルートを設定します。

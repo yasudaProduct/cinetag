@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Bookmark, Film } from "lucide-react";
+import { Bookmark, Film, ThumbsUp } from "lucide-react";
 
 interface TagGridCardProps {
   title: string;
@@ -9,6 +9,7 @@ interface TagGridCardProps {
   authorDisplayId?: string;
   movieCount: number;
   followerCount: number;
+  likeCount?: number;
   images: string[];
   href?: string;
 }
@@ -20,6 +21,7 @@ export const TagGridCard = ({
   authorDisplayId,
   movieCount,
   followerCount,
+  likeCount = 0,
   images,
   href,
 }: TagGridCardProps) => {
@@ -95,6 +97,10 @@ export const TagGridCard = ({
           <div className="flex items-center gap-1.5">
             <Bookmark className="w-4 h-4 text-pink-500" />
             <span>{followerCount}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <ThumbsUp className="w-4 h-4 text-blue-400" />
+            <span>{likeCount}</span>
           </div>
         </div>
       </div>
