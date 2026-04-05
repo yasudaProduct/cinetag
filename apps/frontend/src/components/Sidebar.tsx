@@ -90,6 +90,7 @@ export const Sidebar = () => {
     ...(isLoaded && isSignedIn
       ? [{ icon: Tag, label: "フォローしたタグ", href: "/tags/following" }]
       : []),
+    { icon: Bell, label: "通知", href: "/notifications" },
   ];
 
   // 設定メニュー内の項目
@@ -274,7 +275,11 @@ export const Sidebar = () => {
         })}
 
         {/* Mobile Notification Bell (ログイン時のみ) */}
-        {isLoaded && isSignedIn && <NotificationBell />}
+        {/* {isLoaded && isSignedIn && (
+          <Link href="/notifications">
+            <Bell className="w-6 h-6" />
+          </Link>
+        )} */}
 
         {/* Mobile Create Button */}
         <button
