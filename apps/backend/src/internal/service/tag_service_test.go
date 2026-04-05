@@ -50,6 +50,7 @@ type deps struct {
 	tagRepo         *testutil.FakeTagRepository
 	tagMovieRepo    *testutil.FakeTagMovieRepository
 	tagFollowerRepo *testutil.FakeTagFollowerRepository
+	tagLikeRepo     *testutil.FakeTagLikeRepository
 	movieService    MovieService
 	imageBaseURL    string
 }
@@ -62,13 +63,14 @@ func newTagService(t *testing.T, opt func(*deps)) TagService {
 		tagRepo:         &testutil.FakeTagRepository{},
 		tagMovieRepo:    &testutil.FakeTagMovieRepository{},
 		tagFollowerRepo: &testutil.FakeTagFollowerRepository{},
+		tagLikeRepo:     &testutil.FakeTagLikeRepository{},
 		movieService:    nil,
 		imageBaseURL:    "",
 	}
 	if opt != nil {
 		opt(d)
 	}
-	return NewTagService(logger, d.tagRepo, d.tagMovieRepo, d.tagFollowerRepo, d.movieService, nil, d.imageBaseURL)
+	return NewTagService(logger, d.tagRepo, d.tagMovieRepo, d.tagFollowerRepo, d.tagLikeRepo, d.movieService, nil, d.imageBaseURL)
 }
 
 func TestTagService_AddMoviesToTag(t *testing.T) {

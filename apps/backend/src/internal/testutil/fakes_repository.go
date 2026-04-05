@@ -175,3 +175,47 @@ func (f *FakeTagFollowerRepository) ListFollowingTags(ctx context.Context, userI
 	}
 	return f.ListFollowingTagsFn(ctx, userID, page, pageSize)
 }
+
+// FakeTagLikeRepository は repository.TagLikeRepository の手書き fake です。
+type FakeTagLikeRepository struct {
+	CreateFn            func(ctx context.Context, tagID, userID string) error
+	DeleteFn            func(ctx context.Context, tagID, userID string) error
+	DeleteAllByUserIDFn func(ctx context.Context, userID string) error
+	IsLikingFn          func(ctx context.Context, tagID, userID string) (bool, error)
+	CountLikesFn        func(ctx context.Context, tagID string) (int64, error)
+}
+
+func (f *FakeTagLikeRepository) Create(ctx context.Context, tagID, userID string) error {
+	if f.CreateFn == nil {
+		return nil
+	}
+	return f.CreateFn(ctx, tagID, userID)
+}
+
+func (f *FakeTagLikeRepository) Delete(ctx context.Context, tagID, userID string) error {
+	if f.DeleteFn == nil {
+		return nil
+	}
+	return f.DeleteFn(ctx, tagID, userID)
+}
+
+func (f *FakeTagLikeRepository) DeleteAllByUserID(ctx context.Context, userID string) error {
+	if f.DeleteAllByUserIDFn == nil {
+		return nil
+	}
+	return f.DeleteAllByUserIDFn(ctx, userID)
+}
+
+func (f *FakeTagLikeRepository) IsLiking(ctx context.Context, tagID, userID string) (bool, error) {
+	if f.IsLikingFn == nil {
+		return false, nil
+	}
+	return f.IsLikingFn(ctx, tagID, userID)
+}
+
+func (f *FakeTagLikeRepository) CountLikes(ctx context.Context, tagID string) (int64, error) {
+	if f.CountLikesFn == nil {
+		return 0, nil
+	}
+	return f.CountLikesFn(ctx, tagID)
+}

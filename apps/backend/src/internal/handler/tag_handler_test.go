@@ -28,6 +28,9 @@ type fakeTagService struct {
 	IsFollowingTagFn     func(ctx context.Context, tagID, userID string) (bool, error)
 	ListTagFollowersFn   func(ctx context.Context, tagID string, page, pageSize int) ([]*model.User, int64, error)
 	ListFollowingTagsFn  func(ctx context.Context, userID string, page, pageSize int) ([]service.TagListItem, int64, error)
+	LikeTagFn            func(ctx context.Context, tagID, userID string) error
+	UnlikeTagFn          func(ctx context.Context, tagID, userID string) error
+	IsLikingTagFn        func(ctx context.Context, tagID, userID string) (bool, error)
 }
 
 func (f *fakeTagService) ListPublicTags(ctx context.Context, q, sort string, page, pageSize int) ([]service.TagListItem, int64, error) {
@@ -119,6 +122,27 @@ func (f *fakeTagService) ListFollowingTags(ctx context.Context, userID string, p
 		return []service.TagListItem{}, 0, nil
 	}
 	return f.ListFollowingTagsFn(ctx, userID, page, pageSize)
+}
+
+func (f *fakeTagService) LikeTag(ctx context.Context, tagID, userID string) error {
+	if f.LikeTagFn == nil {
+		return nil
+	}
+	return f.LikeTagFn(ctx, tagID, userID)
+}
+
+func (f *fakeTagService) UnlikeTag(ctx context.Context, tagID, userID string) error {
+	if f.UnlikeTagFn == nil {
+		return nil
+	}
+	return f.UnlikeTagFn(ctx, tagID, userID)
+}
+
+func (f *fakeTagService) IsLikingTag(ctx context.Context, tagID, userID string) (bool, error) {
+	if f.IsLikingTagFn == nil {
+		return false, nil
+	}
+	return f.IsLikingTagFn(ctx, tagID, userID)
 }
 
 // newTagHandlerRouter は TagHandler のテスト用ルーターを生成します。
