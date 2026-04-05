@@ -1,28 +1,28 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Film, ThumbsUp } from "lucide-react";
+import { Bookmark, Film } from "lucide-react";
 
-interface CategoryCardProps {
+interface TagGridCardProps {
   title: string;
   description: string;
   author: string;
   authorDisplayId?: string;
   movieCount: number;
-  likes: string | number;
+  followerCount: number;
   images: string[];
   href?: string;
 }
 
-export const CategoryCard = ({
+export const TagGridCard = ({
   title,
   description,
   author,
   authorDisplayId,
   movieCount,
-  likes,
+  followerCount,
   images,
   href,
-}: CategoryCardProps) => {
+}: TagGridCardProps) => {
   const AuthorName = authorDisplayId ? (
     <Link
       href={`/${authorDisplayId}`}
@@ -93,8 +93,8 @@ export const CategoryCard = ({
             <span>{movieCount}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <ThumbsUp className="w-4 h-4 text-yellow-500" />
-            <span>{likes}</span>
+            <Bookmark className="w-4 h-4 text-pink-500" />
+            <span>{followerCount}</span>
           </div>
         </div>
       </div>

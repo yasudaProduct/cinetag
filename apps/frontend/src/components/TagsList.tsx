@@ -1,6 +1,6 @@
 "use client";
 
-import { CategoryListItem } from "@/components/CategoryListItem";
+import { TagListRow } from "@/components/TagListRow";
 import { Spinner } from "@/components/ui/spinner";
 
 type Tag = {
@@ -44,14 +44,14 @@ export function TagsList({
   return (
     <div className="flex flex-col gap-4">
       {tags.map((tag) => (
-        <CategoryListItem
+        <TagListRow
           key={tag.id}
           title={tag.title}
           description={tag.description ?? ""}
           author={tag.author}
           authorDisplayId={tag.authorDisplayId ?? ""}
           movieCount={tag.movieCount}
-          likes={tag.followerCount}
+          followerCount={tag.followerCount}
           images={tag.images}
           href={`/tags/${tag.id}`}
         />

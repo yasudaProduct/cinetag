@@ -1,6 +1,6 @@
 "use client";
 
-import { CategoryCard } from "@/components/CategoryCard";
+import { TagGridCard } from "@/components/TagGridCard";
 import { Spinner } from "@/components/ui/spinner";
 
 type Tag = {
@@ -48,14 +48,14 @@ export function TagsGrid({
   return (
     <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridCols} gap-6`}>
       {tags.map((tag) => (
-        <CategoryCard
+        <TagGridCard
           key={tag.id}
           title={tag.title}
           description={tag.description ?? ""}
           author={tag.author}
           authorDisplayId={tag.authorDisplayId ?? ""}
           movieCount={tag.movieCount}
-          likes={tag.followerCount}
+          followerCount={tag.followerCount}
           images={tag.images}
           href={`/tags/${tag.id}`}
         />
