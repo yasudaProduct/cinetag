@@ -10,6 +10,7 @@
 - **ジョブ**
   - **`backend-unit-test`**: `apps/backend` で `go test ./...`
   - **`backend-migration-check`**: PostgreSQLサービスコンテナでマイグレーションの up/down/up 往復テスト
+  - **`backend-integration-test`**: PostgreSQLサービスコンテナで `go test -tags=integration`（`src/internal/integration` と `src/internal/repository`）
   - **`frontend-lint`**: `apps/frontend` で `npm run lint`
   - **`frontend-build`** `apps/frontend` で `npm run build`
   - **`backend-vulncheck`** `apps/backend` で `govulncheck ./...`
@@ -76,11 +77,11 @@
   - PostgreSQLサービスコンテナを使用
   - `go run ./src/cmd/migrate up` → `down` → `up` の往復テスト
   - マイグレーションSQLの構文エラーとロールバックの正常性を検証
-- **integration（任意/段階導入）**
-  - `docker compose up -d postgres-test`
-  - `DATABASE_URL="postgres://postgres:postgres@localhost:5433/cinetag_test?sslmode=disable" go test -tags=integration ./...`
+- **integration（PR CI で実行）**
+  - GitHub Actions の `backend-integration-test` が PostgreSQL サービスコンテナ上で `go test -tags=integration` を実行する
+  - ローカル: `docker compose up -d postgres-test` のうえで `DATABASE_URL="postgres://postgres:postgres@localhost:5433/cinetag_test?sslmode=disable" go test -tags=integration -p 1 ./src/internal/integration/... ./src/internal/repository/...`
 
-> integration は実行時間と安定性の観点から、まずは **nightly** や **手動トリガー** から始めるのがおすすめです。
+> ローカルではポート `5433` の `postgres-test`、CI ではサービスコンテナの `5432` / DB 名 `cinetag_test` を使用する。複数パッケージが同一 DB を共有するため **`-p 1`** でパッケージ並列を抑える。
 
 ### 4.3 フロントエンドCI（推奨ジョブ）
 

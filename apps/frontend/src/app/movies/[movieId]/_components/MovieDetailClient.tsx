@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getMovieDetail } from "@/lib/api/movies/detail";
 import { getMovieRelatedTags } from "@/lib/api/movies/tags";
 import { Spinner } from "@/components/ui/spinner";
+import { AddToTagButton } from "./AddToTagButton";
 
 export function MovieDetailClient({ movieId }: { movieId: string }) {
   const tmdbMovieId = Number(movieId);
@@ -151,6 +152,15 @@ export function MovieDetailClient({ movieId }: { movieId: string }) {
                   ))}
                 </div>
               )}
+
+              {/* タグに追加ボタン */}
+              <div className="mt-5">
+                <AddToTagButton
+                  tmdbMovieId={tmdbMovieId}
+                  movieTitle={movie.title}
+                  relatedTagIds={relatedTags.map((t) => t.tagId)}
+                />
+              </div>
 
               {/* あらすじ */}
               {movie.overview && (
