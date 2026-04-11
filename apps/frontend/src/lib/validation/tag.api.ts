@@ -150,6 +150,7 @@ export const TagDetailResponseSchema = z
         author: TagDetailAuthorNameSchema.optional(),
         // 新: owner({display_name})
         owner: TagDetailOwnerNameSchema.optional(),
+        is_public: z.boolean().optional(),
         can_edit: z.boolean().optional(),
         can_add_movie: z.boolean().optional(),
         add_movie_policy: AddMoviePolicySchema.optional(),
@@ -171,6 +172,7 @@ export const TagDetailResponseSchema = z
             description: data.description ?? "",
             author: { name: authorName },
             owner: owner ?? { id: "", name: authorName },
+            isPublic: data.is_public ?? true,
             canEdit: data.can_edit ?? false,
             canAddMovie: data.can_add_movie ?? false,
             addMoviePolicy: data.add_movie_policy ?? "everyone",

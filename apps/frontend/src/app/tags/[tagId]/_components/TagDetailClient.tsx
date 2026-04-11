@@ -10,7 +10,17 @@ import { deleteMovieFromTag } from "@/lib/api/tags/deleteMovie";
 import { followTag } from "@/lib/api/tags/follow";
 import { unfollowTag } from "@/lib/api/tags/unfollow";
 import { getTagFollowStatus } from "@/lib/api/tags/getFollowStatus";
-import { Search, Plus, Pencil, Bookmark, Film, ThumbsUp } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Pencil,
+  Bookmark,
+  Film,
+  Lock,
+  ThumbsUp,
+  Users,
+  UserCog,
+} from "lucide-react";
 import { TagLikeButton } from "@/components/TagLikeButton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
@@ -131,9 +141,17 @@ export function TagDetailClient({ tagId }: { tagId: string }) {
           {/* Left: Tag info card */}
           <aside className="lg:col-span-4">
             <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-7">
-              <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">
-                {detail?.title ?? "読み込み中..."}
-              </h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">
+                  {detail?.title ?? "読み込み中..."}
+                </h1>
+                {detail?.isPublic === false && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">
+                    <Lock className="w-3 h-3" />
+                    非公開
+                  </span>
+                )}
+              </div>
               <p className="mt-3 text-sm md:text-base text-gray-600 leading-relaxed">
                 {detail?.description}
               </p>
@@ -162,6 +180,23 @@ export function TagDetailClient({ tagId }: { tagId: string }) {
                   <span>いいね</span>
                 </div>
               </div>
+
+              {/* 映画の追加権限 */}
+              {detail && (
+                <div className="mt-4 flex items-center gap-1.5 text-sm text-gray-600">
+                  {detail.addMoviePolicy === "everyone" ? (
+                    <>
+                      <Users className="w-4 h-4 text-green-500" />
+                      <span>誰でも映画を追加できます</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserCog className="w-4 h-4 text-gray-400" />
+                      <span>作成者のみ映画を追加できます</span>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Author */}
               <div className="mt-6 flex items-center gap-3">
@@ -387,7 +422,7 @@ export function TagDetailClient({ tagId }: { tagId: string }) {
             id: tagId,
             title: detail?.title ?? "",
             description: detail?.description ?? "",
-            is_public: true,
+            is_public: detail?.isPublic ?? true,
             add_movie_policy: detail?.addMoviePolicy ?? "everyone",
           }}
           onClose={() => setEditOpen(false)}
