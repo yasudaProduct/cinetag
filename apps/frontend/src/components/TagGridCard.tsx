@@ -1,12 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Bookmark, Film, ThumbsUp } from "lucide-react";
+import { Bookmark, Film, Lock, ThumbsUp } from "lucide-react";
 
 interface TagGridCardProps {
   title: string;
   description: string;
   author: string;
   authorDisplayId?: string;
+  isPublic?: boolean;
   movieCount: number;
   followerCount: number;
   likeCount?: number;
@@ -19,6 +20,7 @@ export const TagGridCard = ({
   description,
   author,
   authorDisplayId,
+  isPublic,
   movieCount,
   followerCount,
   likeCount = 0,
@@ -65,9 +67,17 @@ export const TagGridCard = ({
       </div>
 
       {/* Title & Description */}
-      <h3 className="font-bold text-lg text-gray-900 mb-1 line-clamp-1">
-        {title}
-      </h3>
+      <div className="flex items-center gap-2 mb-1">
+        <h3 className="font-bold text-lg text-gray-900 line-clamp-1">
+          {title}
+        </h3>
+        {isPublic === false && (
+          <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+            <Lock className="w-3 h-3" />
+            非公開
+          </span>
+        )}
+      </div>
       <p className="text-sm text-gray-500 mb-4 line-clamp-2">{description}</p>
     </>
   );

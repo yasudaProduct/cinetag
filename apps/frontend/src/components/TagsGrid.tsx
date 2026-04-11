@@ -9,6 +9,7 @@ type Tag = {
   description?: string | null;
   author: string;
   authorDisplayId?: string;
+  isPublic?: boolean;
   movieCount: number;
   followerCount: number;
   likeCount?: number;
@@ -55,6 +56,7 @@ export function TagsGrid({
           description={tag.description ?? ""}
           author={tag.author}
           authorDisplayId={tag.authorDisplayId ?? ""}
+          isPublic={tag.isPublic}
           movieCount={tag.movieCount}
           followerCount={tag.followerCount}
           likeCount={tag.likeCount ?? 0}
