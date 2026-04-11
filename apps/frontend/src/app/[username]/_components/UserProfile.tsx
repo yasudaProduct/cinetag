@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { AvatarCircle } from "@/components/AvatarCircle";
-import { UserPlus, UserMinus, Settings } from "lucide-react";
+import { UserPlus, UserMinus } from "lucide-react";
 import type { UserProfile as UserProfileType } from "@/lib/api/users/getUser";
 
 type UserProfileProps = {
@@ -10,10 +10,8 @@ type UserProfileProps = {
   createdCount: number;
   followingCount: number;
   followersCount: number;
-  isOwnPage: boolean;
+  showFollowButton: boolean;
   isFollowing: boolean;
-  isSignedIn: boolean;
-  isLoaded: boolean;
   isFollowPending: boolean;
   onFollowToggle: () => void;
 };
@@ -23,10 +21,8 @@ export function UserProfile({
   createdCount,
   followingCount,
   followersCount,
-  isOwnPage,
+  showFollowButton,
   isFollowing,
-  isSignedIn,
-  isLoaded,
   isFollowPending,
   onFollowToggle,
 }: UserProfileProps) {
@@ -87,8 +83,7 @@ export function UserProfile({
 
             {/* Actions */}
             <div className="flex justify-center md:justify-start gap-4">
-              {/* Follow Button - 他人のページのみ表示 */}
-              {!isOwnPage && isLoaded && isSignedIn && (
+              {showFollowButton && (
                 <button
                   onClick={onFollowToggle}
                   disabled={isFollowPending}
@@ -111,26 +106,6 @@ export function UserProfile({
                   )}
                 </button>
               )}
-
-              {/* Navigation - 自分のページのみ表示 */}
-              {/* {isOwnPage && (
-                <div className="flex gap-2">
-                  <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-pink-50 text-pink-600 font-medium text-sm">
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
-                    </svg>
-                    マイカテゴリ
-                  </button>
-                  <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50 font-medium text-sm border border-gray-200">
-                    <Settings className="w-4 h-4" />
-                    設定
-                  </button>
-                </div>
-              )} */}
             </div>
           </div>
         </div>
