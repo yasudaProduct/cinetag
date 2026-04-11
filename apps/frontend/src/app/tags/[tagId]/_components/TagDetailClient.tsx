@@ -26,6 +26,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { Spinner } from "@/components/ui/spinner";
 import { ShareButton } from "@/components/ui/share/ShareButton";
+import { CollapsibleClampText } from "@/components/CollapsibleClampText";
 
 // 動的インポート: モーダルは初期表示に不要なため遅延ロード
 const MovieAddModal = dynamic(
@@ -125,6 +126,7 @@ export function TagDetailClient({ tagId }: { tagId: string }) {
   const movies = moviesQuery.data ?? [];
   const canEditTag = detail?.canEdit ?? false;
   const canAddMovie = detail?.canAddMovie ?? false;
+  const descriptionText = detail?.description?.trim() ?? "";
 
   const filtered = (() => {
     const q = query.trim().toLowerCase();
@@ -152,9 +154,11 @@ export function TagDetailClient({ tagId }: { tagId: string }) {
                   </span>
                 )}
               </div>
-              <p className="mt-3 text-sm md:text-base text-gray-600 leading-relaxed">
-                {detail?.description}
-              </p>
+              <CollapsibleClampText
+                key={tagId}
+                text={descriptionText}
+                className="mt-3"
+              />
 
               {/* Stats: フォロー数 & 映画数 & いいね数 */}
               <div className="mt-5 flex items-center gap-4 flex-wrap">
