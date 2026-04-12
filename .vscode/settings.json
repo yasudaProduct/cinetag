@@ -15,5 +15,8 @@
       "host": "prod.hoge.jp"
     }
   },
-  "rest-client.dotenvPath": "apps/backend/.env"
+  "go.testTags": "integration",
+  "go.testEnvVars": {
+    "DATABASE_URL": "postgres://postgres:postgres@localhost:5433/cinetag_test?sslmode=disable"
+  }
 }

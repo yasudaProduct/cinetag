@@ -18,6 +18,7 @@ export type TagDetail = {
   followerCount: number;
   likeCount: number;
   isLiked: boolean;
+  isPublic: boolean;
   canEdit: boolean;
   canAddMovie: boolean;
   addMoviePolicy: AddMoviePolicy;
@@ -79,6 +80,7 @@ export function getMockTagDetail(tagId: string): TagDetail {
     followerCount: 8,
     likeCount: 0,
     isLiked: false,
+    isPublic: true,
     canEdit: false,
     canAddMovie: true,
     addMoviePolicy: "everyone" as AddMoviePolicy,
