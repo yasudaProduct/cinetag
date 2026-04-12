@@ -158,7 +158,7 @@ Host: localhost:8080
 | 名前        | 型  | 必須 | 説明                                             |
 |-------------|-----|------|--------------------------------------------------|
 | `page`      | int | 任意 | ページ番号（デフォルト: 1）                     |
-| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限例: 100） |
+| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限: 100） |
 
 - **備考**
   - 未認証、または閲覧者が本人以外の場合は **公開タグのみ** を返す。
@@ -179,6 +179,7 @@ Host: localhost:8080
       "is_public": true,
       "movie_count": 55,
       "follower_count": 2100,
+      "like_count": 42,
       "images": [
         "https://image.tmdb.org/t/p/w400/poster1.jpg",
         "https://image.tmdb.org/t/p/w400/poster2.jpg",
@@ -285,7 +286,7 @@ Host: localhost:8080
 | 名前        | 型  | 必須 | 説明                                             |
 |-------------|-----|------|--------------------------------------------------|
 | `page`      | int | 任意 | ページ番号（デフォルト: 1）                     |
-| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限例: 100） |
+| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限: 100） |
 
 - **レスポンス例（200）**
 
@@ -321,7 +322,7 @@ Host: localhost:8080
 | 名前        | 型  | 必須 | 説明                                             |
 |-------------|-----|------|--------------------------------------------------|
 | `page`      | int | 任意 | ページ番号（デフォルト: 1）                     |
-| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限例: 100） |
+| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限: 100） |
 
 - **レスポンス例（200）**
 
@@ -374,7 +375,7 @@ Host: localhost:8080
 | 名前        | 型    | 必須 | 説明                          |
 |-------------|-------|------|-------------------------------|
 | `page`      | int   | 任意 | ページ番号（デフォルト: 1）   |
-| `page_size` | int   | 任意 | 1ページあたり件数（デフォルト: 20, 上限例: 100） |
+| `page_size` | int   | 任意 | 1ページあたり件数（デフォルト: 20, 上限: 100） |
 
 - **レスポンス例（200）**
 
@@ -408,7 +409,7 @@ Host: localhost:8080
 | 名前        | 型  | 必須 | 説明                                             |
 |-------------|-----|------|--------------------------------------------------|
 | `page`      | int | 任意 | ページ番号（デフォルト: 1）                     |
-| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限例: 100） |
+| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限: 100） |
 
 - **レスポンス例（200）**
 
@@ -425,6 +426,7 @@ Host: localhost:8080
       "is_public": true,
       "movie_count": 55,
       "follower_count": 2100,
+      "like_count": 42,
       "images": [
         "https://image.tmdb.org/t/p/w400/poster1.jpg",
         "https://image.tmdb.org/t/p/w400/poster2.jpg",
@@ -449,18 +451,21 @@ Host: localhost:8080
 | 名前        | 型  | 必須 | 説明                                             |
 |-------------|-----|------|--------------------------------------------------|
 | `page`      | int | 任意 | ページ番号（デフォルト: 1）                     |
-| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限例: 100） |
+| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 20, 上限: 100） |
 
-- **レスポンス例（200）**: `GET /api/v1/me/following-tags` と同形（`items` / `page` / `page_size` / `total_count`）。
+- **レスポンス例（200）**: `GET /api/v1/me/following-tags` と同形（各 `items` 要素に `like_count` を含む `TagListItem`）。
 
 #### 4.13 POST `/api/v1/clerk/webhook`
 
-- **概要**: Clerk Webhook を受信し、`user.created` および `user.deleted` イベントをローカル `users` テーブルに同期する。
+- **概要**: Clerk Webhook を受信し、ローカル `users` テーブルを Clerk イベントに同期する。
 - **認証**: 不要
 - **注意**
   - 現時点では **svix署名検証は未実装**（将来追加予定）。
-  - サポートするイベントタイプ: `user.created`, `user.deleted`
-  - これら以外のイベントは `200 OK` で無視する。
+  - サポートするイベントタイプ: `user.created`, `user.updated`, `user.deleted`
+    - `user.created`: ユーザーを upsert（同期）
+    - `user.updated`: 既存ユーザーがいる場合に `avatar_url` を更新（存在しない場合は成功として無視）
+    - `user.deleted`: ユーザーを論理削除（deactivate）
+  - これら以外のイベントは `200 OK`（ボディなし）で無視する。
 
 - **リクエストボディ（`user.created` の例）**
 
@@ -493,6 +498,22 @@ Host: localhost:8080
 }
 ```
 
+- **リクエストボディ（`user.updated` の例）**
+
+```json
+{
+  "type": "user.updated",
+  "data": {
+    "id": "user_2aBcDeFgHiJk",
+    "username": "cinephile_jane",
+    "first_name": "Jane",
+    "last_name": "Doe",
+    "image_url": "https://images.example.com/avatar-new.jpg",
+    "email_addresses": []
+  }
+}
+```
+
 - **レスポンス**
   - `200 OK`（ボディなし）
 
@@ -504,11 +525,37 @@ Host: localhost:8080
 }
 ```
 
-- **レスポンス例（500）**
+- **レスポンス例（400）**（イベント種別は合っているが `data` のパースに失敗した場合）
+
+```json
+{
+  "error": "invalid webhook data"
+}
+```
+
+- **レスポンス例（500）**（例）
 
 ```json
 {
   "error": "failed to sync user"
+}
+```
+
+```json
+{
+  "error": "failed to update user"
+}
+```
+
+```json
+{
+  "error": "failed to deactivate user"
+}
+```
+
+```json
+{
+  "error": "failed to resolve user by clerk user id"
 }
 ```
 
@@ -527,7 +574,7 @@ Host: localhost:8080
 | `q`         | text  | 任意 | タイトル等の全文検索キーワード                  |
 | `sort`      | text  | 任意 | `popular` / `recent` / `movie_count` など       |
 | `page`      | int   | 任意 | ページ番号（デフォルト: 1）                     |
-| `page_size` | int   | 任意 | 1ページあたり件数（デフォルト: 20, 上限例: 100） |
+| `page_size` | int   | 任意 | 1ページあたり件数（デフォルト: 20, 上限: 100） |
 
 - **レスポンス例（200）**
 
@@ -544,6 +591,7 @@ Host: localhost:8080
       "is_public": true,
       "movie_count": 55,
       "follower_count": 2100,
+      "like_count": 42,
       "images": [
         "https://image.tmdb.org/t/p/w400/poster1.jpg",
         "https://image.tmdb.org/t/p/w400/poster2.jpg",
@@ -581,9 +629,10 @@ Host: localhost:8080
   "add_movie_policy": "everyone",
   "movie_count": 32,
   "follower_count": 120,
+  "like_count": 15,
+  "is_liked": false,
   "owner": {
     "id": "user-uuid-1",
-    "username": "cinephile_jane",
     "display_id": "cinephile_jane",
     "display_name": "cinephile_jane",
     "avatar_url": "https://images.example.com/avatar.jpg"
@@ -658,7 +707,7 @@ Host: localhost:8080
   - 省略したフィールドは更新されない（部分更新）。
   - `description` / `cover_image_url` は `null` を送ることで値をクリアできる。
 
-- **レスポンス例（200）**: 更新後のタグオブジェクト。
+- **レスポンス例（200）**: 更新後のタグ詳細。フィールド構成は `GET /api/v1/tags/:tagId` のレスポンス（`TagDetail`）と同じ（`like_count`, `is_liked`, `owner` などを含む）。
 
 #### 5.5 DELETE `/api/v1/tags/:tagId` **[未実装]**
 
@@ -680,7 +729,7 @@ Host: localhost:8080
 | 名前        | 型  | 必須 | 説明                        |
 |-------------|-----|------|-----------------------------|
 | `page`      | int | 任意 | ページ番号（デフォルト: 1） |
-| `page_size` | int | 任意 | 1ページ件数                 |
+| `page_size` | int | 任意 | 1ページあたり件数（デフォルト: 50, 上限: 100） |
 
 - **レスポンス例（200）**
 
@@ -710,6 +759,9 @@ Host: localhost:8080
   "total_count": 1
 }
 ```
+
+- **備考**
+  - ネストした `movie` の `original_title` / `poster_path` / `release_date` / `vote_average` は、データが無い場合 `null` またはフィールド省略となることがある。
 
 #### 6.2 POST `/api/v1/tags/:tagId/movies`
 
@@ -822,7 +874,7 @@ Host: localhost:8080
 
 ---
 
-### 7. フォロー（Tag Followers）エンドポイント
+### 7. タグのフォロー・いいねエンドポイント
 
 #### 7.1 POST `/api/v1/tags/:tagId/follow`
 
@@ -831,6 +883,22 @@ Host: localhost:8080
 - **挙動**
   - `tag_followers` に `(tag_id, user_id)` レコードを作成。
   - 既にフォロー済みの場合は 409 Conflict を返す。
+
+- **レスポンス例（403）**（非公開タグなど参照不可）
+
+```json
+{
+  "error": "forbidden"
+}
+```
+
+- **レスポンス例（404）**
+
+```json
+{
+  "error": "tag not found"
+}
+```
 
 - **レスポンス例（200）**
 
@@ -911,6 +979,87 @@ Host: localhost:8080
 }
 ```
 
+#### 7.5 POST `/api/v1/tags/:tagId/like`
+
+- **概要**: 指定タグにいいねする。
+- **認証**: 必須
+- **挙動**
+  - 非公開タグへのアクセス不可などは 403、タグ不存在は 404、既にいいね済みは 409。
+
+- **レスポンス例（200）**
+
+```json
+{
+  "message": "successfully liked"
+}
+```
+
+- **レスポンス例（403）**
+
+```json
+{
+  "error": "forbidden"
+}
+```
+
+- **レスポンス例（404）**
+
+```json
+{
+  "error": "tag not found"
+}
+```
+
+- **レスポンス例（409）**
+
+```json
+{
+  "error": "already liked"
+}
+```
+
+#### 7.6 DELETE `/api/v1/tags/:tagId/like`
+
+- **概要**: 指定タグのいいねを解除する。
+- **認証**: 必須
+
+- **レスポンス例（200）**
+
+```json
+{
+  "message": "successfully unliked"
+}
+```
+
+- **レスポンス例（404）**
+
+```json
+{
+  "error": "tag not found"
+}
+```
+
+- **レスポンス例（409）**
+
+```json
+{
+  "error": "not liked"
+}
+```
+
+#### 7.7 GET `/api/v1/tags/:tagId/like-status`
+
+- **概要**: 認証ユーザーがタグをいいねしているかチェックする。
+- **認証**: 必須
+
+- **レスポンス例（200）**
+
+```json
+{
+  "is_liked": true
+}
+```
+
 ---
 
 ### 8. 映画（Movies）エンドポイント
@@ -921,10 +1070,11 @@ Host: localhost:8080
 - **認証**: 不要
 - **クエリパラメータ**
 
-| 名前   | 型   | 必須 | 説明 |
-|--------|------|------|------|
-| `q`    | text | 任意 | 検索キーワード。空の場合は `items: []` / `total_count: 0` を返す |
-| `page` | int  | 任意 | ページ番号（デフォルト: 1） |
+| 名前          | 型   | 必須 | 説明 |
+|---------------|------|------|------|
+| `q`           | text | 任意 | 検索キーワード。空の場合は `items: []` / `total_count: 0` を返す |
+| `page`        | int  | 任意 | ページ番号（デフォルト: 1） |
+| `search_type` | text | 任意 | 未指定または空: 映画タイトル検索。`person`: 人物検索し `known_for` から映画候補を返す |
 
 - **リクエスト例**
 
@@ -951,6 +1101,9 @@ Host: localhost:8080
   "total_count": 1
 }
 ```
+
+- **備考**
+  - 各 `items` 要素の `original_title` / `poster_path` / `release_date` / `vote_average` は、TMDB の結果に応じて `null` またはフィールド省略となることがある。
 
 - **レスポンス例（500）**
 
@@ -1103,6 +1256,9 @@ Host: localhost:8080
   "page_size": 20
 }
 ```
+
+- **備考**
+  - `actor` は通知種別・保存データに応じて `null` になる場合がある（JSON では `actor` キーは常に出力され、値が無いときは `null`）。
 
 - **通知タイプ（`notification_type`）**
 

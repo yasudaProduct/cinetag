@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
+import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 import UserPageClient from "./UserPageClient";
 import { getUserByDisplayId } from "@/lib/api/users/getUser";
-
-// ISR: 10分ごとに再生成
-export const revalidate = 600;
+import { getMe } from "@/lib/api/users/getMe";
 
 export async function generateMetadata({
   params,
@@ -44,24 +43,35 @@ export async function generateMetadata({
   }
 }
 
+async function resolveIsOwnPage(username: string): Promise<boolean> {
+  try {
+    const { getToken } = await auth();
+    const token = await getToken({ template: "cinetag-backend" });
+    if (!token) return false;
+    const me = await getMe(token);
+    return me.display_id === username;
+  } catch {
+    return false;
+  }
+}
+
 export default async function UserPage({
   params,
 }: {
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
-  let user;
-  try {
-    user = await getUserByDisplayId(username);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("404")) {
-      notFound();
-    }
-    throw error;
-  }
+  const [user, isOwnPage] = await Promise.all([
+    getUserByDisplayId(username).catch((error: unknown) => {
+      if (error instanceof Error && error.message.includes("404")) {
+        notFound();
+      }
+      throw error;
+    }),
+    resolveIsOwnPage(username),
+  ]);
 
   const profileJsonLd = {
     "@context": "https://schema.org",
@@ -81,7 +91,11 @@ export default async function UserPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(profileJsonLd) }}
       />
-      <UserPageClient username={username} initialProfileUser={user} />
+      <UserPageClient
+        username={username}
+        initialProfileUser={user}
+        isOwnPage={isOwnPage}
+      />
     </>
   );
 }

@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getUserByDisplayId, type UserProfile } from "@/lib/api/users/getUser";
-import { getMe } from "@/lib/api/users/getMe";
 import { getFollowStats } from "@/lib/api/users/getFollowStats";
+import { listUserTags } from "@/lib/api/users/listUserTags";
 import { followUser } from "@/lib/api/users/followUser";
 import { unfollowUser } from "@/lib/api/users/unfollowUser";
 import { notFound } from "next/navigation";
@@ -22,8 +22,10 @@ import {
 export default function UserPageClient(props: {
   username: string;
   initialProfileUser: UserProfile;
+  isOwnPage: boolean;
 }) {
   const username = props.username;
+  const isOwnPage = props.isOwnPage;
   const { isSignedIn, isLoaded, getToken } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("created");
 
@@ -39,22 +41,17 @@ export default function UserPageClient(props: {
     initialData: props.initialProfileUser,
   });
 
-  // ログインユーザー自身の情報を取得（自分のページかどうかの判定用）
-  const { data: currentUser } = useQuery({
-    queryKey: ["users", "me"],
+  // ユーザーが作成したタグ一覧を取得（totalCount をプロフィールに表示）
+  const { data: userTagsData } = useQuery({
+    queryKey: ["userTags", username],
     queryFn: async () => {
-      const token = await getToken({ template: "cinetag-backend" });
-      if (!token) throw new Error("認証情報の取得に失敗しました");
-      return getMe(token);
+      const token = await getToken({ template: "cinetag-backend" }).catch(
+        () => null
+      );
+      return listUserTags({ displayId: username, token: token ?? undefined });
     },
-    enabled: isLoaded && isSignedIn,
+    enabled: !!username,
   });
-
-  // 自分のページかどうかを判定
-  const isOwnPage =
-    currentUser &&
-    profileUser &&
-    currentUser.display_id === profileUser.display_id;
 
   // フォロー統計を取得
   const { data: followStats } = useQuery({
@@ -116,7 +113,7 @@ export default function UserPageClient(props: {
     notFound();
   }
 
-  // 統計情報の取得（createdCountはCreatedTagsListコンポーネント内で取得される）
+  const createdCount = userTagsData?.totalCount ?? 0;
   const followingCount = followStats?.following_count ?? 0;
   const followersCount = followStats?.followers_count ?? 0;
   const isFollowing = followStats?.is_following ?? false;
@@ -128,13 +125,11 @@ export default function UserPageClient(props: {
           {/* User Profile */}
           <UserProfileComponent
             profileUser={profileUser}
-            createdCount={0} // TODO: タグ数を取得する別のAPIを用意するか、CreatedTagsListから渡す
+            createdCount={createdCount}
             followingCount={followingCount}
             followersCount={followersCount}
-            isOwnPage={isOwnPage ?? false}
+            showFollowButton={!isOwnPage && isLoaded && (isSignedIn ?? false)}
             isFollowing={isFollowing}
-            isSignedIn={isSignedIn ?? false}
-            isLoaded={isLoaded}
             isFollowPending={
               followMutation.isPending || unfollowMutation.isPending
             }
@@ -153,11 +148,11 @@ export default function UserPageClient(props: {
             {activeTab === "registered" && (
               <FollowingTagsList
                 username={username}
-                isOwnPage={isOwnPage ?? false}
+                isOwnPage={isOwnPage}
               />
             )}
             {activeTab === "favorite" && (
-              <LikedTagsList isOwnPage={isOwnPage ?? false} />
+              <LikedTagsList isOwnPage={isOwnPage} />
             )}
           </div>
         </div>

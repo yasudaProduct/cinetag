@@ -64,6 +64,7 @@ func createUser(t *testing.T, db *gorm.DB, clerkID, displayName string) *model.U
 
 	u := &model.User{
 		ClerkUserID: clerkID,
+		DisplayID:   clerkID,
 		DisplayName: displayName,
 		Email:       displayName + "@example.com",
 	}
