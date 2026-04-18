@@ -68,6 +68,7 @@ type TagRepository interface {
 	FindByID(ctx context.Context, id string) (*model.Tag, error)
 	FindDetailByID(ctx context.Context, id string) (*TagDetailRow, error)
 	UpdateByID(ctx context.Context, id string, patch TagUpdatePatch) error
+	DeleteByID(ctx context.Context, id string) error
 	ListPublicTags(ctx context.Context, filter TagListFilter) ([]TagSummary, int64, error)
 	ListTagsByUserID(ctx context.Context, filter UserTagListFilter) ([]TagSummary, int64, error)
 }
@@ -162,6 +163,28 @@ func (r *tagRepository) UpdateByID(ctx context.Context, id string, patch TagUpda
 		Where("id = ?", id).
 		Updates(updates).
 		Error
+}
+
+// 指定IDのタグを削除する。
+func (r *tagRepository) DeleteByID(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("tag_id = ?", id).Delete(&model.Notification{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("tag_id = ?", id).Delete(&model.TagLike{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("tag_id = ?", id).Delete(&model.TagMovie{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("tag_id = ?", id).Delete(&model.TagFollower{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("id = ?", id).Delete(&model.Tag{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // 公開タグ一覧を取得する。

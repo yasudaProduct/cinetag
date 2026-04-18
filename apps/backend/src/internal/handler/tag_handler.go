@@ -172,6 +172,38 @@ func (h *TagHandler) UpdateTag(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
+// DeleteTag はタグを削除します。
+func (h *TagHandler) DeleteTag(c *gin.Context) {
+	tagID := c.Param("tagId")
+
+	// TODO:ユーザー検証の流れを共通化したいですね。
+	userVal, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	user, ok := userVal.(*model.User)
+	if !ok || user == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user in context"})
+		return
+	}
+
+	// タグを削除する
+	if err := h.tagService.DeleteTag(c.Request.Context(), tagID, user.ID); err != nil {
+		switch {
+		case errors.Is(err, service.ErrTagNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
+		case errors.Is(err, service.ErrTagPermissionDenied):
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete tag"})
+		}
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 // @Summary 公開タグ一覧を取得
 // @Description 公開タグ一覧を取得
 // @Tags tags

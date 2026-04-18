@@ -55,4 +55,7 @@ Authorization: Bearer {{$dotenv AUTH_TOKEN}}
   "is_public": false
 }
 
+### タグ削除（認証必須 / 作成者のみ）
+DELETE {{host}}{{api_prefix}}/tags/{{tag_id}}
+Authorization: Bearer {{$dotenv AUTH_TOKEN}}
 

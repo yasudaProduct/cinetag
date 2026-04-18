@@ -63,6 +63,10 @@ type TagService interface {
 	// - patch は更新するフィールドとその新しい値を指定する。
 	UpdateTag(ctx context.Context, tagID string, userID string, patch UpdateTagPatch) (*TagDetail, error)
 
+	// タグを削除する。
+	// - userID は削除するユーザーのIDを指定する。
+	DeleteTag(ctx context.Context, tagID string, userID string) error
+
 	// タグから映画を削除する。
 	// - タグ作成者は全ての映画を削除可能。
 	// - 他のユーザーは自分が追加した映画のみ削除可能。
@@ -330,6 +334,34 @@ func (s *tagService) UpdateTag(ctx context.Context, tagID string, userID string,
 	// 更新後の詳細を返す（owner のため viewerUserID を userID にする）
 	viewer := userID
 	return s.GetTagDetail(ctx, tagID, &viewer)
+}
+
+// タグを削除する
+func (s *tagService) DeleteTag(ctx context.Context, tagID string, userID string) error {
+	if strings.TrimSpace(tagID) == "" {
+		return fmt.Errorf("tag_id is required")
+	}
+	if strings.TrimSpace(userID) == "" {
+		return fmt.Errorf("user_id is required")
+	}
+
+	// タグの存在確認
+	tag, err := s.tagRepo.FindByID(ctx, tagID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrTagNotFound
+		}
+		return err
+	}
+
+	// タグの作成者がユーザーIDと一致しない場合、エラーを返す
+	if tag.UserID != userID {
+		return ErrTagPermissionDenied
+	}
+
+	// タグを削除する
+	return s.tagRepo.DeleteByID(ctx, tagID)
+
 }
 
 // 指定タグの詳細を返す。

@@ -17,7 +17,7 @@ func TestCreateTag_Success(t *testing.T) {
 	user := env.createUser(t, "clerk_tag1", "tag-user1", "TagUser1")
 
 	body, _ := json.Marshal(map[string]any{
-		"title":    "お気に入り映画",
+		"title":     "お気に入り映画",
 		"is_public": true,
 	})
 
@@ -100,7 +100,7 @@ func TestListPublicTags_WithData(t *testing.T) {
 
 	for i := 1; i <= 2; i++ {
 		body, _ := json.Marshal(map[string]any{
-			"title":    fmt.Sprintf("公開タグ%d", i),
+			"title":     fmt.Sprintf("公開タグ%d", i),
 			"is_public": true,
 		})
 		r := env.request("POST", "/api/v1/tags", body, authHeaders(user.ID))
@@ -108,7 +108,7 @@ func TestListPublicTags_WithData(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(map[string]any{
-		"title":    "非公開タグ",
+		"title":     "非公開タグ",
 		"is_public": false,
 	})
 	r := env.request("POST", "/api/v1/tags", body, authHeaders(user.ID))
@@ -131,12 +131,12 @@ func TestListPublicTags_WithData(t *testing.T) {
 			"images", "created_at",
 		)
 		testutil.AssertJSON(t, item, map[string]any{
-			"is_public":        true,
-			"author":           "ListUser1",
+			"is_public":         true,
+			"author":            "ListUser1",
 			"author_display_id": "list-user1",
-			"movie_count":      float64(0),
-			"follower_count":   float64(0),
-			"like_count":       float64(0),
+			"movie_count":       float64(0),
+			"follower_count":    float64(0),
+			"like_count":        float64(0),
 		})
 	}
 }
@@ -183,17 +183,17 @@ func TestGetTagDetail_Success(t *testing.T) {
 		"created_at", "updated_at",
 	)
 	testutil.AssertJSON(t, data, map[string]any{
-		"id":               tagID,
-		"title":            "詳細テスト",
-		"description":      "テスト用の説明",
-		"is_public":        true,
-		"add_movie_policy": "everyone",
-		"movie_count":      float64(0),
-		"follower_count":   float64(0),
-		"like_count":       float64(0),
-		"is_liked":         false,
-		"can_edit":         false,
-		"can_add_movie":    false,
+		"id":                tagID,
+		"title":             "詳細テスト",
+		"description":       "テスト用の説明",
+		"is_public":         true,
+		"add_movie_policy":  "everyone",
+		"movie_count":       float64(0),
+		"follower_count":    float64(0),
+		"like_count":        float64(0),
+		"is_liked":          false,
+		"can_edit":          false,
+		"can_add_movie":     false,
 		"participant_count": float64(0),
 	})
 
@@ -215,7 +215,7 @@ func TestUpdateTag_Success(t *testing.T) {
 	user := env.createUser(t, "clerk_update1", "update-user1", "UpdateUser1")
 
 	createBody, _ := json.Marshal(map[string]any{
-		"title":    "更新前タイトル",
+		"title":     "更新前タイトル",
 		"is_public": true,
 	})
 	createResp := env.request("POST", "/api/v1/tags", createBody, authHeaders(user.ID))
@@ -256,7 +256,7 @@ func TestUpdateTag_Forbidden(t *testing.T) {
 	other := env.createUser(t, "clerk_other1", "other1", "Other1")
 
 	createBody, _ := json.Marshal(map[string]any{
-		"title":    "他人のタグ",
+		"title":     "他人のタグ",
 		"is_public": true,
 	})
 	createResp := env.request("POST", "/api/v1/tags", createBody, authHeaders(owner.ID))
@@ -273,4 +273,22 @@ func TestUpdateTag_Forbidden(t *testing.T) {
 	testutil.AssertJSON(t, data, map[string]any{
 		"error": "forbidden",
 	})
+}
+
+// DELETE /api/v1/tags/:tagId
+// タグ作成者がタグを削除し、204 が返ることを確認する。
+func TestDeleteTag_Success(t *testing.T) {
+	env := setupTestEnv(t)
+	user := env.createUser(t, "clerk_delete1", "delete-user1", "DeleteUser1")
+
+	createBody, _ := json.Marshal(map[string]any{
+		"title":     "削除テスト",
+		"is_public": true,
+	})
+	createResp := env.request("POST", "/api/v1/tags", createBody, authHeaders(user.ID))
+	createResp.AssertStatus(t, 201)
+	tagID := createResp.JSON(t)["id"].(string)
+
+	resp := env.request("DELETE", "/api/v1/tags/"+tagID, nil, authHeaders(user.ID))
+	resp.AssertStatus(t, 204)
 }
