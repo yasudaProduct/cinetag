@@ -186,6 +186,7 @@ func buildRouter(t *testing.T, db *gorm.DB, testUsers map[string]*model.User) *g
 
 			auth.POST("/tags", tagHandler.CreateTag)
 			auth.PATCH("/tags/:tagId", tagHandler.UpdateTag)
+			auth.DELETE("/tags/:tagId", tagHandler.DeleteTag)
 			auth.POST("/tags/:tagId/movies", tagHandler.AddMoviesToTag)
 			auth.DELETE("/tags/:tagId/movies/:tagMovieId", tagHandler.RemoveMovieFromTag)
 

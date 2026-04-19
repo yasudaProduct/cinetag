@@ -757,6 +757,75 @@ func TestTagService_UpdateTag(t *testing.T) {
 	})
 }
 
+func TestTagService_DeleteTag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("入力バリデーション: tag_id が必須", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, nil)
+
+		err := svc.DeleteTag(context.Background(), "", "u1")
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("入力バリデーション: user_id が必須", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, nil)
+
+		err := svc.DeleteTag(context.Background(), "t1", "")
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	})
+
+	t.Run("タグが見つからない: gorm.ErrRecordNotFound は ErrTagNotFound に変換される", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return nil, gorm.ErrRecordNotFound
+			}
+		})
+
+		err := svc.DeleteTag(context.Background(), "t1", "u1")
+		if !errors.Is(err, ErrTagNotFound) {
+			t.Fatalf("expected ErrTagNotFound, got: %v", err)
+		}
+	})
+
+	t.Run("権限チェック: タグ作成者以外は削除不可", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id, UserID: "other_user"}, nil
+			}
+		})
+
+		err := svc.DeleteTag(context.Background(), "t1", "not_other_user")
+		if !errors.Is(err, ErrTagPermissionDenied) {
+			t.Fatalf("expected ErrTagPermissionDenied, got: %v", err)
+		}
+	})
+
+	t.Run("削除に成功", func(t *testing.T) {
+		t.Parallel()
+		svc := newTagService(t, func(d *deps) {
+			d.tagRepo.FindByIDFn = func(ctx context.Context, id string) (*model.Tag, error) {
+				return &model.Tag{ID: id, UserID: "u1"}, nil
+			}
+			d.tagRepo.DeleteByIDFn = func(ctx context.Context, id string) error {
+				return nil
+			}
+		})
+
+		err := svc.DeleteTag(context.Background(), "t1", "u1")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+	})
+}
+
 func TestTagService_RemoveMovieFromTag(t *testing.T) {
 	t.Parallel()
 

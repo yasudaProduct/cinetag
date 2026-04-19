@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { MoviePosterCard } from "@/components/MoviePosterCard";
 import { AvatarCircle } from "@/components/AvatarCircle";
 import { getTagDetail } from "@/lib/api/tags/detail";
 import { listTagMovies } from "@/lib/api/tags/movies";
 import { deleteMovieFromTag } from "@/lib/api/tags/deleteMovie";
+import { deleteTag } from "@/lib/api/tags/deleteTag";
 import { followTag } from "@/lib/api/tags/follow";
 import { unfollowTag } from "@/lib/api/tags/unfollow";
 import { getTagFollowStatus } from "@/lib/api/tags/getFollowStatus";
@@ -20,6 +22,7 @@ import {
   ThumbsUp,
   Users,
   UserCog,
+  Trash2,
 } from "lucide-react";
 import { TagLikeButton } from "@/components/TagLikeButton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -44,14 +47,22 @@ const TagFollowersModal = dynamic(
     ),
   { ssr: false },
 );
+const TagDeleteConfirmModal = dynamic(
+  () =>
+    import("./TagDeleteConfirmModal").then((mod) => mod.TagDeleteConfirmModal),
+  { ssr: false },
+);
 
 export function TagDetailClient({ tagId }: { tagId: string }) {
   const [query, setQuery] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [followersOpen, setFollowersOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const { getToken, isLoaded: authLoaded, isSignedIn } = useAuth();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   // 未ログインとログイン済みで is_liked / 権限付きレスポンスが変わるため、
   // Clerk 準備完了後に限り取得し、キャッシュキーを分ける（未認証キャッシュの取り違え防止）。
@@ -87,6 +98,38 @@ export function TagDetailClient({ tagId }: { tagId: string }) {
     },
     onSuccess: () => {
       Promise.all([detailQuery.refetch(), moviesQuery.refetch()]);
+    },
+  });
+
+  const deleteTagMutation = useMutation({
+    mutationFn: async () => {
+      const token = await getToken({ template: "cinetag-backend" });
+      if (!token) throw new Error("認証が必要です");
+      await deleteTag({ tagId, token });
+    },
+    onMutate: () => {
+      setDeleteError(null);
+      const displayId = detailQuery.data?.owner?.displayId?.trim();
+      return {
+        redirectTo: displayId ? `/${displayId}` : "/",
+      };
+    },
+    onSuccess: (_data, _variables, ctx) => {
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      queryClient.invalidateQueries({ queryKey: ["userTags"] });
+      queryClient.invalidateQueries({ queryKey: ["followingTags"] });
+      queryClient.invalidateQueries({ queryKey: ["likedTags"] });
+      queryClient.invalidateQueries({ queryKey: ["movieRelatedTags"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.removeQueries({ queryKey: ["tagDetail", tagId] });
+      queryClient.removeQueries({ queryKey: ["tagMovies", tagId] });
+      queryClient.removeQueries({ queryKey: ["tagFollowStatus", tagId] });
+      queryClient.removeQueries({ queryKey: ["tagFollowers", tagId] });
+      setDeleteOpen(false);
+      router.push(ctx?.redirectTo ?? "/");
+    },
+    onError: (e) => {
+      setDeleteError((e as Error).message);
     },
   });
 
@@ -127,6 +170,13 @@ export function TagDetailClient({ tagId }: { tagId: string }) {
   const canEditTag = detail?.canEdit ?? false;
   const canAddMovie = detail?.canAddMovie ?? false;
   const descriptionText = detail?.description?.trim() ?? "";
+  const ownerUserId = detail?.owner?.id?.trim() ?? "";
+  const otherUsersMovieCount =
+    ownerUserId.length > 0
+      ? movies.filter(
+          (m) => Boolean(m.addedByUserId) && m.addedByUserId !== ownerUserId,
+        ).length
+      : 0;
 
   const filtered = (() => {
     const q = query.trim().toLowerCase();
@@ -329,6 +379,19 @@ export function TagDetailClient({ tagId }: { tagId: string }) {
                     タグを編集
                   </button>
                 ) : null}
+                {canEditTag ? (
+                  <button
+                    type="button"
+                    className="w-full bg-white hover:bg-red-50 text-red-600 font-bold py-3 rounded-full flex items-center justify-center gap-2 border border-red-200 shadow-sm hover:shadow transition-all"
+                    onClick={() => {
+                      setDeleteError(null);
+                      setDeleteOpen(true);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    タグを削除
+                  </button>
+                ) : null}
                 <ShareButton
                   variant="default"
                   title={`${detail?.title ?? ""} | cinetag`}
@@ -442,6 +505,23 @@ export function TagDetailClient({ tagId }: { tagId: string }) {
         tagTitle={detail?.title ?? ""}
         onClose={() => setFollowersOpen(false)}
       />
+
+      {deleteOpen && detail ? (
+        <TagDeleteConfirmModal
+          open={deleteOpen}
+          title={detail.title}
+          followerCount={detail.followerCount ?? 0}
+          otherUsersMovieCount={otherUsersMovieCount}
+          isDeleting={deleteTagMutation.isPending}
+          errorMessage={deleteError}
+          onClose={() => {
+            if (deleteTagMutation.isPending) return;
+            setDeleteOpen(false);
+            setDeleteError(null);
+          }}
+          onConfirm={() => deleteTagMutation.mutate()}
+        />
+      ) : null}
     </div>
   );
 }

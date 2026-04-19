@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// fakeTagService は TagService のテスト用のモック実装です。
 type fakeTagService struct {
 	ListPublicTagsFn     func(ctx context.Context, q, sort string, page, pageSize int) ([]service.TagListItem, int64, error)
 	ListTagsByUserIDFn   func(ctx context.Context, userID string, publicOnly bool, page, pageSize int) ([]service.TagListItem, int64, error)
@@ -22,6 +23,7 @@ type fakeTagService struct {
 	CreateTagFn          func(ctx context.Context, in service.CreateTagInput) (*model.Tag, error)
 	AddMoviesToTagFn     func(ctx context.Context, in service.AddMoviesToTagInput) (*service.AddMoviesResult, error)
 	UpdateTagFn          func(ctx context.Context, tagID string, userID string, patch service.UpdateTagPatch) (*service.TagDetail, error)
+	DeleteTagFn          func(ctx context.Context, tagID string, userID string) error
 	RemoveMovieFromTagFn func(ctx context.Context, tagMovieID string, userID string) error
 	FollowTagFn          func(ctx context.Context, tagID, userID string) error
 	UnfollowTagFn        func(ctx context.Context, tagID, userID string) error
@@ -81,6 +83,13 @@ func (f *fakeTagService) UpdateTag(ctx context.Context, tagID string, userID str
 		return &service.TagDetail{}, nil
 	}
 	return f.UpdateTagFn(ctx, tagID, userID, patch)
+}
+
+func (f *fakeTagService) DeleteTag(ctx context.Context, tagID string, userID string) error {
+	if f.DeleteTagFn == nil {
+		return nil
+	}
+	return f.DeleteTagFn(ctx, tagID, userID)
 }
 
 func (f *fakeTagService) RemoveMovieFromTag(ctx context.Context, tagMovieID string, userID string) error {
@@ -186,6 +195,7 @@ func newTagHandlerRouter(t *testing.T, tagSvc service.TagService, user *model.Us
 	}
 	auth.POST("/tags", h.CreateTag)
 	auth.PATCH("/tags/:tagId", h.UpdateTag)
+	auth.DELETE("/tags/:tagId", h.DeleteTag)
 	auth.POST("/tags/:tagId/movies", h.AddMoviesToTag)
 	auth.DELETE("/tags/:tagId/movies/:tagMovieId", h.RemoveMovieFromTag)
 	auth.POST("/tags/:tagId/follow", h.FollowTag)
@@ -1484,6 +1494,52 @@ func TestTagHandler_ListLikedTags(t *testing.T) {
 		testutil.MustUnmarshalJSON(t, rw.Body.Bytes(), &resp)
 		if resp["total_count"] != float64(1) {
 			t.Fatalf("expected total_count=1, got %v", resp["total_count"])
+		}
+	})
+}
+
+func TestTagHandler_DeleteTag(t *testing.T) {
+	t.Parallel()
+
+	t.Run("未認証(user無し): 401", func(t *testing.T) {
+		t.Parallel()
+
+		r := newTagHandlerRouter(t, &fakeTagService{}, nil)
+		rw := testutil.PerformRequest(r, http.MethodDelete, "/api/v1/tags/t1", nil, nil)
+		if rw.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", rw.Code)
+		}
+	})
+
+	t.Run("サービスが失敗: 500", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			DeleteTagFn: func(ctx context.Context, tagID string, userID string) error {
+				return errors.New("db error")
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodDelete, "/api/v1/tags/t1", nil, nil)
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+	})
+
+	t.Run("成功: 204", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			DeleteTagFn: func(ctx context.Context, tagID string, userID string) error {
+				return nil
+			},
+		}
+
+		r := newTagHandlerRouter(t, svc, &model.User{ID: "u1"})
+		rw := testutil.PerformRequest(r, http.MethodDelete, "/api/v1/tags/t1", nil, nil)
+		if rw.Code != http.StatusNoContent {
+			t.Fatalf("expected 204, got %d", rw.Code)
 		}
 	})
 }

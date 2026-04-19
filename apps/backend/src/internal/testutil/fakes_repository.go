@@ -14,6 +14,7 @@ type FakeTagRepository struct {
 	FindByIDFn         func(ctx context.Context, id string) (*model.Tag, error)
 	FindDetailByIDFn   func(ctx context.Context, id string) (*repository.TagDetailRow, error)
 	UpdateByIDFn       func(ctx context.Context, id string, patch repository.TagUpdatePatch) error
+	DeleteByIDFn       func(ctx context.Context, id string) error
 	ListPublicTagsFn   func(ctx context.Context, filter repository.TagListFilter) ([]repository.TagSummary, int64, error)
 	ListTagsByUserIDFn func(ctx context.Context, filter repository.UserTagListFilter) ([]repository.TagSummary, int64, error)
 }
@@ -44,6 +45,13 @@ func (f *FakeTagRepository) UpdateByID(ctx context.Context, id string, patch rep
 		return nil
 	}
 	return f.UpdateByIDFn(ctx, id, patch)
+}
+
+func (f *FakeTagRepository) DeleteByID(ctx context.Context, id string) error {
+	if f.DeleteByIDFn == nil {
+		return nil
+	}
+	return f.DeleteByIDFn(ctx, id)
 }
 
 func (f *FakeTagRepository) ListPublicTags(ctx context.Context, filter repository.TagListFilter) ([]repository.TagSummary, int64, error) {
