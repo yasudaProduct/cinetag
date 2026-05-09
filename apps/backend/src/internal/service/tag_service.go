@@ -35,6 +35,10 @@ type TagService interface {
 	// 公開タグを検索・ソート・ページングして返す。
 	ListPublicTags(ctx context.Context, q, sort string, page, pageSize int) ([]TagListItem, int64, error)
 
+	// 直近 days 日間で利用増加（映画追加・フォロー・いいね）が多かった公開タグを返す。
+	// limit は最大件数。スコアが0のタグは含まれない（増加分が無いタグは表示しない）。
+	ListTrendingTags(ctx context.Context, days, limit int) ([]TagListItem, error)
+
 	// ユーザーIDに紐づくタグ一覧を返す。
 	// publicOnly が true の場合、公開タグのみを返す（他ユーザーのページ閲覧時）。
 	ListTagsByUserID(ctx context.Context, userID string, publicOnly bool, page, pageSize int) ([]TagListItem, int64, error)
@@ -809,6 +813,78 @@ func (s *tagService) ListPublicTags(ctx context.Context, q, sort string, page, p
 	}
 
 	return items, total, nil
+}
+
+// 直近 days 日間で利用が増加した公開タグ上位を返す。
+func (s *tagService) ListTrendingTags(ctx context.Context, days, limit int) ([]TagListItem, error) {
+	if days <= 0 {
+		days = 7
+	}
+	if limit <= 0 {
+		limit = 5
+	}
+	if limit > 50 {
+		limit = 50
+	}
+
+	since := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
+
+	rows, err := s.tagRepo.ListTrendingTags(ctx, repository.TrendingTagFilter{
+		Since: since,
+		Limit: limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return []TagListItem{}, nil
+	}
+
+	imagesByTag := make(map[string][]string, len(rows))
+	if s.movieService != nil {
+		for _, r := range rows {
+			tagMovies, err := s.tagMovieRepo.ListRecentByTag(ctx, r.ID, 4)
+			if err != nil {
+				return nil, err
+			}
+			for _, tm := range tagMovies {
+				if len(imagesByTag[r.ID]) >= 4 {
+					break
+				}
+				cache, err := s.movieService.EnsureMovieCache(ctx, tm.TmdbMovieID)
+				if err != nil {
+					continue
+				}
+				if cache.PosterPath == nil || *cache.PosterPath == "" {
+					continue
+				}
+				poster := *cache.PosterPath
+				if s.imageBaseURL != "" {
+					poster = s.imageBaseURL + poster
+				}
+				imagesByTag[r.ID] = append(imagesByTag[r.ID], poster)
+			}
+		}
+	}
+
+	items := make([]TagListItem, 0, len(rows))
+	for _, r := range rows {
+		items = append(items, TagListItem{
+			ID:              r.ID,
+			Title:           r.Title,
+			Description:     r.Description,
+			Author:          r.Author,
+			AuthorDisplayID: r.AuthorDisplayID,
+			CoverImageURL:   r.CoverImageURL,
+			IsPublic:        r.IsPublic,
+			MovieCount:      r.MovieCount,
+			FollowerCount:   r.FollowerCount,
+			LikeCount:       r.LikeCount,
+			Images:          imagesByTag[r.ID],
+			CreatedAt:       r.CreatedAt,
+		})
+	}
+	return items, nil
 }
 
 // ユーザーIDに紐づくタグ一覧を返す。

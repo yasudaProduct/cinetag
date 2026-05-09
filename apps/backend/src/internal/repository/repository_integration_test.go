@@ -33,13 +33,13 @@ func openIntegrationDB(t *testing.T) *gorm.DB {
 		t.Fatalf("pgcrypto extension の有効化に失敗: %v", err)
 	}
 
-	if err := db.AutoMigrate(&model.User{}, &model.Tag{}, &model.TagMovie{}, &model.TagFollower{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Tag{}, &model.TagMovie{}, &model.TagFollower{}, &model.TagLike{}); err != nil {
 		t.Fatalf("AutoMigrate に失敗: %v", err)
 	}
 
 	// 各テストの独立性を担保するため、対象テーブルをクリーンにする。
 	// NOTE: integration テスト専用DBで実行すること（開発用DBでは実行しない）。
-	if err := db.Exec(`TRUNCATE TABLE tag_followers, tag_movies, tags, users RESTART IDENTITY CASCADE;`).Error; err != nil {
+	if err := db.Exec(`TRUNCATE TABLE tag_likes, tag_followers, tag_movies, tags, users RESTART IDENTITY CASCADE;`).Error; err != nil {
 		t.Fatalf("テスト用DBの初期化（TRUNCATE）に失敗: %v", err)
 	}
 
@@ -221,6 +221,90 @@ func TestTagRepository_ListPublicTags_FollowerCountDesc(t *testing.T) {
 	if rows[1].FollowerCount != 1 {
 		t.Fatalf("expected follower_count=1, got %d", rows[1].FollowerCount)
 	}
+}
+
+func TestTagRepository_ListTrendingTags_ScoreAndLimit(t *testing.T) {
+	db := openIntegrationDB(t)
+	tx := beginTx(t, db)
+
+	u1 := createUser(t, tx, "clerk_u1", "alice")
+	u2 := createUser(t, tx, "clerk_u2", "bob")
+
+	// 公開タグ A/B/C と非公開タグ D
+	tA := createTag(t, tx, u1.ID, "公開タグA", true)
+	tB := createTag(t, tx, u1.ID, "公開タグB", true)
+	tC := createTag(t, tx, u1.ID, "公開タグC", true) // アクティビティなし
+	tD := createTag(t, tx, u1.ID, "非公開タグD", false)
+
+	now := time.Now().UTC()
+	since := now.Add(-7 * 24 * time.Hour)
+
+	// since 以降のアクティビティ（=スコアに加算）
+	// A: tag_movies x2 + tag_followers x1 = 3
+	if err := tx.Create(&[]model.TagMovie{
+		{TagID: tA.ID, TmdbMovieID: 11, AddedByUser: u1.ID, CreatedAt: now.Add(-1 * 24 * time.Hour)},
+		{TagID: tA.ID, TmdbMovieID: 12, AddedByUser: u1.ID, CreatedAt: now.Add(-2 * 24 * time.Hour)},
+	}).Error; err != nil {
+		t.Fatalf("tag_movies INSERT 失敗: %v", err)
+	}
+	if err := tx.Create(&model.TagFollower{TagID: tA.ID, UserID: u2.ID, CreatedAt: now.Add(-1 * time.Hour)}).Error; err != nil {
+		t.Fatalf("tag_followers INSERT 失敗: %v", err)
+	}
+
+	// B: tag_likes x1 = 1
+	if err := tx.Create(&model.TagLike{TagID: tB.ID, UserID: u2.ID, CreatedAt: now.Add(-3 * 24 * time.Hour)}).Error; err != nil {
+		t.Fatalf("tag_likes INSERT 失敗: %v", err)
+	}
+
+	// since より前（集計対象外）
+	if err := tx.Create(&model.TagMovie{TagID: tB.ID, TmdbMovieID: 99, AddedByUser: u1.ID, CreatedAt: now.Add(-30 * 24 * time.Hour)}).Error; err != nil {
+		t.Fatalf("古い tag_movies INSERT 失敗: %v", err)
+	}
+
+	// 非公開タグはアクティビティがあっても除外される
+	if err := tx.Create(&model.TagMovie{TagID: tD.ID, TmdbMovieID: 21, AddedByUser: u1.ID, CreatedAt: now.Add(-1 * time.Hour)}).Error; err != nil {
+		t.Fatalf("非公開 tag_movies INSERT 失敗: %v", err)
+	}
+
+	repo := NewTagRepository(tx)
+	ctx := context.Background()
+
+	rows, err := repo.ListTrendingTags(ctx, TrendingTagFilter{Since: since, Limit: 5})
+	if err != nil {
+		t.Fatalf("ListTrendingTags に失敗: %v", err)
+	}
+
+	// スコア > 0 のタグだけ返る（C はスコア0、D は非公開なので除外）
+	if len(rows) != 2 {
+		t.Fatalf("expected 2 rows, got %d", len(rows))
+	}
+	// スコア順: A(3) > B(1)
+	if rows[0].ID != tA.ID || rows[1].ID != tB.ID {
+		t.Fatalf("expected order [A, B], got [%s, %s]", rows[0].ID, rows[1].ID)
+	}
+
+	// limit が小さい場合は件数で打ち切られる
+	rowsLimited, err := repo.ListTrendingTags(ctx, TrendingTagFilter{Since: since, Limit: 1})
+	if err != nil {
+		t.Fatalf("ListTrendingTags(limit=1) に失敗: %v", err)
+	}
+	if len(rowsLimited) != 1 {
+		t.Fatalf("expected 1 row with limit=1, got %d", len(rowsLimited))
+	}
+	if rowsLimited[0].ID != tA.ID {
+		t.Fatalf("expected top to be A, got %s", rowsLimited[0].ID)
+	}
+
+	// since が未来なら一切ヒットしない（5件未満でもエラーにならず空が返る）
+	rowsEmpty, err := repo.ListTrendingTags(ctx, TrendingTagFilter{Since: now.Add(time.Hour), Limit: 5})
+	if err != nil {
+		t.Fatalf("ListTrendingTags(future since) に失敗: %v", err)
+	}
+	if len(rowsEmpty) != 0 {
+		t.Fatalf("expected 0 rows for future since, got %d", len(rowsEmpty))
+	}
+
+	_ = tC // unused-ガード（Cは無アクティビティのためゼロ件確認の対比用）
 }
 
 func TestTagRepository_ListPublicTags_TitleSearch(t *testing.T) {

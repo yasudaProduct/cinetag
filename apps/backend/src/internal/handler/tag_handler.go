@@ -207,6 +207,45 @@ func (h *TagHandler) ListPublicTags(c *gin.Context) {
 	})
 }
 
+// @Summary 今週のトレンドタグを取得
+// @Description 直近 N 日間で映画追加・フォロー・いいねの合計件数が多い公開タグ上位を返す。スコア0のタグは含まれない。
+// @Tags tags
+// @Accept json
+// @Produce json
+// @Param period query string false "現状 'week' のみ。デフォルト 'week'（直近7日）"
+// @Param limit query int false "取得件数（1〜50、デフォルト 5）"
+// @Success 200 {object}
+// @Failure 500 {object}
+// @Router /api/v1/tags/trending [get]
+func (h *TagHandler) ListTrendingTags(c *gin.Context) {
+	period := c.Query("period")
+	days := 7
+	if period != "" && period != "week" {
+		// 将来の拡張用。未知の period は week 扱い（明示的にエラーにはしない）。
+		days = 7
+	}
+
+	limit := parseIntDefault(c.Query("limit"), 5)
+	if limit < 1 {
+		limit = 1
+	}
+	if limit > 50 {
+		limit = 50
+	}
+
+	items, err := h.tagService.ListTrendingTags(c.Request.Context(), days, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list trending tags"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items":  items,
+		"period": "week",
+		"limit":  limit,
+	})
+}
+
 // @Summary タグを作成
 // @Description タグを作成
 // @Tags tags

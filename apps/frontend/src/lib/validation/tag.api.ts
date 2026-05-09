@@ -69,6 +69,25 @@ export const TagsListResponseSchema = z
 
 export type TagsListResponse = z.infer<typeof TagsListResponseSchema>;
 
+/**
+ * GET /api/v1/tags/trending のレスポンス
+ * - { items, period, limit } を期待。items のみ厳密に検証する。
+ */
+export const TrendingTagsResponseSchema = z
+    .object({
+        items: z.array(TagListItemSchema),
+        period: z.string().optional(),
+        limit: z.number().int().nonnegative().optional(),
+    })
+    .passthrough()
+    .transform((data) => ({
+        items: data.items,
+        period: data.period ?? "week",
+        limit: data.limit ?? data.items.length,
+    }));
+
+export type TrendingTagsResponse = z.infer<typeof TrendingTagsResponseSchema>;
+
 export const AddMoviePolicySchema = z.enum(["everyone", "owner_only"]);
 export type AddMoviePolicy = z.infer<typeof AddMoviePolicySchema>;
 

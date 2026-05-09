@@ -86,6 +86,7 @@ func setupRoutes(r *gin.Engine, deps *Dependencies) {
 func setupPublicRoutes(api *gin.RouterGroup, deps *Dependencies) {
 	// タグ（公開）
 	api.GET("/tags", deps.TagHandler.ListPublicTags)
+	api.GET("/tags/trending", deps.TagHandler.ListTrendingTags)
 	api.GET("/tags/:tagId", deps.OptionalAuthMiddleware, deps.TagHandler.GetTagDetail)
 	api.GET("/tags/:tagId/movies", deps.OptionalAuthMiddleware, deps.TagHandler.ListTagMovies)
 	api.GET("/tags/:tagId/followers", deps.TagHandler.ListTagFollowers)

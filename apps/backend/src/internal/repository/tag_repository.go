@@ -62,6 +62,12 @@ type UserTagListFilter struct {
 	Limit         int
 }
 
+// トレンドタグ取得時のフィルタ条件を表す。
+type TrendingTagFilter struct {
+	Since time.Time // この日時以降のアクティビティを集計対象とする
+	Limit int
+}
+
 // タグに関する永続化処理を表すインターフェース。
 type TagRepository interface {
 	Create(ctx context.Context, tag *model.Tag) error
@@ -70,6 +76,7 @@ type TagRepository interface {
 	UpdateByID(ctx context.Context, id string, patch TagUpdatePatch) error
 	ListPublicTags(ctx context.Context, filter TagListFilter) ([]TagSummary, int64, error)
 	ListTagsByUserID(ctx context.Context, filter UserTagListFilter) ([]TagSummary, int64, error)
+	ListTrendingTags(ctx context.Context, filter TrendingTagFilter) ([]TagSummary, error)
 }
 
 type tagRepository struct {
@@ -210,6 +217,43 @@ func (r *tagRepository) ListPublicTags(ctx context.Context, filter TagListFilter
 	}
 
 	return rows, total, nil
+}
+
+// 直近の利用増加が多い公開タグを取得する。
+// スコアは「指定日時以降の tag_movies / tag_followers / tag_likes の追加件数の合計」。
+// スコア > 0 のタグのみを返し、降順にソートする。
+func (r *tagRepository) ListTrendingTags(ctx context.Context, filter TrendingTagFilter) ([]TagSummary, error) {
+	if filter.Limit <= 0 {
+		return []TagSummary{}, nil
+	}
+
+	scoreSubquery := `(
+		(SELECT COUNT(*) FROM tag_movies WHERE tag_id = t.id AND created_at >= ?) +
+		(SELECT COUNT(*) FROM tag_followers WHERE tag_id = t.id AND created_at >= ?) +
+		(SELECT COUNT(*) FROM tag_likes WHERE tag_id = t.id AND created_at >= ?)
+	)`
+
+	qb := r.db.WithContext(ctx).
+		Table((model.Tag{}).TableName()+" AS t").
+		Joins("JOIN "+(model.User{}).TableName()+" AS u ON u.id = t.user_id").
+		Where("t.is_public = ?", true).
+		Select(`t.id, t.title, t.description, t.cover_image_url, t.is_public,
+				(SELECT COUNT(*) FROM tag_movies WHERE tag_id = t.id) AS movie_count,
+				(SELECT COUNT(*) FROM tag_followers WHERE tag_id = t.id) AS follower_count,
+				(SELECT COUNT(*) FROM tag_likes WHERE tag_id = t.id) AS like_count,
+				t.created_at,
+				u.display_name AS author, u.display_id AS author_display_id,
+				`+scoreSubquery+` AS trending_score`,
+			filter.Since, filter.Since, filter.Since).
+		Where(scoreSubquery+" > 0", filter.Since, filter.Since, filter.Since).
+		Order("trending_score DESC, t.created_at DESC").
+		Limit(filter.Limit)
+
+	var rows []TagSummary
+	if err := qb.Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
 }
 
 // 指定ユーザーのタグ一覧を取得する。

@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Tag, Users, Search } from "lucide-react";
 import { listTags, type ListTagsResult } from "@/lib/api/tags/list";
+import { listTrendingTags } from "@/lib/api/tags/trending";
+import type { TagListItem } from "@/lib/validation/tag.api";
 import { TagCard, type MarqueeTag } from "./_components/TagCard";
+import { WeeklyTags } from "./_components/WeeklyTags";
 
 // --- カラーパレット（実データ用の循環色） ---
 
@@ -288,8 +291,21 @@ export const metadata: Metadata = {
   },
 };
 
+async function fetchWeeklyTags(): Promise<TagListItem[]> {
+  try {
+    const result = await listTrendingTags({ period: "week", limit: 5 });
+    return result.items;
+  } catch {
+    // 取得失敗時はセクションを非表示にする（既存レイアウトを崩さない）
+    return [];
+  }
+}
+
 export default async function LandingPage() {
-  const { row1, row2 } = await fetchMarqueeTags();
+  const [{ row1, row2 }, weeklyTags] = await Promise.all([
+    fetchMarqueeTags(),
+    fetchWeeklyTags(),
+  ]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -391,6 +407,9 @@ export default async function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Weekly Tags (今週のタグ Top5) */}
+      <WeeklyTags items={weeklyTags} />
 
       {/* Tag Marquee Section */}
       <section className="py-16 md:py-20 bg-white overflow-hidden">
