@@ -16,6 +16,7 @@ import (
 
 type fakeTagService struct {
 	ListPublicTagsFn     func(ctx context.Context, q, sort string, page, pageSize int) ([]service.TagListItem, int64, error)
+	ListTrendingTagsFn   func(ctx context.Context, days, limit int) ([]service.TagListItem, error)
 	ListTagsByUserIDFn   func(ctx context.Context, userID string, publicOnly bool, page, pageSize int) ([]service.TagListItem, int64, error)
 	GetTagDetailFn       func(ctx context.Context, tagID string, viewerUserID *string) (*service.TagDetail, error)
 	ListTagMoviesFn      func(ctx context.Context, tagID string, viewerUserID *string, page, pageSize int) ([]service.TagMovieItem, int64, error)
@@ -46,6 +47,13 @@ func (f *fakeTagService) ListTagsByUserID(ctx context.Context, userID string, pu
 		return []service.TagListItem{}, 0, nil
 	}
 	return f.ListTagsByUserIDFn(ctx, userID, publicOnly, page, pageSize)
+}
+
+func (f *fakeTagService) ListTrendingTags(ctx context.Context, days, limit int) ([]service.TagListItem, error) {
+	if f.ListTrendingTagsFn == nil {
+		return []service.TagListItem{}, nil
+	}
+	return f.ListTrendingTagsFn(ctx, days, limit)
 }
 
 func (f *fakeTagService) GetTagDetail(ctx context.Context, tagID string, viewerUserID *string) (*service.TagDetail, error) {
@@ -163,6 +171,7 @@ func newTagHandlerRouter(t *testing.T, tagSvc service.TagService, user *model.Us
 
 	api := r.Group("/api/v1")
 	api.GET("/tags", h.ListPublicTags)
+	api.GET("/tags/trending", h.ListTrendingTags)
 
 	// Optional Auth (認証なしでもアクセス可能)
 	optionalAuth := api.Group("/")
@@ -674,6 +683,65 @@ func TestTagHandler_ListPublicTags(t *testing.T) {
 		}
 		r := newTagHandlerRouter(t, svc, nil)
 		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags", nil, nil)
+		if rw.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", rw.Code)
+		}
+	})
+}
+
+func TestTagHandler_ListTrendingTags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("デフォルト(period未指定, limit=5)でサービスが呼ばれる: 200", func(t *testing.T) {
+		t.Parallel()
+
+		var gotDays, gotLimit int
+		svc := &fakeTagService{
+			ListTrendingTagsFn: func(ctx context.Context, days, limit int) ([]service.TagListItem, error) {
+				gotDays, gotLimit = days, limit
+				return []service.TagListItem{}, nil
+			},
+		}
+		r := newTagHandlerRouter(t, svc, nil)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/trending", nil, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+		if gotDays != 7 || gotLimit != 5 {
+			t.Fatalf("expected (days=7, limit=5), got (%d, %d)", gotDays, gotLimit)
+		}
+	})
+
+	t.Run("limit が範囲外: 1〜50 にクランプ", func(t *testing.T) {
+		t.Parallel()
+
+		var gotLimit int
+		svc := &fakeTagService{
+			ListTrendingTagsFn: func(ctx context.Context, days, limit int) ([]service.TagListItem, error) {
+				gotLimit = limit
+				return []service.TagListItem{}, nil
+			},
+		}
+		r := newTagHandlerRouter(t, svc, nil)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/trending?limit=999", nil, nil)
+		if rw.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rw.Code)
+		}
+		if gotLimit != 50 {
+			t.Fatalf("expected limit=50 (clamped), got %d", gotLimit)
+		}
+	})
+
+	t.Run("サービスが失敗: 500", func(t *testing.T) {
+		t.Parallel()
+
+		svc := &fakeTagService{
+			ListTrendingTagsFn: func(ctx context.Context, days, limit int) ([]service.TagListItem, error) {
+				return nil, errors.New("boom")
+			},
+		}
+		r := newTagHandlerRouter(t, svc, nil)
+		rw := testutil.PerformRequest(r, http.MethodGet, "/api/v1/tags/trending", nil, nil)
 		if rw.Code != http.StatusInternalServerError {
 			t.Fatalf("expected 500, got %d", rw.Code)
 		}
