@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getTagDetail } from "@/lib/api/tags/detail";
+import { JsonLd } from "@/components/JsonLd";
 import { TagDetailClient } from "./_components/TagDetailClient";
 
 // ISR: 5分ごとに再生成
@@ -117,18 +118,8 @@ export default async function TagDetailPage({
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
-      {collectionJsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(collectionJsonLd),
-          }}
-        />
-      )}
+      <JsonLd data={breadcrumbJsonLd} />
+      {collectionJsonLd && <JsonLd data={collectionJsonLd} />}
       <TagDetailClient tagId={tagId} />
     </>
   );
