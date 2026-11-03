@@ -6,7 +6,7 @@
 
 ## 技術スタック
 
-- **言語**: Go (Go 1.25 系)
+- **言語**: Go (Go 1.26 系)
 - **Web フレームワーク**: Gin (`github.com/gin-gonic/gin`)
 - **ORM**: GORM (`gorm.io/gorm`, `gorm.io/driver/postgres`)
 - **DB**: PostgreSQL（開発環境では Docker を想定）
