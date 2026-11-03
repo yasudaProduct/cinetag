@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import UserPageClient from "./UserPageClient";
 import { getUserByDisplayId } from "@/lib/api/users/getUser";
 import { getMe } from "@/lib/api/users/getMe";
+import { JsonLd } from "@/components/JsonLd";
 
 export async function generateMetadata({
   params,
@@ -87,10 +88,7 @@ export default async function UserPage({
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(profileJsonLd) }}
-      />
+      <JsonLd data={profileJsonLd} />
       <UserPageClient
         username={username}
         initialProfileUser={user}

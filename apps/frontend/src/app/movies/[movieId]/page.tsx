@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getMovieDetail } from "@/lib/api/movies/detail";
+import { JsonLd } from "@/components/JsonLd";
 import { MovieDetailClient } from "./_components/MovieDetailClient";
 
 // ISR: 1時間ごとに再生成（映画情報は変更頻度が低い）
@@ -102,12 +103,7 @@ export default async function MovieDetailPage({
 
   return (
     <>
-      {movieJsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(movieJsonLd) }}
-        />
-      )}
+      {movieJsonLd && <JsonLd data={movieJsonLd} />}
       <MovieDetailClient movieId={movieId} />
     </>
   );
