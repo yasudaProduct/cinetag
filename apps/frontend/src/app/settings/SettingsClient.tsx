@@ -41,12 +41,15 @@ export function SettingsClient() {
     enabled: isLoaded && !!user,
   });
 
-  // バックエンドからユーザー情報が取得できたら表示名を設定
-  useEffect(() => {
+  // バックエンドからユーザー情報が取得・更新されたら表示名を設定
+  // （Effect ではなくレンダー中に前回値と比較して更新する）
+  const [syncedBackendUser, setSyncedBackendUser] = useState<typeof backendUser>(undefined);
+  if (backendUser !== syncedBackendUser) {
+    setSyncedBackendUser(backendUser);
     if (backendUser) {
       setDisplayName(backendUser.display_name);
     }
-  }, [backendUser]);
+  }
 
   // 未ログインの場合はリダイレクト
   useEffect(() => {
