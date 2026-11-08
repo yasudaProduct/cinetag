@@ -4,6 +4,7 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "../components/providers/query-client-provider";
 import { AppShell } from "../components/AppShell";
+import { JsonLd } from "../components/JsonLd";
 import { jaJP } from "@clerk/localizations";
 import { GoogleAnalytics } from "@next/third-parties/google";
 
@@ -76,18 +77,14 @@ export default function RootLayout({
     >
       <html lang="ja" suppressHydrationWarning>
         <head>
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify({
-                "@context": "https://schema.org",
-                "@type": "WebSite",
-                name: "cinetag",
-                url:
-                  process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-                description:
-                  "映画に自由にタグを作成し、他のユーザーと共有できる映画プラットフォーム",
-              }),
+          <JsonLd
+            data={{
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "cinetag",
+              url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+              description:
+                "映画に自由にタグを作成し、他のユーザーと共有できる映画プラットフォーム",
             }}
           />
         </head>
