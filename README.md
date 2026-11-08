@@ -11,8 +11,8 @@
 
 ### 前提条件
 
-- Go 1.25 以上
-- Node.js 18 以上
+- Go 1.26 以上
+- Node.js 22 以上
 - Docker と Docker Compose
 - ngrok（Webhook 受信用、任意）
 

@@ -4,7 +4,7 @@ Go + Gin APIサーバーのガイダンスです。
 
 ## 技術スタック
 
-- **言語**: Go 1.25
+- **言語**: Go 1.26
 - **フレームワーク**: Gin (github.com/gin-gonic/gin)
 - **ORM**: GORM with PostgreSQL
 - **認証**: Clerk (JWT RS256検証)
